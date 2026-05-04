@@ -2,18 +2,19 @@ const { supabaseAdmin } = require('../config/supabase')
 const { AppError } = require('../middleware/errorHandler')
 
 const manualPaymentService = {
-  async submitManualPayment(userId, { amount, method, tranId, phone, email }) {
-    if (!amount || !method || !tranId || !phone) {
-      throw new AppError('সব ফিল্ড পূরণ করুন', 400)
+  async submitManualPayment(userId, { amount, method, tranId, phone, email, screenshot }) {
+    if (!tranId && !screenshot) {
+      throw new AppError('Transaction ID অথবা স্ক্রিনশট দিন', 400)
     }
 
     const row = {
       user_id: userId,
       email: email || 'No Email',
-      amount: String(amount),
-      method,
-      tran_id: String(tranId).toUpperCase(),
-      phone,
+      amount: amount ? String(amount) : null,
+      method: method || 'bKash',
+      tran_id: tranId ? String(tranId).toUpperCase() : null,
+      phone: phone || null,
+      screenshot: screenshot || null,
       status: 'pending',
     }
 
@@ -28,6 +29,7 @@ const manualPaymentService = {
       method: data.method,
       tranId: data.tran_id,
       phone: data.phone,
+      screenshot: data.screenshot,
       status: data.status,
       createdAt: data.created_at,
     }
@@ -39,6 +41,27 @@ const manualPaymentService = {
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
+    if (error) throw error
+    return (data || []).map((p) => ({
+      id: p.id,
+      userId: p.user_id,
+      email: p.email,
+      amount: p.amount,
+      method: p.method,
+      tranId: p.tran_id,
+      phone: p.phone,
+      screenshot: p.screenshot,
+      status: p.status,
+      createdAt: p.created_at,
+    }))
+  },
+
+  async listAllPayments() {
+    const { data, error } = await supabaseAdmin
+      .from('manual_payments')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(200)
     if (error) throw error
     return (data || []).map((p) => ({
       id: p.id,

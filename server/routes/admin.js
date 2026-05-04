@@ -91,12 +91,12 @@ router.get('/stats', async (req, res, next) => {
     const [{ count: uCount }, { count: pCount }, { data: payRows }] = await Promise.all([
       supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('papers').select('*', { count: 'exact', head: true }),
-      supabaseAdmin.from('payments').select('amount, status'),
+      supabaseAdmin.from('manual_payments').select('amount, status'),
     ])
 
     let totalRevenue = 0
     ;(payRows || []).forEach((p) => {
-      if (p.status === 'success' || p.status === 'verified') {
+      if (p.status === 'verified') {
         totalRevenue += Number(p.amount) || 0
       }
     })
@@ -115,17 +115,7 @@ router.get('/stats', async (req, res, next) => {
 
 router.get('/payments/all', async (req, res, next) => {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('payments')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200)
-    if (error) throw error
-    const payments = (data || []).map((p) => ({
-      id: p.tran_id,
-      ...p,
-      userId: p.user_id,
-    }))
+    const payments = await manualPaymentService.listAllPayments()
     res.json({ success: true, payments })
   } catch (err) {
     next(err)

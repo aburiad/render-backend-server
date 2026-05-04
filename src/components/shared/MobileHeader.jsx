@@ -125,7 +125,7 @@ export default function MobileHeader({ className = '' }) {
           </AnimatePresence>
           {isDashboard && (
             <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
-              {user?.subscription === 'pro' ? '✦ Pro' : 'Free'}
+              {user?.tier === 'pro' ? '✦ Pro' : user?.tier === 'trial' ? '✦ Trial' : 'Free'}
             </p>
           )}
         </div>
@@ -187,14 +187,14 @@ export default function MobileHeader({ className = '' }) {
           </div>
           <span
             style={{ marginLeft: 'auto' }}
-            className={`badge ${user?.subscription === 'pro' ? 'badge-pro' : 'badge-free'}`}
+            className={`badge ${user?.tier === 'pro' ? 'badge-pro' : user?.tier === 'trial' ? 'badge-pro' : 'badge-free'}`}
           >
-            {user?.subscription === 'pro' ? 'PRO' : 'FREE'}
+            {user?.tier === 'pro' ? 'PRO' : user?.tier === 'trial' ? 'TRIAL' : 'FREE'}
           </span>
         </div>
 
         {/* Actions */}
-        {user?.subscription !== 'pro' && (
+        {user?.tier !== 'pro' && (
           <BottomSheetItem
             onClick={() => { setMenuOpen(false); navigate('/pricing') }}
             label="Pro তে আপগ্রেড করুন"

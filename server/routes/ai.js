@@ -1,8 +1,7 @@
 const express = require('express')
 const { scanImage } = require('../services/aiService')
 const { AppError } = require('../middleware/errorHandler')
-const { checkLimit } = require('../middleware/subscription')
-const { supabaseAdmin } = require('../config/supabase')
+const { checkLimit, recordAiScan } = require('../middleware/subscription')
 const { requireAuth } = require('../middleware/auth')
 
 const router = express.Router()
@@ -21,11 +20,7 @@ router.post('/scan', checkLimit('ai_scan'), async (req, res, next) => {
     const result = await scanImage(image)
 
     if (req.profile) {
-      const nextCount = (req.profile.ai_scan_count || 0) + 1
-      await supabaseAdmin
-        .from('profiles')
-        .update({ ai_scan_count: nextCount, updated_at: new Date().toISOString() })
-        .eq('id', req.user.uid)
+      await recordAiScan(req.user.uid, req.profile)
     }
 
     res.json({

@@ -14,6 +14,7 @@ export default function AdminDashboard() {
   const [allPayments, setAllPayments] = useState([])
   const [editingUser, setEditingUser] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [previewImage, setPreviewImage] = useState(null)
 
   useEffect(() => {
     fetchData()
@@ -198,14 +199,14 @@ export default function AdminDashboard() {
                       </td>
                       <td className="p-6">
                         <p className="font-bold text-sm text-gray-900 uppercase">
-                           {(payment.paymentMethod || payment.method || 'ssl').replace('sslcommerz', 'ssl')}
+                           {payment.method || '-'}
                         </p>
-                        <p className="text-[10px] text-gray-400 tracking-wider mt-0.5">{payment.tranId}</p>
+                        <p className="text-[10px] text-gray-400 tracking-wider mt-0.5">{payment.tranId || '—'}</p>
                       </td>
-                      <td className="p-6 font-black text-gray-900">৳{payment.amount}</td>
+                      <td className="p-6 font-black text-gray-900">৳{payment.amount || '-'}</td>
                       <td className="p-6">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest inline-flex items-center justify-center ${
-                          payment.status === 'success' || payment.status === 'verified' ? 'bg-green-100 text-green-700' :
+                          payment.status === 'verified' ? 'bg-green-100 text-green-700' :
                           payment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
                           'bg-red-100 text-red-700'
                         }`}>
@@ -352,35 +353,66 @@ export default function AdminDashboard() {
               </div>
             ) : (
               pendingPayments.map((payment) => (
-                <div key={payment.id} className="bg-white p-6 rounded-3xl border border-gray-100 flex items-center justify-between shadow-sm">
-                  <div className="flex gap-4 items-center">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
-                      <span className="font-black text-xs uppercase">{payment.method}</span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className="font-black text-gray-900 text-lg">৳{payment.amount}</span>
-                        <span className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">PENDING</span>
+                <div key={payment.id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
+                  <div className="flex flex-col md:flex-row gap-6 items-start">
+                    {payment.screenshot ? (
+                      <button
+                        type="button"
+                        onClick={() => setPreviewImage(payment.screenshot)}
+                        className="w-full md:w-40 flex-shrink-0 group"
+                      >
+                        <img
+                          src={payment.screenshot}
+                          alt="payment screenshot"
+                          className="w-full h-40 object-cover rounded-2xl border border-gray-100 group-hover:border-blue-500 transition-colors"
+                        />
+                        <p className="text-[10px] text-blue-600 font-bold uppercase tracking-widest mt-2">View full size</p>
+                      </button>
+                    ) : (
+                      <div className="w-full md:w-40 h-40 flex-shrink-0 rounded-2xl bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                        কোনো স্ক্রিনশট নেই
                       </div>
-                      <p className="text-xs text-blue-600 font-bold mb-1">{payment.email}</p>
-                      <p className="text-xs text-gray-400 uppercase tracking-wide">
-                         Tran ID: <span className="font-bold text-gray-600">{payment.tranId}</span> • Phone: <span className="font-bold text-gray-600">{payment.phone}</span>
-                      </p>
+                    )}
+
+                    <div className="flex-1 w-full">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-black text-gray-900 text-lg">৳{payment.amount || '-'}</span>
+                        <span className="text-[10px] bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-bold">PENDING</span>
+                        <span className="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full font-bold uppercase">{payment.method}</span>
+                      </div>
+                      <p className="text-xs text-blue-600 font-bold mb-2">{payment.email}</p>
+                      <div className="text-xs text-gray-500 space-y-1">
+                        <p>
+                          <span className="text-gray-400 uppercase tracking-wide">Tran ID:</span>{' '}
+                          <span className="font-bold text-gray-700">{payment.tranId || '—'}</span>
+                        </p>
+                        <p>
+                          <span className="text-gray-400 uppercase tracking-wide">Phone:</span>{' '}
+                          <span className="font-bold text-gray-700">{payment.phone || '—'}</span>
+                        </p>
+                        {payment.createdAt && (
+                          <p>
+                            <span className="text-gray-400 uppercase tracking-wide">Submitted:</span>{' '}
+                            <span className="font-bold text-gray-700">{new Date(payment.createdAt).toLocaleString('en-GB')}</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => handleVerifyPayment(payment.id, 'rejected')}
-                      className="px-4 py-2 text-red-600 font-bold text-sm rounded-xl hover:bg-red-50 transition-colors"
-                    >
-                      বাতিল
-                    </button>
-                    <button
-                      onClick={() => handleVerifyPayment(payment.id, 'verified')}
-                      className="px-6 py-2 bg-green-600 text-white font-bold text-sm rounded-xl hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all btn-press"
-                    >
-                      ভেরিফাই করুন
-                    </button>
+
+                    <div className="flex gap-2 self-start md:self-center">
+                      <button
+                        onClick={() => handleVerifyPayment(payment.id, 'rejected')}
+                        className="px-4 py-2 text-red-600 font-bold text-sm rounded-xl hover:bg-red-50 transition-colors"
+                      >
+                        বাতিল
+                      </button>
+                      <button
+                        onClick={() => handleVerifyPayment(payment.id, 'verified')}
+                        className="px-6 py-2 bg-green-600 text-white font-bold text-sm rounded-xl hover:bg-green-700 shadow-lg shadow-green-600/20 transition-all btn-press"
+                      >
+                        ভেরিফাই করুন
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
@@ -399,6 +431,31 @@ export default function AdminDashboard() {
               setEditingUser(null)
             }}
           />
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {previewImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm cursor-zoom-out"
+            onClick={() => setPreviewImage(null)}
+          >
+            <img
+              src={previewImage}
+              alt="payment screenshot full size"
+              className="max-w-full max-h-full rounded-2xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              onClick={() => setPreviewImage(null)}
+              className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white/20 hover:bg-white/30 text-white text-xl font-bold flex items-center justify-center backdrop-blur-md"
+            >
+              ✕
+            </button>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

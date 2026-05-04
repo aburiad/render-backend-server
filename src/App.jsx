@@ -7,8 +7,6 @@ import Login from '@/pages/Login'
 import OmrPreview from '@/pages/OmrPreview'
 import PaperEditor from '@/pages/PaperEditor'
 import PapersList from '@/pages/PapersList'
-import PaymentFail from '@/pages/PaymentFail'
-import PaymentSuccess from '@/pages/PaymentSuccess'
 import PDFPreview from '@/pages/PDFPreview'
 import Pricing from '@/pages/Pricing'
 import QuestionBank from '@/pages/QuestionBank'
@@ -83,8 +81,6 @@ export default function App() {
           <Route path="bank" element={<QuestionBank />} />
           <Route path="results" element={<Results />} />
           <Route path="pricing" element={<Pricing />} />
-          <Route path="payment/success" element={<PaymentSuccess />} />
-          <Route path="payment/fail" element={<PaymentFail />} />
           <Route
             path="admin"
             element={<AdminRoute><AdminDashboard /></AdminRoute>}

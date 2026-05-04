@@ -83,11 +83,13 @@ export default function DesktopSidebar({ className = '' }) {
           <div>
             <h2 className="text-base font-bold text-gray-900">AI Question Hub</h2>
             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-              user?.subscription === 'pro'
+              user?.tier === 'pro'
                 ? 'bg-purple-100 text-purple-700'
+                : user?.tier === 'trial'
+                ? 'bg-blue-100 text-blue-700'
                 : 'bg-gray-100 text-gray-500'
             }`}>
-              {user?.subscription === 'pro' ? 'PRO' : 'FREE'}
+              {user?.tier === 'pro' ? 'PRO' : user?.tier === 'trial' ? 'TRIAL' : 'FREE'}
             </span>
           </div>
         </div>

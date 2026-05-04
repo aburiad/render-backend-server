@@ -41,9 +41,9 @@ router.post('/', checkLimit('paper_count'), async (req, res, next) => {
       total_marks,
       header_alignment,
       layout,
-      watermark: req.user.subscription === 'pro' ? watermark ?? null : 'AI Question Hub',
+      watermark: req.user.tier !== 'free' ? watermark ?? null : 'AI Question Hub',
       set_variant,
-      logo_url: req.user.subscription === 'pro' ? logo_url || null : null,
+      logo_url: req.user.tier !== 'free' ? logo_url || null : null,
       questions: questions || [],
     })
 
@@ -94,7 +94,7 @@ router.put('/:id', async (req, res, next) => {
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) updates[field] = req.body[field]
     }
-    if (req.user.subscription !== 'pro') {
+    if (req.user.tier === 'free') {
       updates.watermark = 'AI Question Hub'
       delete updates.logo_url
     }

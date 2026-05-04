@@ -237,8 +237,8 @@ export default function Dashboard() {
             boxShadow: 'var(--shadow-sm)',
             border: '1px solid #e2e8f0',
           }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: user?.subscription === 'pro' ? '#f59e0b' : '#64748b' }}>
-              {user?.subscription === 'pro' ? '✦ PRO' : 'FREE'}
+            <span style={{ fontSize: 11, fontWeight: 800, color: user?.tier === 'pro' ? '#f59e0b' : user?.tier === 'trial' ? '#2563eb' : '#64748b' }}>
+              {user?.tier === 'pro' ? '✦ PRO' : user?.tier === 'trial' ? '✦ TRIAL' : 'FREE'}
             </span>
           </div>
         </div>

@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import useAuthStore from '@/store/authStore'
 
 export default function ProGate({ feature, children }) {
-  const subscription = useAuthStore((s) => s.user?.subscription)
+  const tier = useAuthStore((s) => s.user?.tier)
   const [showModal, setShowModal] = useState(false)
   const navigate = useNavigate()
 
-  if (subscription === 'pro') {
+  if (tier === 'pro' || tier === 'trial') {
     return children
   }
 

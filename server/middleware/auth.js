@@ -1,10 +1,46 @@
 const { supabaseAdmin } = require('../config/supabase')
+const configService = require('../services/configService')
+
+let cachedConfig = { value: null, expires: 0 }
+async function getCachedConfig() {
+  if (cachedConfig.value && cachedConfig.expires > Date.now()) return cachedConfig.value
+  try {
+    const config = await configService.getConfig()
+    cachedConfig = { value: config, expires: Date.now() + 60_000 }
+    return config
+  } catch (err) {
+    console.error('[auth] config fetch failed:', err.message)
+    return cachedConfig.value || { trialDays: 0 }
+  }
+}
+
+function computeTier(profile, trialDays) {
+  const now = new Date()
+
+  if (profile.subscription === 'pro' && profile.subscription_end_at) {
+    if (new Date(profile.subscription_end_at) > now) {
+      return { tier: 'pro', trialEndAt: null }
+    }
+  }
+
+  const created = profile.created_at ? new Date(profile.created_at) : now
+  const trialEnd = new Date(created.getTime() + (trialDays || 0) * 24 * 60 * 60 * 1000)
+  if (trialEnd > now) {
+    return { tier: 'trial', trialEndAt: trialEnd.toISOString() }
+  }
+  return { tier: 'free', trialEndAt: trialEnd.toISOString() }
+}
 
 /**
  * Verify Supabase JWT (sent as `Authorization: Bearer <token>`) and load profile.
  * On success, populates:
- *   req.user    = { uid, email, name, role, subscription }
+ *   req.user    = { uid, email, name, role, subscription, tier, trialEndAt }
  *   req.profile = full row from `profiles` table (or null on first hit)
+ *
+ * `tier` is the *effective* access level: 'pro' | 'trial' | 'free'
+ *   - pro  : paid, subscription_end_at in the future
+ *   - trial: not paid, but within (created_at + trialDays)
+ *   - free : trial expired, no active pro subscription
  */
 async function requireAuth(req, res, next) {
   if (!supabaseAdmin) {
@@ -25,11 +61,19 @@ async function requireAuth(req, res, next) {
     const sUser = data.user
     const meta = sUser.user_metadata || {}
 
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('*')
-      .eq('id', sUser.id)
-      .maybeSingle()
+    const [profileRes, config] = await Promise.all([
+      supabaseAdmin.from('profiles').select('*').eq('id', sUser.id).maybeSingle(),
+      getCachedConfig(),
+    ])
+    const profile = profileRes.data
+
+    let tier = 'free'
+    let trialEndAt = null
+    if (profile) {
+      const t = computeTier(profile, config.trialDays || 0)
+      tier = t.tier
+      trialEndAt = t.trialEndAt
+    }
 
     req.user = {
       uid: sUser.id,
@@ -37,6 +81,8 @@ async function requireAuth(req, res, next) {
       name: profile?.display_name || meta.full_name || meta.name || sUser.email?.split('@')[0] || 'User',
       role: profile?.role || meta.role || null,
       subscription: profile?.subscription || 'free',
+      tier,
+      trialEndAt,
     }
     req.profile = profile || null
     next()
@@ -46,10 +92,6 @@ async function requireAuth(req, res, next) {
   }
 }
 
-/**
- * Optional auth — populates req.user if a valid token is present, otherwise lets the request through.
- * Useful for public endpoints that personalize when logged in.
- */
 async function optionalAuth(req, res, next) {
   const header = req.headers.authorization || ''
   if (!header.startsWith('Bearer ')) return next()
@@ -60,4 +102,4 @@ async function optionalAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, optionalAuth }
+module.exports = { requireAuth, optionalAuth, computeTier }

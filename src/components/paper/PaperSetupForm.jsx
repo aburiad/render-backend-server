@@ -31,7 +31,7 @@ export default function PaperSetupForm() {
   const paper = usePaperStore((s) => s.currentPaper)
   const updatePaper = usePaperStore((s) => s.updatePaper)
   const user = useAuthStore((s) => s.user)
-  const isPro = user?.subscription === 'pro'
+  const isPro = user?.tier === 'pro' || user?.tier === 'trial'
   const [expanded, setExpanded] = useState(false)
 
   const handleChange = (field, value) => {

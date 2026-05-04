@@ -16,8 +16,6 @@ vi.mock('@/pages/ScanUpload', () => ({ default: () => <div data-testid="scan-pag
 vi.mock('@/pages/QuestionBank', () => ({ default: () => <div data-testid="bank-page">Bank</div> }))
 vi.mock('@/pages/Results', () => ({ default: () => <div data-testid="results-page">Results</div> }))
 vi.mock('@/pages/Pricing', () => ({ default: () => <div data-testid="pricing-page">Pricing</div> }))
-vi.mock('@/pages/PaymentSuccess', () => ({ default: () => <div data-testid="pay-success">PaySuccess</div> }))
-vi.mock('@/pages/PaymentFail', () => ({ default: () => <div data-testid="pay-fail">PayFail</div> }))
 vi.mock('@/pages/AdminDashboard', () => ({ default: () => <div data-testid="admin-page">Admin</div> }))
 vi.mock('@/components/shared/AppShell', () => {
   const { Outlet } = require('react-router-dom')
