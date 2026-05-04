@@ -238,9 +238,15 @@ export default function Pricing() {
               </div>
 
               <div className="p-8 space-y-3 bg-gray-50/50">
-                {config.manualPaymentMethods.map((m) => (
+                {(!config.manualPaymentMethods || config.manualPaymentMethods.length === 0) && (
+                  <div className="p-5 bg-amber-50 border border-amber-100 rounded-2xl text-center">
+                    <p className="text-sm font-bold text-amber-900">পেমেন্ট নম্বর এখনো কনফিগার করা হয়নি।</p>
+                    <p className="text-xs text-amber-700 mt-1">অনুগ্রহ করে অ্যাডমিনের সাথে যোগাযোগ করুন।</p>
+                  </div>
+                )}
+                {(config.manualPaymentMethods || []).map((m, idx) => (
                   <div
-                    key={m.name}
+                    key={`${m.name}-${idx}`}
                     className="flex items-center justify-between p-4 bg-white rounded-2xl shadow-sm border border-gray-100"
                   >
                     <div className="flex items-center gap-3">

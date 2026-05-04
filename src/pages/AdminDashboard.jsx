@@ -282,17 +282,38 @@ export default function AdminDashboard() {
 
               {/* Manual Payment Numbers Section */}
               <div className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">ম্যানুয়াল পেমেন্ট নম্বর</h3>
-                {config.manualPaymentMethods.map((method, index) => (
-                  <div key={index} className="grid grid-cols-3 gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">ম্যানুয়াল পেমেন্ট নম্বর</h3>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = [...(config.manualPaymentMethods || []), { name: 'bKash', number: '', type: 'Personal' }]
+                      setConfig({ ...config, manualPaymentMethods: next })
+                    }}
+                    className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    + নতুন যোগ করুন
+                  </button>
+                </div>
+
+                {(config.manualPaymentMethods || []).length === 0 && (
+                  <div className="p-6 bg-amber-50 border border-amber-100 rounded-2xl text-center">
+                    <p className="text-sm font-bold text-amber-900 mb-1">কোনো পেমেন্ট নম্বর নেই</p>
+                    <p className="text-xs text-amber-700">"নতুন যোগ করুন" বাটনে চাপ দিয়ে bKash/Nagad/Rocket নম্বর যোগ করুন। নাহলে user-রা পেমেন্ট করার নম্বর দেখতে পাবে না।</p>
+                  </div>
+                )}
+
+                {(config.manualPaymentMethods || []).map((method, index) => (
+                  <div key={index} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-3 p-4 bg-gray-50 rounded-2xl border border-gray-100 items-end">
                     <div>
                       <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">মেথড</label>
                       <input
                         type="text"
-                        value={method.name}
+                        placeholder="bKash"
+                        value={method.name || ''}
                         onChange={(e) => {
                           const newMethods = [...config.manualPaymentMethods]
-                          newMethods[index].name = e.target.value
+                          newMethods[index] = { ...newMethods[index], name: e.target.value }
                           setConfig({ ...config, manualPaymentMethods: newMethods })
                         }}
                         className="w-full px-3 py-2 bg-white border-0 rounded-lg text-sm font-bold"
@@ -302,10 +323,11 @@ export default function AdminDashboard() {
                       <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">নম্বর</label>
                       <input
                         type="text"
-                        value={method.number}
+                        placeholder="01XXXXXXXXX"
+                        value={method.number || ''}
                         onChange={(e) => {
                           const newMethods = [...config.manualPaymentMethods]
-                          newMethods[index].number = e.target.value
+                          newMethods[index] = { ...newMethods[index], number: e.target.value }
                           setConfig({ ...config, manualPaymentMethods: newMethods })
                         }}
                         className="w-full px-3 py-2 bg-white border-0 rounded-lg text-sm font-bold"
@@ -315,15 +337,27 @@ export default function AdminDashboard() {
                       <label className="block text-[10px] font-bold text-gray-400 uppercase mb-1">টাইপ</label>
                       <input
                         type="text"
-                        value={method.type}
+                        placeholder="Personal"
+                        value={method.type || ''}
                         onChange={(e) => {
                           const newMethods = [...config.manualPaymentMethods]
-                          newMethods[index].type = e.target.value
+                          newMethods[index] = { ...newMethods[index], type: e.target.value }
                           setConfig({ ...config, manualPaymentMethods: newMethods })
                         }}
                         className="w-full px-3 py-2 bg-white border-0 rounded-lg text-sm font-bold"
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newMethods = config.manualPaymentMethods.filter((_, i) => i !== index)
+                        setConfig({ ...config, manualPaymentMethods: newMethods })
+                      }}
+                      className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-50 text-red-600 hover:bg-red-100 font-bold transition-colors"
+                      title="ডিলিট"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))}
               </div>
