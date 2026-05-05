@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
+import { MathText } from '@/utils/mathRender'
 
 export default function ExamPortal() {
   const { examId } = useParams()
@@ -209,14 +210,14 @@ export default function ExamPortal() {
                       {i + 1}
                     </span>
                     <div className="flex-1">
-                      <p className="text-gray-900 font-medium leading-relaxed">
-                        {q.question || q.stimulus || q.sentence}
-                      </p>
+                      <div className="text-gray-900 font-medium leading-relaxed">
+                        <MathText text={q.question || q.stimulus || q.sentence || ''} />
+                      </div>
                       {q.sub_questions && (
                          <div className="mt-4 space-y-3 pl-4 border-l-2 border-gray-50">
                             {q.sub_questions.map((sq) => (
                               <div key={sq.label} className="space-y-2">
-                                <p className="text-sm text-gray-700"><span className="font-bold mr-1">{sq.label}.</span> {sq.text}</p>
+                                <div className="text-sm text-gray-700"><span className="font-bold mr-1">{sq.label}.</span> <MathText text={sq.text || ''} /></div>
                                 <textarea
                                   placeholder="উত্তর লিখুন..."
                                   value={answers[`${q.id}_${sq.label}`] || ''}
@@ -251,7 +252,7 @@ export default function ExamPortal() {
                             }`}>
                               {['ক', 'খ', 'গ', 'ঘ'][oi]}
                             </span>
-                            <span className="text-sm font-medium">{optVal}</span>
+                            <span className="text-sm font-medium"><MathText text={String(optVal)} /></span>
                           </button>
                         )
                       })}

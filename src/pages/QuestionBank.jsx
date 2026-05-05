@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 import { TYPE_LABELS, TYPE_COLORS } from '@/components/questions/QuestionWrapper'
+import { MathText } from '@/utils/mathRender'
 
 /* ─── Animation variants ─────────────────────────────────── */
 const container = {
@@ -42,7 +43,7 @@ function QuestionCard({ q, isExpanded, onToggle, onDelete }) {
              display: '-webkit-box', WebkitLineClamp: isExpanded ? 'unset' : 3,
              WebkitBoxOrient: 'vertical', overflow: 'hidden'
            }}>
-             {q.data?.question || q.data?.stimulus || q.data?.sentence || "প্রশ্ন উপাত্ত নেই"}
+             <MathText text={q.data?.question || q.data?.stimulus || q.data?.sentence || "প্রশ্ন উপাত্ত নেই"} />
            </div>
 
            <AnimatePresence>
@@ -62,7 +63,7 @@ function QuestionCard({ q, isExpanded, onToggle, onDelete }) {
                          return (
                            <div key={oi} style={{ display: 'flex', gap: 8, background: '#f8fafc', padding: '10px', borderRadius: 10 }}>
                              <span style={{ fontSize: 11, fontWeight: 900, color: '#3b82f6' }}>{['ক', 'খ', 'গ', 'ঘ'][oi]}.</span>
-                             <span style={{ fontSize: 11, color: '#475569', fontWeight: 500 }}>{opt}</span>
+                             <span style={{ fontSize: 11, color: '#475569', fontWeight: 500 }}><MathText text={String(opt)} /></span>
                            </div>
                          )
                        })}
@@ -73,7 +74,7 @@ function QuestionCard({ q, isExpanded, onToggle, onDelete }) {
                    {q.type === 'CQ' && q.data?.sub_questions?.map(sq => (
                      <div key={sq.label} style={{ fontSize: 12, background: '#f5f3ff', padding: '10px', borderRadius: 10, border: '1px solid #ede9fe' }}>
                        <span style={{ fontWeight: 800, color: '#7c3aed', marginRight: 6 }}>{sq.label}.</span>
-                       <span style={{ color: '#4b5563' }}>{sq.text}</span>
+                       <span style={{ color: '#4b5563' }}><MathText text={sq.text} /></span>
                        <span style={{ marginLeft: 6, fontSize: 10, color: '#94a3b8', fontWeight: 700 }}>({sq.marks})</span>
                      </div>
                    ))}

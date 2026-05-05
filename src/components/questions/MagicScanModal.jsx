@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import api from '@/services/api'
 import usePaperStore from '@/store/paperStore'
 import { toast } from 'react-hot-toast'
+import { MathText } from '@/utils/mathRender'
 
 export default function MagicScanModal({ onClose }) {
   const [step, setStep] = useState('upload') // upload, processing, review
@@ -320,15 +321,26 @@ export default function MagicScanModal({ onClose }) {
                                </button>
                             </div>
                           </div>
-                          <p className="text-sm text-gray-800 font-medium leading-relaxed">
-                            {q.question || q.stimulus || (q.sentence?.replace(/___/g, '______')) || 'প্রশ্ন খুঁজে পাওয়া যায়নি'}
-                          </p>
+                          <div className="text-sm text-gray-800 font-medium leading-relaxed">
+                            <MathText text={q.question || q.stimulus || (q.sentence?.replace(/___/g, '______')) || 'প্রশ্ন খুঁজে পাওয়া যায়নি'} />
+                          </div>
+                          {q.type === 'MCQ' && (
+                            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 pl-2">
+                              {['a', 'b', 'c', 'd'].map((opt) => q[`option_${opt}`] && (
+                                <div key={opt} className={`text-[11px] flex gap-1 ${q.correct_answer === opt ? 'text-green-700 font-semibold' : 'text-gray-600'}`}>
+                                  <span className="font-bold">{['ক', 'খ', 'গ', 'ঘ'][['a', 'b', 'c', 'd'].indexOf(opt)]}.</span>
+                                  <MathText text={String(q[`option_${opt}`])} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           {q.sub_questions && (
                             <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-100">
                               {q.sub_questions.map((sq, si) => (
-                                <p key={si} className="text-[11px] text-gray-500">
-                                  <span className="font-bold mr-1">{sq.label}.</span> {sq.text}
-                                </p>
+                                <div key={si} className="text-[11px] text-gray-500">
+                                  <span className="font-bold mr-1">{sq.label}.</span>
+                                  <MathText text={sq.text} />
+                                </div>
                               ))}
                             </div>
                           )}

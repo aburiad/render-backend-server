@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathSymbolPicker from './MathSymbolPicker'
+import { MathPreview } from '@/utils/mathRender'
 
 const SUB_LABELS = ['ক', 'খ', 'গ', 'ঘ']
 
@@ -35,42 +36,48 @@ export default function CqEditor({ question }) {
             ref={stimulusRef}
             value={question.stimulus || ''}
             onChange={(e) => handleStimulusChange(e.target.value)}
-            placeholder="উদ্দীপক লিখুন..."
+            placeholder="উদ্দীপক লিখুন... (গণিত: $\frac{a}{b}$, $\sqrt{x^2+1}$)"
             rows={3}
             className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
           <MathSymbolPicker inputRef={stimulusRef} onInsert={(v) => handleStimulusChange(v)} />
         </div>
+        <MathPreview text={question.stimulus} />
       </div>
 
       {/* Sub-questions */}
       <div className="space-y-2">
         {subQuestions.map((sub, i) => (
-          <div key={sub.label} className="flex items-start gap-2">
-            <span className="w-6 h-8 flex items-center justify-center text-sm font-bold text-purple-500 flex-shrink-0">
-              {sub.label})
-            </span>
-            <textarea
-              ref={(el) => { subRefs.current[i] = el }}
-              value={sub.text}
-              onChange={(e) => handleSubChange(i, 'text', e.target.value)}
-              placeholder={`${sub.label} নং প্রশ্ন...`}
-              rows={1}
-              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
-            <MathSymbolPicker
-              inputRef={{ get current() { return subRefs.current[i] } }}
-              onInsert={(v) => handleSubChange(i, 'text', v)}
-            />
-            <div className="flex items-center gap-1 flex-shrink-0">
-              <input
-                type="number"
-                value={sub.marks || ''}
-                onChange={(e) => handleSubChange(i, 'marks', Number(e.target.value))}
-                min={0}
-                className="w-14 px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                placeholder="নম্বর"
+          <div key={sub.label}>
+            <div className="flex items-start gap-2">
+              <span className="w-6 h-8 flex items-center justify-center text-sm font-bold text-purple-500 flex-shrink-0">
+                {sub.label})
+              </span>
+              <textarea
+                ref={(el) => { subRefs.current[i] = el }}
+                value={sub.text}
+                onChange={(e) => handleSubChange(i, 'text', e.target.value)}
+                placeholder={`${sub.label} নং প্রশ্ন...`}
+                rows={1}
+                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
+              <MathSymbolPicker
+                inputRef={{ get current() { return subRefs.current[i] } }}
+                onInsert={(v) => handleSubChange(i, 'text', v)}
+              />
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <input
+                  type="number"
+                  value={sub.marks || ''}
+                  onChange={(e) => handleSubChange(i, 'marks', Number(e.target.value))}
+                  min={0}
+                  className="w-14 px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="নম্বর"
+                />
+              </div>
+            </div>
+            <div className="pl-8">
+              <MathPreview text={sub.text} label="" />
             </div>
           </div>
         ))}

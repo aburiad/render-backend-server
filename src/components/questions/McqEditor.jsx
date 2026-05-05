@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathSymbolPicker from './MathSymbolPicker'
+import { MathPreview } from '@/utils/mathRender'
 
 export default function McqEditor({ question }) {
   const updateQuestion = usePaperStore((s) => s.updateQuestion)
@@ -27,12 +28,13 @@ export default function McqEditor({ question }) {
             ref={questionRef}
             value={question.question || ''}
             onChange={(e) => handleChange('question', e.target.value)}
-            placeholder="প্রশ্ন লিখুন..."
+            placeholder="প্রশ্ন লিখুন... (গণিত: $\\frac{a}{b}$ বা $\\sqrt{x}$)"
             rows={3}
             style={{ ...InputStyle, minHeight: 80, resize: 'none', flex: 1 }}
           />
           <MathSymbolPicker inputRef={questionRef} onInsert={(v) => handleChange('question', v)} />
         </div>
+        <MathPreview text={question.question} />
       </div>
 
       {/* Options Grid */}
@@ -40,32 +42,35 @@ export default function McqEditor({ question }) {
         {['a', 'b', 'c', 'd'].map((opt) => {
           const isCorrect = question.correct_answer === opt
           return (
-            <div key={opt} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <button
-                type="button"
-                onClick={() => handleChange('correct_answer', opt)}
-                className="btn-press"
-                style={{
-                  width: 32, height: 32, borderRadius: 10, flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, fontWeight: 900, transition: 'all 0.2s',
-                  background: isCorrect ? '#22c55e' : '#fff',
-                  border: `2px solid ${isCorrect ? '#22c55e' : '#e2e8f0'}`,
-                  color: isCorrect ? '#fff' : '#94a3b8',
-                  boxShadow: isCorrect ? '0 4px 10px rgba(34,197,94,0.3)' : 'none'
-                }}
-              >
-                {opt.toUpperCase()}
-              </button>
-              <input
-                ref={optionRefs[opt]}
-                type="text"
-                value={question[`option_${opt}`] || ''}
-                onChange={(e) => handleChange(`option_${opt}`, e.target.value)}
-                placeholder={`অপশন ${opt.toUpperCase()}`}
-                style={{ ...InputStyle, padding: '10px 12px', flex: 1 }}
-              />
-              <MathSymbolPicker inputRef={optionRefs[opt]} onInsert={(v) => handleChange(`option_${opt}`, v)} />
+            <div key={opt} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => handleChange('correct_answer', opt)}
+                  className="btn-press"
+                  style={{
+                    width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 12, fontWeight: 900, transition: 'all 0.2s',
+                    background: isCorrect ? '#22c55e' : '#fff',
+                    border: `2px solid ${isCorrect ? '#22c55e' : '#e2e8f0'}`,
+                    color: isCorrect ? '#fff' : '#94a3b8',
+                    boxShadow: isCorrect ? '0 4px 10px rgba(34,197,94,0.3)' : 'none'
+                  }}
+                >
+                  {opt.toUpperCase()}
+                </button>
+                <input
+                  ref={optionRefs[opt]}
+                  type="text"
+                  value={question[`option_${opt}`] || ''}
+                  onChange={(e) => handleChange(`option_${opt}`, e.target.value)}
+                  placeholder={`অপশন ${opt.toUpperCase()}`}
+                  style={{ ...InputStyle, padding: '10px 12px', flex: 1 }}
+                />
+                <MathSymbolPicker inputRef={optionRefs[opt]} onInsert={(v) => handleChange(`option_${opt}`, v)} />
+              </div>
+              <MathPreview text={question[`option_${opt}`]} label="" />
             </div>
           )
         })}

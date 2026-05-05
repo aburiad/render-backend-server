@@ -1,171 +1,166 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import * as katex from 'katex'
 import 'katex/dist/katex.css'
+import { MathText } from '@/utils/mathRender'
 
+const CURSOR_MARK = '​'
+
+// type: 'tpl'  → insert wrapped in $...$, supports cursor mark via § (single-spot) or §§ (two-spot for fraction)
+// type: 'uni'  → insert plain unicode (kept for symbols that read fine in plain text)
+// type: 'raw'  → insert literal LaTeX without $$ wrapping (used inside an existing math block by power users; here we still wrap in $...$ for safety)
 const SYMBOL_GROUPS = [
   {
     label: 'মৌলিক',
-    icon: '+-',
+    icon: '+−',
     symbols: [
-      { latex: '+', insert: '+' },
-      { latex: '-', insert: '-' },
-      { latex: '\\times', insert: '×' },
-      { latex: '\\div', insert: '÷' },
-      { latex: '=', insert: '=' },
-      { latex: '\\neq', insert: '≠' },
-      { latex: '\\pm', insert: '±' },
-      { latex: '\\leq', insert: '≤' },
-      { latex: '\\geq', insert: '≥' },
-      { latex: '<', insert: '<' },
-      { latex: '>', insert: '>' },
-      { latex: '\\approx', insert: '≈' },
-      { latex: '\\infty', insert: '∞' },
-      { latex: '\\%', insert: '%' },
+      { latex: '+', type: 'uni', insert: '+' },
+      { latex: '-', type: 'uni', insert: '-' },
+      { latex: '\\times', type: 'uni', insert: '×' },
+      { latex: '\\div', type: 'uni', insert: '÷' },
+      { latex: '=', type: 'uni', insert: '=' },
+      { latex: '\\neq', type: 'uni', insert: '≠' },
+      { latex: '\\pm', type: 'uni', insert: '±' },
+      { latex: '\\leq', type: 'uni', insert: '≤' },
+      { latex: '\\geq', type: 'uni', insert: '≥' },
+      { latex: '<', type: 'uni', insert: '<' },
+      { latex: '>', type: 'uni', insert: '>' },
+      { latex: '\\approx', type: 'uni', insert: '≈' },
+      { latex: '\\infty', type: 'uni', insert: '∞' },
+      { latex: '\\%', type: 'uni', insert: '%' },
     ],
   },
   {
-    label: 'ভগ্নাংশ / সূচক',
-    icon: 'x²',
+    label: 'ভগ্নাংশ / মূল',
+    icon: '√x̄',
     symbols: [
-      { latex: '\\frac{a}{b}', insert: '⁄' },
-      { latex: 'x^{2}', insert: '²' },
-      { latex: 'x^{3}', insert: '³' },
-      { latex: 'x^{n}', insert: 'ⁿ' },
-      { latex: 'x_{0}', insert: '₀' },
-      { latex: 'x_{1}', insert: '₁' },
-      { latex: 'x_{2}', insert: '₂' },
-      { latex: 'x_{i}', insert: 'ᵢ' },
-      { latex: '\\sqrt{x}', insert: '√' },
-      { latex: '\\sqrt[3]{x}', insert: '∛' },
-      { latex: '\\sqrt[4]{x}', insert: '∜' },
-    ],
-  },
-  {
-    label: 'সুপারস্ক্রিপ্ট',
-    icon: 'aⁿ',
-    symbols: [
-      { latex: '^0', insert: '⁰' },
-      { latex: '^1', insert: '¹' },
-      { latex: '^2', insert: '²' },
-      { latex: '^3', insert: '³' },
-      { latex: '^4', insert: '⁴' },
-      { latex: '^5', insert: '⁵' },
-      { latex: '^6', insert: '⁶' },
-      { latex: '^7', insert: '⁷' },
-      { latex: '^8', insert: '⁸' },
-      { latex: '^9', insert: '⁹' },
-      { latex: '^+', insert: '⁺' },
-      { latex: '^-', insert: '⁻' },
-      { latex: '^n', insert: 'ⁿ' },
-      { latex: '^i', insert: 'ⁱ' },
-    ],
-  },
-  {
-    label: 'সাবস্ক্রিপ্ট',
-    icon: 'xₙ',
-    symbols: [
-      { latex: '_0', insert: '₀' },
-      { latex: '_1', insert: '₁' },
-      { latex: '_2', insert: '₂' },
-      { latex: '_3', insert: '₃' },
-      { latex: '_4', insert: '₄' },
-      { latex: '_5', insert: '₅' },
-      { latex: '_6', insert: '₆' },
-      { latex: '_7', insert: '₇' },
-      { latex: '_8', insert: '₈' },
-      { latex: '_9', insert: '₉' },
-      { latex: '_+', insert: '₊' },
-      { latex: '_-', insert: '₋' },
-      { latex: '_n', insert: 'ₙ' },
-      { latex: '_i', insert: 'ᵢ' },
+      { latex: '\\frac{a}{b}', type: 'tpl', insert: '\\frac{a}{b}' },
+      { latex: '\\sqrt{x}', type: 'tpl', insert: '\\sqrt{x}' },
+      { latex: '\\sqrt[3]{x}', type: 'tpl', insert: '\\sqrt[3]{x}' },
+      { latex: '\\sqrt[n]{x}', type: 'tpl', insert: '\\sqrt[n]{x}' },
+      { latex: '\\frac{a+b}{c}', type: 'tpl', insert: '\\frac{a+b}{c}' },
+      { latex: 'x^{2}', type: 'tpl', insert: 'x^{2}' },
+      { latex: 'x^{3}', type: 'tpl', insert: 'x^{3}' },
+      { latex: 'x^{n}', type: 'tpl', insert: 'x^{n}' },
+      { latex: 'x_{n}', type: 'tpl', insert: 'x_{n}' },
+      { latex: 'x_{i}^{2}', type: 'tpl', insert: 'x_{i}^{2}' },
+      { latex: '\\binom{n}{k}', type: 'tpl', insert: '\\binom{n}{k}' },
     ],
   },
   {
     label: 'গ্রিক',
     icon: 'αβ',
     symbols: [
-      { latex: '\\alpha', insert: 'α' },
-      { latex: '\\beta', insert: 'β' },
-      { latex: '\\gamma', insert: 'γ' },
-      { latex: '\\delta', insert: 'δ' },
-      { latex: '\\epsilon', insert: 'ε' },
-      { latex: '\\theta', insert: 'θ' },
-      { latex: '\\lambda', insert: 'λ' },
-      { latex: '\\mu', insert: 'μ' },
-      { latex: '\\pi', insert: 'π' },
-      { latex: '\\sigma', insert: 'σ' },
-      { latex: '\\omega', insert: 'ω' },
-      { latex: '\\phi', insert: 'φ' },
-      { latex: '\\Delta', insert: 'Δ' },
-      { latex: '\\Sigma', insert: 'Σ' },
-      { latex: '\\Omega', insert: 'Ω' },
-      { latex: '\\Theta', insert: 'Θ' },
+      { latex: '\\alpha', type: 'uni', insert: 'α' },
+      { latex: '\\beta', type: 'uni', insert: 'β' },
+      { latex: '\\gamma', type: 'uni', insert: 'γ' },
+      { latex: '\\delta', type: 'uni', insert: 'δ' },
+      { latex: '\\epsilon', type: 'uni', insert: 'ε' },
+      { latex: '\\theta', type: 'uni', insert: 'θ' },
+      { latex: '\\lambda', type: 'uni', insert: 'λ' },
+      { latex: '\\mu', type: 'uni', insert: 'μ' },
+      { latex: '\\pi', type: 'uni', insert: 'π' },
+      { latex: '\\sigma', type: 'uni', insert: 'σ' },
+      { latex: '\\phi', type: 'uni', insert: 'φ' },
+      { latex: '\\omega', type: 'uni', insert: 'ω' },
+      { latex: '\\Delta', type: 'uni', insert: 'Δ' },
+      { latex: '\\Sigma', type: 'uni', insert: 'Σ' },
+      { latex: '\\Omega', type: 'uni', insert: 'Ω' },
+      { latex: '\\Theta', type: 'uni', insert: 'Θ' },
     ],
   },
   {
     label: 'জ্যামিতি',
     icon: '△',
     symbols: [
-      { latex: '\\angle', insert: '∠' },
-      { latex: '\\triangle', insert: '△' },
-      { latex: '\\parallel', insert: '∥' },
-      { latex: '\\perp', insert: '⊥' },
-      { latex: '\\circ', insert: '°' },
-      { latex: '\\sim', insert: '∼' },
-      { latex: '\\cong', insert: '≅' },
-      { latex: '\\rightarrow', insert: '→' },
-      { latex: '\\Rightarrow', insert: '⇒' },
-      { latex: '\\leftrightarrow', insert: '↔' },
-      { latex: '\\overline{AB}', insert: '̄' },
+      { latex: '\\angle', type: 'uni', insert: '∠' },
+      { latex: '\\triangle', type: 'uni', insert: '△' },
+      { latex: '\\parallel', type: 'uni', insert: '∥' },
+      { latex: '\\perp', type: 'uni', insert: '⊥' },
+      { latex: '\\circ', type: 'uni', insert: '°' },
+      { latex: '\\sim', type: 'uni', insert: '∼' },
+      { latex: '\\cong', type: 'uni', insert: '≅' },
+      { latex: '\\rightarrow', type: 'uni', insert: '→' },
+      { latex: '\\Rightarrow', type: 'uni', insert: '⇒' },
+      { latex: '\\leftrightarrow', type: 'uni', insert: '↔' },
+      { latex: '\\overline{AB}', type: 'tpl', insert: '\\overline{AB}' },
+      { latex: '\\overrightarrow{AB}', type: 'tpl', insert: '\\overrightarrow{AB}' },
+      { latex: '\\widehat{ABC}', type: 'tpl', insert: '\\widehat{ABC}' },
     ],
   },
   {
     label: 'ক্যালকুলাস',
     icon: '∫',
     symbols: [
-      { latex: '\\int', insert: '∫' },
-      { latex: '\\sum', insert: '∑' },
-      { latex: '\\prod', insert: '∏' },
-      { latex: '\\partial', insert: '∂' },
-      { latex: '\\nabla', insert: '∇' },
-      { latex: '\\lim', insert: 'lim' },
-      { latex: '\\log', insert: 'log' },
-      { latex: '\\ln', insert: 'ln' },
-      { latex: '\\sin', insert: 'sin' },
-      { latex: '\\cos', insert: 'cos' },
-      { latex: '\\tan', insert: 'tan' },
+      { latex: '\\int', type: 'tpl', insert: '\\int' },
+      { latex: '\\int_{a}^{b}', type: 'tpl', insert: '\\int_{a}^{b}' },
+      { latex: '\\sum', type: 'tpl', insert: '\\sum' },
+      { latex: '\\sum_{i=1}^{n}', type: 'tpl', insert: '\\sum_{i=1}^{n}' },
+      { latex: '\\prod', type: 'uni', insert: '∏' },
+      { latex: '\\partial', type: 'uni', insert: '∂' },
+      { latex: '\\nabla', type: 'uni', insert: '∇' },
+      { latex: '\\lim_{x\\to a}', type: 'tpl', insert: '\\lim_{x \\to a}' },
+      { latex: '\\log', type: 'tpl', insert: '\\log' },
+      { latex: '\\ln', type: 'tpl', insert: '\\ln' },
+      { latex: '\\sin', type: 'tpl', insert: '\\sin' },
+      { latex: '\\cos', type: 'tpl', insert: '\\cos' },
+      { latex: '\\tan', type: 'tpl', insert: '\\tan' },
+      { latex: 'f(x)', type: 'tpl', insert: 'f(x)' },
+      { latex: 'f^{-1}(x)', type: 'tpl', insert: 'f^{-1}(x)' },
     ],
   },
   {
     label: 'সেট / যুক্তি',
     icon: '∪',
     symbols: [
-      { latex: '\\in', insert: '∈' },
-      { latex: '\\notin', insert: '∉' },
-      { latex: '\\subset', insert: '⊂' },
-      { latex: '\\subseteq', insert: '⊆' },
-      { latex: '\\cup', insert: '∪' },
-      { latex: '\\cap', insert: '∩' },
-      { latex: '\\emptyset', insert: '∅' },
-      { latex: '\\forall', insert: '∀' },
-      { latex: '\\exists', insert: '∃' },
-      { latex: '\\therefore', insert: '∴' },
-      { latex: '\\because', insert: '∵' },
+      { latex: '\\in', type: 'uni', insert: '∈' },
+      { latex: '\\notin', type: 'uni', insert: '∉' },
+      { latex: '\\subset', type: 'uni', insert: '⊂' },
+      { latex: '\\subseteq', type: 'uni', insert: '⊆' },
+      { latex: '\\cup', type: 'uni', insert: '∪' },
+      { latex: '\\cap', type: 'uni', insert: '∩' },
+      { latex: '\\emptyset', type: 'uni', insert: '∅' },
+      { latex: '\\forall', type: 'uni', insert: '∀' },
+      { latex: '\\exists', type: 'uni', insert: '∃' },
+      { latex: '\\therefore', type: 'uni', insert: '∴' },
+      { latex: '\\because', type: 'uni', insert: '∵' },
     ],
   },
   {
     label: 'বন্ধনী',
     icon: '{ }',
     symbols: [
-      { latex: '(', insert: '(' },
-      { latex: ')', insert: ')' },
-      { latex: '\\{', insert: '{' },
-      { latex: '\\}', insert: '}' },
-      { latex: '[', insert: '[' },
-      { latex: ']', insert: ']' },
-      { latex: '|', insert: '|' },
+      { latex: '(\\,)', type: 'tpl', insert: '\\left( x \\right)' },
+      { latex: '[\\,]', type: 'tpl', insert: '\\left[ x \\right]' },
+      { latex: '\\{\\,\\}', type: 'tpl', insert: '\\left\\{ x \\right\\}' },
+      { latex: '|x|', type: 'tpl', insert: '\\left| x \\right|' },
+      { latex: '\\langle\\,\\rangle', type: 'tpl', insert: '\\langle x \\rangle' },
+      { latex: '(', type: 'uni', insert: '(' },
+      { latex: ')', type: 'uni', insert: ')' },
+      { latex: '[', type: 'uni', insert: '[' },
+      { latex: ']', type: 'uni', insert: ']' },
+      { latex: '\\{', type: 'uni', insert: '{' },
+      { latex: '\\}', type: 'uni', insert: '}' },
+    ],
+  },
+  // Quick formulas — one-tap common math teacher formulas
+  {
+    label: 'সূত্র',
+    icon: 'a²+b²',
+    symbols: [
+      { latex: 'a^2 + b^2 = c^2', type: 'tpl', insert: 'a^2 + b^2 = c^2', label: 'পিথাগোরাস' },
+      { latex: 'ax^2 + bx + c = 0', type: 'tpl', insert: 'ax^2 + bx + c = 0', label: 'দ্বিঘাত সমীকরণ' },
+      { latex: 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}', type: 'tpl', insert: 'x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}', label: 'নির্ণায়ক সূত্র' },
+      { latex: '(a+b)^2 = a^2 + 2ab + b^2', type: 'tpl', insert: '(a+b)^2 = a^2 + 2ab + b^2', label: 'বর্গের সূত্র' },
+      { latex: '(a-b)^2 = a^2 - 2ab + b^2', type: 'tpl', insert: '(a-b)^2 = a^2 - 2ab + b^2' },
+      { latex: 'a^2 - b^2 = (a+b)(a-b)', type: 'tpl', insert: 'a^2 - b^2 = (a+b)(a-b)' },
+      { latex: '\\pi r^2', type: 'tpl', insert: '\\pi r^2', label: 'বৃত্তের ক্ষেত্রফল' },
+      { latex: '2 \\pi r', type: 'tpl', insert: '2 \\pi r', label: 'বৃত্তের পরিধি' },
+      { latex: '\\frac{1}{2} \\times b \\times h', type: 'tpl', insert: '\\frac{1}{2} \\times b \\times h', label: 'ত্রিভুজ ক্ষেত্রফল' },
+      { latex: '\\sin^2 \\theta + \\cos^2 \\theta = 1', type: 'tpl', insert: '\\sin^2 \\theta + \\cos^2 \\theta = 1' },
+      { latex: '\\bar{x} = \\frac{\\sum x_i}{n}', type: 'tpl', insert: '\\bar{x} = \\frac{\\sum x_i}{n}', label: 'গাণিতিক গড়' },
+      { latex: 'P(A) = \\frac{n(A)}{n(S)}', type: 'tpl', insert: 'P(A) = \\frac{n(A)}{n(S)}', label: 'সম্ভাবনা' },
     ],
   },
 ]
@@ -175,7 +170,11 @@ function KatexRender({ latex }) {
   useEffect(() => {
     if (ref.current) {
       try {
-        katex.render(latex, ref.current, { throwOnError: false, displayMode: false })
+        katex.render(latex, ref.current, {
+          throwOnError: false,
+          displayMode: false,
+          strict: 'ignore',
+        })
       } catch {
         ref.current.textContent = latex
       }
@@ -184,12 +183,45 @@ function KatexRender({ latex }) {
   return <span ref={ref} />
 }
 
+/**
+ * Insert symbol logic.
+ * - `uni`: drop the unicode char at cursor (no math wrapping needed).
+ * - `tpl`: insert the LaTeX template with placeholder letters already in
+ *   place (e.g. \frac{a}{b}, \sqrt{x}). User changes the letters to
+ *   their actual values. If cursor is already inside an existing $...$
+ *   block, insert raw without re-wrapping.
+ *
+ * Cursor lands at the END of the inserted text — user can either keep
+ * typing or click to change a placeholder letter.
+ */
+function buildInsertion(symbol, currentValue, selStart) {
+  if (symbol.type === 'uni') {
+    return { text: symbol.insert, cursorOffset: symbol.insert.length }
+  }
+  // Detect math mode: count $ before cursor — odd means we're inside $...$
+  const dollarsBefore = (currentValue.slice(0, selStart).match(/\$/g) || []).length
+  const insideMath = dollarsBefore % 2 === 1
+
+  if (insideMath) {
+    return { text: symbol.insert, cursorOffset: symbol.insert.length }
+  }
+  const wrapped = '$' + symbol.insert + '$'
+  return { text: wrapped, cursorOffset: wrapped.length }
+}
+
 export default function MathSymbolPicker({ inputRef, onInsert }) {
   const [open, setOpen] = useState(false)
   const [activeGroup, setActiveGroup] = useState(0)
   const [recentlyUsed, setRecentlyUsed] = useState([])
+  const [previewValue, setPreviewValue] = useState('')
 
-  // Close on Escape
+  // Sync preview to current input value when modal opens
+  useEffect(() => {
+    if (open && inputRef?.current) {
+      setPreviewValue(inputRef.current.value || '')
+    }
+  }, [open, inputRef])
+
   useEffect(() => {
     if (!open) return
     const handler = (e) => { if (e.key === 'Escape') setOpen(false) }
@@ -198,10 +230,8 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
   }, [open])
 
   const insertSymbol = (symbol) => {
-    const textToInsert = symbol.insert
     const el = inputRef?.current
 
-    // Track recently used (max 10)
     setRecentlyUsed((prev) => {
       const filtered = prev.filter((s) => s.latex !== symbol.latex)
       return [symbol, ...filtered].slice(0, 10)
@@ -212,18 +242,27 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
       const end = el.selectionEnd ?? start
       const before = el.value.slice(0, start)
       const after = el.value.slice(end)
-      const newValue = before + textToInsert + after
+      const { text, cursorOffset } = buildInsertion(symbol, el.value, start)
+      const newValue = before + text + after
       onInsert(newValue)
+      setPreviewValue(newValue)
 
       requestAnimationFrame(() => {
-        const cursorPos = start + textToInsert.length
+        const cursorPos = start + cursorOffset
         el.focus()
         el.setSelectionRange(cursorPos, cursorPos)
       })
     } else {
-      onInsert(textToInsert)
+      const { text } = buildInsertion(symbol, '', 0)
+      onInsert(text)
+      setPreviewValue((v) => v + text)
     }
   }
+
+  const showPreview = useMemo(
+    () => previewValue && /\$/.test(previewValue),
+    [previewValue],
+  )
 
   const modal = open && createPortal(
     <AnimatePresence>
@@ -253,8 +292,8 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
           onClick={(e) => e.stopPropagation()}
           style={{
             width: '100%',
-            maxWidth: 480,
-            maxHeight: '80vh',
+            maxWidth: 560,
+            maxHeight: '85vh',
             background: '#fff',
             borderRadius: 24,
             boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.25)',
@@ -276,26 +315,16 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
                 গণিত চিহ্ন
               </h3>
               <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
-                চিহ্নে ক্লিক করলে ইনপুটে বসে যাবে
+                চিহ্ন/সূত্র ক্লিক করলে কার্সরে বসে যাবে
               </p>
             </div>
             <button
               type="button"
               onClick={() => setOpen(false)}
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 12,
-                border: 'none',
-                background: '#f1f5f9',
-                color: '#64748b',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 18,
-                fontWeight: 300,
-                transition: 'all 0.15s',
+                width: 36, height: 36, borderRadius: 12, border: 'none',
+                background: '#f1f5f9', color: '#64748b', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -303,6 +332,25 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
               </svg>
             </button>
           </div>
+
+          {/* Live preview of current input */}
+          {showPreview && (
+            <div style={{
+              padding: '10px 24px',
+              borderBottom: '1px solid #f1f5f9',
+              background: '#f8fafc',
+            }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 6px' }}>
+                লাইভ প্রিভিউ
+              </p>
+              <div style={{
+                fontSize: 14, color: '#0f172a', lineHeight: 1.6,
+                maxHeight: 80, overflow: 'auto',
+              }}>
+                <MathText text={previewValue} />
+              </div>
+            </div>
+          )}
 
           {/* Recently used */}
           {recentlyUsed.length > 0 && (
@@ -318,13 +366,9 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
                     onClick={() => insertSymbol(symbol)}
                     className="btn-press"
                     style={{
-                      padding: '6px 12px',
-                      borderRadius: 10,
-                      border: '1.5px solid #e0e7ff',
-                      background: '#eef2ff',
-                      cursor: 'pointer',
-                      fontSize: 15,
-                      transition: 'all 0.1s',
+                      padding: '6px 12px', borderRadius: 10,
+                      border: '1.5px solid #e0e7ff', background: '#eef2ff',
+                      cursor: 'pointer', fontSize: 15,
                     }}
                   >
                     <KatexRender latex={symbol.latex} />
@@ -335,15 +379,10 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
           )}
 
           {/* Category pills */}
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 6,
-              padding: '12px 24px',
-              flexShrink: 0,
-            }}
-          >
+          <div style={{
+            display: 'flex', flexWrap: 'wrap', gap: 6,
+            padding: '12px 24px', flexShrink: 0,
+          }}>
             {SYMBOL_GROUPS.map((group, i) => (
               <button
                 key={group.label}
@@ -351,19 +390,13 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
                 onClick={() => setActiveGroup(i)}
                 className="btn-press"
                 style={{
-                  padding: '8px 14px',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  whiteSpace: 'nowrap',
+                  padding: '8px 14px', fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
                   borderRadius: 100,
                   border: activeGroup === i ? '1.5px solid #2563eb' : '1.5px solid #e2e8f0',
                   cursor: 'pointer',
                   background: activeGroup === i ? '#2563eb' : '#fff',
                   color: activeGroup === i ? '#fff' : '#64748b',
-                  transition: 'all 0.15s',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
+                  display: 'flex', alignItems: 'center', gap: 6,
                 }}
               >
                 <span style={{ fontSize: 13, fontFamily: 'serif', opacity: activeGroup === i ? 1 : 0.6 }}>{group.icon}</span>
@@ -373,50 +406,41 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
           </div>
 
           {/* Symbols grid */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(5, 1fr)',
-              gap: 8,
-              padding: '8px 24px 24px',
-              overflowY: 'auto',
-              flex: 1,
-            }}
-          >
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: SYMBOL_GROUPS[activeGroup].label === 'সূত্র' ? 'repeat(2, 1fr)' : 'repeat(5, 1fr)',
+            gap: 8, padding: '8px 24px 24px', overflowY: 'auto', flex: 1,
+          }}>
             {SYMBOL_GROUPS[activeGroup].symbols.map((symbol) => (
               <button
                 key={symbol.latex}
                 type="button"
                 onClick={() => insertSymbol(symbol)}
-                title={symbol.latex}
+                title={symbol.label || symbol.latex}
                 className="btn-press"
                 style={{
-                  padding: '12px 6px',
-                  borderRadius: 14,
-                  border: '1.5px solid #f1f5f9',
-                  background: '#fafbfc',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 18,
-                  minHeight: 52,
+                  padding: '12px 6px', borderRadius: 14,
+                  border: '1.5px solid #f1f5f9', background: '#fafbfc',
+                  cursor: 'pointer', display: 'flex',
+                  flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 16, minHeight: 56, gap: 4,
                   transition: 'all 0.15s',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = '#eff6ff'
                   e.currentTarget.style.borderColor = '#bfdbfe'
-                  e.currentTarget.style.transform = 'scale(1.08)'
-                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(37,99,235,0.12)'
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = '#fafbfc'
                   e.currentTarget.style.borderColor = '#f1f5f9'
-                  e.currentTarget.style.transform = 'scale(1)'
-                  e.currentTarget.style.boxShadow = 'none'
                 }}
               >
                 <KatexRender latex={symbol.latex} />
+                {symbol.label && (
+                  <span style={{ fontSize: 9, color: '#94a3b8', fontWeight: 600 }}>
+                    {symbol.label}
+                  </span>
+                )}
               </button>
             ))}
           </div>
@@ -434,21 +458,11 @@ export default function MathSymbolPicker({ inputRef, onInsert }) {
         title="গণিত চিহ্ন ঢোকান"
         className="btn-press"
         style={{
-          width: 30,
-          height: 30,
-          borderRadius: 10,
-          border: '1.5px solid #e2e8f0',
-          background: '#fff',
-          color: '#94a3b8',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          fontSize: 13,
-          fontWeight: 800,
-          fontStyle: 'italic',
-          fontFamily: 'serif',
-          flexShrink: 0,
+          width: 30, height: 30, borderRadius: 10,
+          border: '1.5px solid #e2e8f0', background: '#fff', color: '#94a3b8',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          cursor: 'pointer', fontSize: 13, fontWeight: 800,
+          fontStyle: 'italic', fontFamily: 'serif', flexShrink: 0,
           transition: 'all 0.15s',
         }}
         onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#2563eb'; e.currentTarget.style.borderColor = '#bfdbfe' }}

@@ -66,13 +66,21 @@ export default function PDFPreview() {
       // Lazy-load: html2pdf.js pulls in html2canvas + jsPDF (~300KB combined)
       const html2pdf = (await import('html2pdf.js')).default
 
-      // Force-load the Bengali fonts before capture. Without this, html2canvas
-      // sometimes captures with the system fallback font (looks wrong in PDF).
+      // Force-load the Bengali AND KaTeX fonts before capture. Without this,
+      // html2canvas sometimes captures with the system fallback font (Bengali
+      // looks wrong) or with a wrong-metric KaTeX font (fraction bar appears
+      // through the numerator).
       if (document.fonts) {
         await Promise.all([
           document.fonts.load(`400 16px "${font}"`),
           document.fonts.load(`700 16px "${font}"`),
           document.fonts.load(`400 16px "Hind Siliguri"`),
+          document.fonts.load(`400 16px KaTeX_Main`),
+          document.fonts.load(`700 16px KaTeX_Main`),
+          document.fonts.load(`italic 400 16px KaTeX_Math`),
+          document.fonts.load(`400 16px KaTeX_Size1`),
+          document.fonts.load(`400 16px KaTeX_Size2`),
+          document.fonts.load(`400 16px KaTeX_AMS`),
         ])
         await document.fonts.ready
       }
@@ -91,6 +99,31 @@ export default function PDFPreview() {
             useCORS: true,
             backgroundColor: '#ffffff',
             windowWidth: paperRef.current.offsetWidth,
+            // KaTeX renders fractions / radicals using absolutely-positioned
+            // child spans whose `top` values are em-relative to KaTeX's own
+            // line-height (1.2). When the parent paper line-height differs,
+            // html2canvas can compute the line box height differently and
+            // shift the fraction bar onto the numerator (looks like a
+            // strikethrough). The onclone hook below normalizes each .katex
+            // node's font-size and line-height to fixed pixel values right
+            // before capture, so html2canvas measures KaTeX in the same
+            // metric the browser used originally.
+            onclone: (clonedDoc) => {
+              const orig = paperRef.current
+              if (!orig) return
+              const origNodes = orig.querySelectorAll('.katex')
+              const cloneNodes = clonedDoc.querySelectorAll('.katex')
+              for (let i = 0; i < cloneNodes.length; i++) {
+                const o = origNodes[i]
+                const c = cloneNodes[i]
+                if (!o || !c) continue
+                const cs = window.getComputedStyle(o)
+                c.style.fontSize = cs.fontSize
+                c.style.lineHeight = cs.lineHeight
+                c.style.display = 'inline-block'
+                c.style.verticalAlign = 'middle'
+              }
+            },
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css'] },

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import api from '@/services/api'
 import usePaperStore from '@/store/paperStore'
 import { toast } from 'react-hot-toast'
+import { MathText } from '@/utils/mathRender'
 
 const CLASSES = [
   { value: 6, label: 'ক্লাস ৬' },
@@ -379,24 +380,24 @@ export default function BookGenerateModal({ onClose }) {
                             + পেপারে যোগ
                           </button>
                         </div>
-                        <p className="text-sm text-gray-800 font-medium leading-relaxed">
-                          {q.question || q.stimulus || q.sentence?.replace(/___/g, '______') || 'প্রশ্ন'}
-                        </p>
+                        <div className="text-sm text-gray-800 font-medium leading-relaxed">
+                          <MathText text={q.question || q.stimulus || q.sentence?.replace(/___/g, '______') || 'প্রশ্ন'} />
+                        </div>
                         {q.sub_questions && (
                           <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-100">
                             {q.sub_questions.map((sq, si) => (
-                              <p key={si} className="text-[11px] text-gray-500">
-                                <span className="font-bold mr-1">{sq.label}.</span> {sq.text}
-                              </p>
+                              <div key={si} className="text-[11px] text-gray-500">
+                                <span className="font-bold mr-1">{sq.label}.</span> <MathText text={sq.text} />
+                              </div>
                             ))}
                           </div>
                         )}
                         {q.option_a && (
                           <div className="grid grid-cols-2 gap-1 mt-2 pl-4 text-[11px] text-gray-500">
-                            <span>ক) {q.option_a}</span>
-                            <span>খ) {q.option_b}</span>
-                            <span>গ) {q.option_c}</span>
-                            <span>ঘ) {q.option_d}</span>
+                            <span>ক) <MathText text={String(q.option_a)} /></span>
+                            <span>খ) <MathText text={String(q.option_b || '')} /></span>
+                            <span>গ) <MathText text={String(q.option_c || '')} /></span>
+                            <span>ঘ) <MathText text={String(q.option_d || '')} /></span>
                           </div>
                         )}
                       </div>

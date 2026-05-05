@@ -104,25 +104,20 @@ async function scanImage(base64Image, mimeType = 'image/jpeg') {
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '')
   const dataUrl = `data:${mimeType};base64,${cleanBase64}`
 
-  const prompt = `You are an expert exam paper digitizer. Extract all questions from the provided image of a Bengali question paper and convert them into a structured JSON array.
+  const prompt = `Extract every question from this Bengali question paper image into a JSON array.
 
-### SCHEMA PER QUESTION TYPE:
-1. MCQ: { type: "MCQ", question, option_a, option_b, option_c, option_d, correct_answer, marks, confidence: 0.0-1.0 }
-2. CQ (Creative): { type: "CQ", stimulus, sub_questions: [{ label: "ক", text, marks }], confidence: 0.0-1.0 }
-3. Short Answer: { type: "short", question, marks, confidence: 0.0-1.0 }
-4. Broad/Essay: { type: "broad", question, marks, confidence: 0.0-1.0 }
-5. Fill in Blank: { type: "fill_blank", sentence (use ___ for blanks), clues (optional), marks, confidence: 0.0-1.0 }
-6. Matching: { type: "matching", column_a: [], column_b: [], marks, confidence: 0.0-1.0 }
-7. Rearranging: { type: "rearranging", sentences: [], marks, confidence: 0.0-1.0 }
-8. Translation: { type: "translation", source_text, direction: "en-bn"|"bn-en", marks, confidence: 0.0-1.0 }
+Schema per question type:
+- MCQ: { type: "MCQ", question, option_a, option_b, option_c, option_d, correct_answer, marks, confidence }
+- CQ:  { type: "CQ", stimulus, sub_questions: [{ label, text, marks }], confidence }
+- short / broad: { type, question, marks, confidence }
+- fill_blank: { type: "fill_blank", sentence, clues, marks, confidence }
+- matching: { type: "matching", column_a: [], column_b: [], marks, confidence }
+- rearranging: { type: "rearranging", sentences: [], marks, confidence }
+- translation: { type: "translation", source_text, direction, marks, confidence }
 
-### INSTRUCTIONS:
-- Language: Bengali (Unicode)
-- Output: ONLY a valid JSON array. No markdown, no prose.
-- Confidence: Assign a confidence score (0.0 to 1.0) based on how clear the text was in the image.
-- Logic: If a question spans multiple lines, join them. If multiple sub-questions belong to one stimulus, group them into a single 'CQ' object.
-- Default marks: If not found, use logical defaults (MCQ=1, CQ=10, others=Vary).
-- Precision: Ensure all text is extracted exactly as written.`
+Math: wrap math expressions in $...$ using LaTeX (e.g. $\\frac{a}{b}$, $\\sqrt{x}$, $x^{2}$). Keep an entire equation inside a SINGLE $...$ pair — don't split around + or =.
+
+Output: ONLY the JSON array. No markdown fences, no commentary. Use \\n for line breaks inside text — never <br> tags.`
 
   const messages = [
     {
@@ -136,7 +131,10 @@ async function scanImage(base64Image, mimeType = 'image/jpeg') {
 
   const { questions, provider } = await callWithFallback(
     VISION_CHAIN,
-    { messages, vision: true, jsonMode: false, temperature: 0.2 },
+    // Temperature 0 → deterministic transcription. Higher temp lets the
+    // model "creatively" swap letters/digits, which is the exact failure
+    // mode (x ↔ y, m ↔ n, fraction flip) we are trying to eliminate.
+    { messages, vision: true, jsonMode: false, temperature: 0 },
     'scan',
   )
   return { questions, count: questions.length, provider }
@@ -179,6 +177,32 @@ async function generateFromBook(chapterContext, config = {}) {
     .filter(Boolean)
     .join('\n')
 
+  const isMath = /math|গণিত/i.test(subject) || /math|গণিত/i.test(subjectBn)
+
+  const mathBlock = isMath
+    ? `
+### গণিতের সূত্র / সমীকরণ ফরম্যাট (গুরুত্বপূর্ণ):
+সব গাণিতিক রাশি, সমীকরণ, সূত্র — অবশ্যই inline LaTeX-এ লিখবে: $ ... $
+
+ঠিক:
+  $\\frac{a}{b}$, $\\sqrt{x}$, $\\sqrt[3]{x}$, $x^{2}$, $x_{1}$
+  $\\int_{0}^{1} f(x) dx$, $\\sum_{i=1}^{n} x_i$
+  $\\sin\\theta$, $\\cos\\theta$, $\\pi r^2$
+  $f(x) = ax^2 + bx + c$
+  $\\geq$, $\\leq$, $\\neq$, $\\pm$, $\\times$, $\\overline{AB}$, $\\angle ABC$
+
+ভুল:
+  ✗ 1/2  →  $\\frac{1}{2}$
+  ✗ x^2  →  $x^{2}$
+  ✗ sqrt(x)  →  $\\sqrt{x}$
+  ✗ অতিরিক্ত বন্ধনী বা markdown bold/italic
+  ✗ unicode ², ³, ₁, ₂ — math mode-এ $x^{2}$, $x_{1}$ লিখো
+
+মিশ্র উদাহরণ:
+  "যদি $x^{2} + 2x + 1 = 0$ হয়, তবে $x$ এর মান নির্ণয় কর।"
+`
+    : ''
+
   const prompt = `তুমি একজন বাংলাদেশের অভিজ্ঞ শিক্ষক। নিচে ক্লাস ${classNum} এর ${subjectBn} বিষয়ের পাঠ্যবই থেকে নেওয়া গুরুত্বপূর্ণ তথ্য দেওয়া হলো।
 
 এই তথ্যগুলো ব্যবহার করে ঠিক ${count} টি প্রশ্ন তৈরি করো।
@@ -188,10 +212,10 @@ ${chapterContext}
 
 ### প্রশ্নের ধরন ও JSON ফরম্যাট:
 ${typeInstructions}
-
+${mathBlock}
 ### নিয়ম:
-- ভাষা: বাংলা (Unicode)
-- Output: শুধুমাত্র একটি valid JSON array দাও। কোনো markdown, কোনো ব্যাখ্যা দেওয়া যাবে না।
+- ভাষা: বাংলা (Unicode), গণিতের অংশ $...$ LaTeX-এ।
+- Output: শুধুমাত্র একটি valid JSON array দাও। কোনো markdown fence, কোনো ব্যাখ্যা দেওয়া যাবে না।
 - প্রশ্নগুলো যেন পাঠ্যবইয়ের তথ্যের বাইরে না যায়।
 - MCQ-তে সঠিক উত্তর correct_answer ফিল্ডে দাও।
 - CQ-তে stimulus দাও এবং ক, খ, গ, ঘ সাব-প্রশ্ন দাও।

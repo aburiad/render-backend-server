@@ -1,7 +1,13 @@
+import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
+import MathSymbolPicker from './MathSymbolPicker'
+import { MathPreview } from '@/utils/mathRender'
 
 export default function TableEditor({ question }) {
   const updateQuestion = usePaperStore((s) => s.updateQuestion)
+  const lastFocused = useRef(null)
+  const lastFocusedSetter = useRef(null)
+  const questionRef = useRef(null)
 
   const headers = question.headers || ['', '', '']
   const rows = question.rows || [['', '', ''], ['', '', '']]
@@ -46,17 +52,34 @@ export default function TableEditor({ question }) {
     })
   }
 
+  const onCellFocus = (el, setter) => {
+    lastFocused.current = el
+    lastFocusedSetter.current = setter
+  }
+
+  const insertIntoActiveCell = (newValue) => {
+    if (lastFocusedSetter.current) lastFocusedSetter.current(newValue)
+  }
+
+  const sharedInputRef = { get current() { return lastFocused.current } }
+
   return (
     <div className="space-y-3">
       {/* Question text */}
       <div>
-        <textarea
-          value={question.question || ''}
-          onChange={(e) => updateQuestion(question.id, { question: e.target.value })}
-          placeholder="প্রশ্ন/নির্দেশনা লিখুন..."
-          rows={2}
-          className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
-        />
+        <div className="flex items-start gap-1.5">
+          <textarea
+            ref={questionRef}
+            value={question.question || ''}
+            onChange={(e) => updateQuestion(question.id, { question: e.target.value })}
+            onFocus={(e) => onCellFocus(e.target, (v) => updateQuestion(question.id, { question: v }))}
+            placeholder="প্রশ্ন/নির্দেশনা লিখুন... (গণিত: $\frac{a}{b}$)"
+            rows={2}
+            className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+          />
+          <MathSymbolPicker inputRef={sharedInputRef} onInsert={insertIntoActiveCell} />
+        </div>
+        <MathPreview text={question.question} />
       </div>
 
       {/* Accounting type toggle */}
@@ -89,6 +112,7 @@ export default function TableEditor({ question }) {
                       type="text"
                       value={h}
                       onChange={(e) => handleHeaderChange(i, e.target.value)}
+                      onFocus={(e) => onCellFocus(e.target, (v) => handleHeaderChange(i, v))}
                       placeholder={`কলাম ${i + 1}`}
                       className="flex-1 px-2 py-2 bg-transparent text-xs font-semibold text-center focus:outline-none focus:bg-blue-50"
                     />
@@ -117,6 +141,7 @@ export default function TableEditor({ question }) {
                       type="text"
                       value={cell}
                       onChange={(e) => handleCellChange(ri, ci, e.target.value)}
+                      onFocus={(e) => onCellFocus(e.target, (v) => handleCellChange(ri, ci, v))}
                       className="w-full px-2 py-2 text-xs text-center focus:outline-none focus:bg-blue-50"
                     />
                   </td>
@@ -138,13 +163,18 @@ export default function TableEditor({ question }) {
         </table>
       </div>
 
-      <div className="flex gap-3">
-        <button onClick={addRow} className="text-xs text-red-600 font-medium hover:text-red-700">
-          + সারি যোগ করুন
-        </button>
-        <button onClick={addColumn} className="text-xs text-red-600 font-medium hover:text-red-700">
-          + কলাম যোগ করুন
-        </button>
+      <div className="flex gap-3 items-center justify-between">
+        <div className="flex gap-3">
+          <button onClick={addRow} className="text-xs text-red-600 font-medium hover:text-red-700">
+            + সারি যোগ করুন
+          </button>
+          <button onClick={addColumn} className="text-xs text-red-600 font-medium hover:text-red-700">
+            + কলাম যোগ করুন
+          </button>
+        </div>
+        <span className="text-[10px] text-gray-400">
+          ঘরে ক্লিক করে fx বাটন থেকে সূত্র যোগ করুন
+        </span>
       </div>
 
       <div className="flex items-center gap-2">

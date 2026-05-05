@@ -1,13 +1,18 @@
 import { forwardRef } from 'react'
+import { MathText } from '@/utils/mathRender'
 
 /**
  * Renders a paper as A4-sized HTML, ready to print or pass to html2pdf.
  *
  * Design: clean, B&W, exam-board style. Sharp edges, restrained typography,
  * thin borders only where structurally needed (CQ stimulus, matching table).
+ *
+ * Math: question/option/stimulus text may contain $...$ inline LaTeX, which
+ * MathText renders via KaTeX. Plain text (Bengali included) passes through
+ * unchanged. Works in print and html2pdf because KaTeX outputs static HTML.
  */
 const PaperTemplate = forwardRef(function PaperTemplate(
-  { paper, questions, font = 'Noto Serif Bengali', size = '12pt', spacing = '1.6' },
+  { paper, questions, font = 'Noto Serif Bengali', size = '12pt', spacing = '1.85' },
   ref,
 ) {
   const fontStack = `"${font}", "Hind Siliguri", "Noto Sans Bengali", serif`
@@ -97,23 +102,51 @@ function Header({ paper }) {
         )}
       </div>
 
-      {/* Time (left) | Full marks (right) */}
-      <div
+      {/* Time (left) | Full marks (right)
+          Using a table instead of flex+lineHeight: html2canvas renders
+          flex containers' padding asymmetrically when the parent has a
+          tall line-height (the bottom border drifts up onto descenders).
+          Table cell padding is part of the cell box model and html2canvas
+          honors it symmetrically. */}
+      <table
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          fontSize: '0.95em',
-          fontWeight: 600,
-          paddingTop: 6,
-          paddingBottom: 6,
+          width: '100%',
+          borderCollapse: 'collapse',
           borderTop: '1px solid #000',
           borderBottom: '1px solid #000',
+          marginTop: 4,
+          tableLayout: 'fixed',
         }}
       >
-        <span>{paper.time_minutes ? `সময়: ${paper.time_minutes} মিনিট` : ''}</span>
-        <span>{paper.total_marks ? `পূর্ণমান: ${paper.total_marks}` : ''}</span>
-      </div>
+        <tbody>
+          <tr>
+            <td
+              style={{
+                padding: '8px 0',
+                textAlign: 'left',
+                fontSize: '0.95em',
+                fontWeight: 600,
+                lineHeight: 1.3,
+                verticalAlign: 'middle',
+              }}
+            >
+              {paper.time_minutes ? `সময়: ${paper.time_minutes} মিনিট` : ''}
+            </td>
+            <td
+              style={{
+                padding: '8px 0',
+                textAlign: 'right',
+                fontSize: '0.95em',
+                fontWeight: 600,
+                lineHeight: 1.3,
+                verticalAlign: 'middle',
+              }}
+            >
+              {paper.total_marks ? `পূর্ণমান: ${paper.total_marks}` : ''}
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       {/* Notes / instructions */}
       {paper.instructions && (
@@ -159,7 +192,7 @@ function QuestionList({ questions, layout = '1-column' }) {
         <div
           key={q.id || i}
           style={{
-            marginBottom: 10,
+            marginBottom: 14,
             // No break-inside avoid here. With html2pdf, "avoid" pushes the
             // whole tall question to the next page if it doesn't fit, leaving
             // a big gap on the current page. We let questions split naturally
@@ -211,9 +244,7 @@ function QuestionBody({ q }) {
 }
 
 function SimpleQuestion({ q }) {
-  return (
-    <span dangerouslySetInnerHTML={{ __html: q.question || q.text || '' }} />
-  )
+  return <MathText text={q.question || q.text || ''} />
 }
 
 function McqQuestion({ q }) {
@@ -226,7 +257,7 @@ function McqQuestion({ q }) {
 
   return (
     <div>
-      <span dangerouslySetInnerHTML={{ __html: q.question || '' }} />
+      <MathText text={q.question || ''} />
       <div
         style={{
           display: 'grid',
@@ -240,7 +271,7 @@ function McqQuestion({ q }) {
         {options.map(([label, val]) => (
           <div key={label} style={{ display: 'flex', gap: 6 }}>
             <span style={{ fontWeight: 600, minWidth: '1.2em' }}>{label}.</span>
-            <span dangerouslySetInnerHTML={{ __html: String(val) }} />
+            <MathText text={String(val)} />
           </div>
         ))}
       </div>
@@ -252,7 +283,9 @@ function CqQuestion({ q }) {
   return (
     <div>
       {q.stimulus && (
-        <div
+        <MathText
+          as="div"
+          text={q.stimulus}
           style={{
             padding: '6px 8px',
             border: '1px solid #999',
@@ -262,14 +295,13 @@ function CqQuestion({ q }) {
             breakInside: 'avoid',
             pageBreakInside: 'avoid',
           }}
-          dangerouslySetInnerHTML={{ __html: q.stimulus }}
         />
       )}
       <div>
         {(q.sub_questions || []).map((sq, i) => (
           <div key={i} style={{ marginBottom: 2, display: 'flex', gap: 4 }}>
             <span style={{ fontWeight: 600 }}>{sq.label || ''}</span>
-            <span style={{ flex: 1 }} dangerouslySetInnerHTML={{ __html: sq.text || '' }} />
+            <MathText as="span" text={sq.text || ''} style={{ flex: 1 }} />
             {sq.marks ? (
               <span style={{ fontWeight: 600 }}>[{sq.marks}]</span>
             ) : null}
@@ -283,10 +315,10 @@ function CqQuestion({ q }) {
 function FillBlankQuestion({ q }) {
   return (
     <div>
-      <span dangerouslySetInnerHTML={{ __html: q.sentence || q.question || '' }} />
+      <MathText text={q.sentence || q.question || ''} />
       {q.clues && (
         <div style={{ fontSize: '0.88em', marginTop: 4, color: '#444' }}>
-          (সংকেত: {q.clues})
+          (সংকেত: <MathText as="span" text={q.clues} />)
         </div>
       )}
     </div>
@@ -299,7 +331,7 @@ function MatchingQuestion({ q }) {
   const rows = Math.max(a.length, b.length)
   return (
     <div>
-      {q.question && <div dangerouslySetInnerHTML={{ __html: q.question }} />}
+      {q.question && <MathText as="div" text={q.question} />}
       <table
         style={{
           width: '100%',
@@ -317,8 +349,8 @@ function MatchingQuestion({ q }) {
         <tbody>
           {Array.from({ length: rows }).map((_, i) => (
             <tr key={i}>
-              <td style={cellTD}>{a[i] || ''}</td>
-              <td style={cellTD}>{b[i] || ''}</td>
+              <td style={cellTD}><MathText text={a[i] || ''} /></td>
+              <td style={cellTD}><MathText text={b[i] || ''} /></td>
             </tr>
           ))}
         </tbody>
@@ -335,7 +367,7 @@ function RearrangingQuestion({ q }) {
       </div>
       <ol style={{ listStyle: 'decimal', paddingLeft: '1.5em', margin: 0 }}>
         {(q.sentences || []).map((s, i) => (
-          <li key={i}>{s}</li>
+          <li key={i}><MathText text={s} /></li>
         ))}
       </ol>
     </div>
@@ -350,15 +382,15 @@ function TranslationQuestion({ q }) {
   return (
     <div>
       <div style={{ fontStyle: 'italic', marginBottom: 4 }}>{dir}</div>
-      <div
+      <MathText
+        as="div"
+        text={q.source_text || ''}
         style={{
           padding: '10px 12px',
           border: '1px solid #999',
           background: '#fafafa',
         }}
-      >
-        {q.source_text}
-      </div>
+      />
     </div>
   )
 }
@@ -366,14 +398,14 @@ function TranslationQuestion({ q }) {
 function TableQuestion({ q }) {
   return (
     <div>
-      {q.question && <div dangerouslySetInnerHTML={{ __html: q.question }} />}
+      {q.question && <MathText as="div" text={q.question} />}
       {q.rows && (
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 6 }}>
           <tbody>
             {q.rows.map((row, i) => (
               <tr key={i}>
                 {(row || []).map((cell, j) => (
-                  <td key={j} style={cellTD}>{cell}</td>
+                  <td key={j} style={cellTD}><MathText text={cell || ''} /></td>
                 ))}
               </tr>
             ))}

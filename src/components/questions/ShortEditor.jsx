@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathSymbolPicker from './MathSymbolPicker'
+import { MathPreview } from '@/utils/mathRender'
 
 export default function ShortEditor({ question }) {
   const updateQuestion = usePaperStore((s) => s.updateQuestion)
@@ -8,16 +9,19 @@ export default function ShortEditor({ question }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start gap-1.5">
-        <textarea
-          ref={questionRef}
-          value={question.question || ''}
-          onChange={(e) => updateQuestion(question.id, { question: e.target.value })}
-          placeholder="সংক্ষিপ্ত প্রশ্ন লিখুন..."
-          rows={2}
-          className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-        />
-        <MathSymbolPicker inputRef={questionRef} onInsert={(v) => updateQuestion(question.id, { question: v })} />
+      <div>
+        <div className="flex items-start gap-1.5">
+          <textarea
+            ref={questionRef}
+            value={question.question || ''}
+            onChange={(e) => updateQuestion(question.id, { question: e.target.value })}
+            placeholder="সংক্ষিপ্ত প্রশ্ন লিখুন... (গণিত: $\sqrt{x}$)"
+            rows={2}
+            className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          />
+          <MathSymbolPicker inputRef={questionRef} onInsert={(v) => updateQuestion(question.id, { question: v })} />
+        </div>
+        <MathPreview text={question.question} />
       </div>
       <div className="flex items-center gap-2">
         <label className="text-xs text-gray-500">নম্বর:</label>
