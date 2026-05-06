@@ -48,10 +48,10 @@ export default function MobileHeader({ className = '' }) {
   let title = PAGE_TITLES[location.pathname] || 'AI Question Hub'
   if (isEditor) title = location.search.includes('scan=true') ? 'AI স্ক্যান' : 'প্রশ্নপত্র সম্পাদক'
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setMenuOpen(false)
-    logout()
-    navigate('/login')
+    await logout()
+    navigate('/login', { replace: true })
   }
 
   const userInitial = user?.name?.charAt(0)?.toUpperCase() || 'U'

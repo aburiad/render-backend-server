@@ -93,7 +93,9 @@ export default function PDFPreview() {
         .set({
           margin: [14, 0, 14, 0],
           filename,
-          image: { type: 'jpeg', quality: 0.98 },
+          // PNG preserves subtle backgrounds (e.g. the light-gray instructions
+          // box at #f5f5f5) which JPEG compression flattens to white.
+          image: { type: 'png' },
           html2canvas: {
             scale: 2,
             useCORS: true,
@@ -261,22 +263,35 @@ export default function PDFPreview() {
             }}
           >
             {/*
-              Wrapper padding is screen-only. html2pdf captures the inner
-              paperRef element which has no top/bottom padding — page-level
-              vertical margin is added by jsPDF for every page.
+              paperRef captures a 210mm-wide wrapper that BAKES IN the 12mm
+              horizontal padding. So when html2pdf places the captured image
+              into A4 with jsPDF horizontal margin = 0, the visible page
+              margin comes from inside the image itself — no chance for
+              html2pdf's image scaling to shrink the horizontal margin.
+              Vertical margin still comes from jsPDF (so every page after a
+              break has consistent top/bottom whitespace).
             */}
             <div
               className="paper-sheet-shadow"
               style={{ flexShrink: 0, padding: '14mm 0' }}
             >
-              <PaperTemplate
+              <div
                 ref={paperRef}
-                paper={{ ...paper, set_variant: variant || paper.set_variant }}
-                questions={renderedQuestions}
-                font={font}
-                size={size}
-                spacing={spacing}
-              />
+                style={{
+                  width: '210mm',
+                  padding: '0 12mm',
+                  boxSizing: 'border-box',
+                  background: '#fff',
+                }}
+              >
+                <PaperTemplate
+                  paper={{ ...paper, set_variant: variant || paper.set_variant }}
+                  questions={renderedQuestions}
+                  font={font}
+                  size={size}
+                  spacing={spacing}
+                />
+              </div>
             </div>
           </div>
         ) : null}

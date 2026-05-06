@@ -14,12 +14,16 @@ function isOAuthCallbackRoute() {
 supabase.auth.onAuthStateChange((event, session) => {
   // Skip callback route handling
   if (isOAuthCallbackRoute()) {
-    if (!session) useAuthStore.getState().logout()
+    if (!session) void useAuthStore.getState().logout()
     return
   }
-  // Only handle sessions, not auth changes that trigger logout
   if (session) {
     void useAuthStore.getState().applySession(session)
+  } else if (useAuthStore.getState().isAuthenticated) {
+    // Supabase fired SIGNED_OUT (manual logout, expired session, signOut from
+    // another tab) but our local store still thinks we're authenticated.
+    // Clear it so ProtectedRoute kicks in on the next render.
+    void useAuthStore.getState().logout()
   }
 })
 

@@ -5,7 +5,8 @@ import toast from 'react-hot-toast'
 import api from '@/services/api'
 import usePaperStore from '@/store/paperStore'
 import { SkeletonListItem } from '@/components/shared/SkeletonCard'
-import BottomSheet, { BottomSheetItem } from '@/components/shared/BottomSheet'
+import { BottomSheetItem } from '@/components/shared/BottomSheet'
+import Modal from '@/components/shared/Modal'
 import FAB from '@/components/shared/FAB'
 
 /* ─── Helpers ─────────────────────────────────────────────── */
@@ -53,82 +54,105 @@ function PaperItem({ paper, onLongPress, onDelete, deleting }) {
             display: 'flex', alignItems: 'center', gap: 12,
             padding: '13px 16px',
             transition: 'background 0.15s ease',
-            cursor: 'pointer',
           }}
-          onClick={() => navigate(`/papers/${paper.id}`)}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-muted)'}
           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          className="btn-press"
         >
-          {/* Left avatar icon */}
-          <div style={{
-            width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0,
-            background: 'linear-gradient(135deg, var(--primary-light), var(--accent-light))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--primary)', fontWeight: 800, fontSize: 18,
-          }}>
-            {initial}
-          </div>
-
-          {/* Text block */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{
-              fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)',
-              margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          {/* Left clickable area (avatar + text) — navigates to paper */}
+          <div
+            onClick={() => navigate(`/papers/${paper.id}`)}
+            className="btn-press"
+            style={{
+              display: 'flex', alignItems: 'center', gap: 12,
+              flex: 1, minWidth: 0, cursor: 'pointer',
+            }}
+          >
+            {/* Avatar */}
+            <div style={{
+              width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0,
+              background: 'linear-gradient(135deg, var(--primary-light), var(--accent-light))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--primary)', fontWeight: 800, fontSize: 18,
             }}>
-              {paper.exam_title || 'শিরোনামবিহীন'}
-            </p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {paper.institution_name && (
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                  {paper.institution_name}
-                </span>
-              )}
-              {paper.institution_name && <span style={{ color: 'var(--border)', fontSize: 10 }}>·</span>}
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--primary)', fontWeight: 600 }}>
-                {qCount} প্রশ্ন
-              </span>
-              {marks > 0 && (
-                <>
-                  <span style={{ color: 'var(--border)', fontSize: 10 }}>·</span>
-                  <span style={{ fontSize: 'var(--text-xs)', color: '#16a34a', fontWeight: 600 }}>
-                    {marks} নম্বর
+              {initial}
+            </div>
+
+            {/* Text block */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{
+                fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)',
+                margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>
+                {paper.exam_title || 'শিরোনামবিহীন'}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                {paper.institution_name && (
+                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                    {paper.institution_name}
                   </span>
-                </>
+                )}
+                {paper.institution_name && <span style={{ color: 'var(--border)', fontSize: 10 }}>·</span>}
+                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--primary)', fontWeight: 600 }}>
+                  {qCount} প্রশ্ন
+                </span>
+                {marks > 0 && (
+                  <>
+                    <span style={{ color: 'var(--border)', fontSize: 10 }}>·</span>
+                    <span style={{ fontSize: 'var(--text-xs)', color: '#16a34a', fontWeight: 600 }}>
+                      {marks} নম্বর
+                    </span>
+                  </>
+                )}
+              </div>
+              {paper.updatedAt && (
+                <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: '3px 0 0' }}>
+                  {formatDate(paper.updatedAt)}
+                </p>
               )}
             </div>
-            {paper.updatedAt && (
-              <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: '3px 0 0' }}>
-                {formatDate(paper.updatedAt)}
-              </p>
-            )}
           </div>
 
-          {/* Right — action button + chevron */}
+          {/* Right — sibling action buttons (no event-bubble conflict) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
             <button
-              onClick={(e) => { e.stopPropagation(); setMenuOpen(true) }}
+              type="button"
+              onClick={() => setMenuOpen(true)}
+              title="আরো অপশন"
               style={{
-                width: 32, height: 32, borderRadius: 'var(--radius-full)',
+                width: 36, height: 36, borderRadius: 'var(--radius-full)',
                 background: 'var(--bg-input)', border: 'none', cursor: 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'var(--text-muted)',
               }}
               className="btn-press"
             >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
               </svg>
             </button>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
+            <button
+              type="button"
+              onClick={() => navigate(`/papers/${paper.id}`)}
+              title="সম্পাদনা করুন"
+              style={{
+                width: 28, height: 28, borderRadius: 'var(--radius-full)',
+                background: 'transparent', border: 'none', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}
+              className="btn-press"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
           </div>
         </div>
       </motion.div>
 
-      {/* Per-paper action bottom sheet */}
-      <BottomSheet isOpen={menuOpen} onClose={() => setMenuOpen(false)} title={paper.exam_title || 'প্রশ্নপত্র'}>
+      {/* Per-paper action menu — centered Modal so it appears in screen
+          center regardless of which row was clicked (BottomSheet anchored
+          to viewport bottom felt off-center for items lower in the list). */}
+      <Modal isOpen={menuOpen} onClose={() => setMenuOpen(false)} title={paper.exam_title || 'প্রশ্নপত্র'}>
         <BottomSheetItem
           onClick={() => { setMenuOpen(false); navigate(`/papers/${paper.id}`) }}
           label="সম্পাদনা করুন"
@@ -149,7 +173,7 @@ function PaperItem({ paper, onLongPress, onDelete, deleting }) {
           danger
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>}
         />
-      </BottomSheet>
+      </Modal>
     </>
   )
 }

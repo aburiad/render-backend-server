@@ -1,16 +1,23 @@
 const { supabaseAdmin } = require('../config/supabase')
 const { AppError } = require('../middleware/errorHandler')
+const configService = require('./configService')
 
 const manualPaymentService = {
-  async submitManualPayment(userId, { amount, method, tranId, phone, email, screenshot }) {
+  async submitManualPayment(userId, { method, tranId, phone, email, screenshot }) {
     if (!tranId && !screenshot) {
       throw new AppError('Transaction ID অথবা স্ক্রিনশট দিন', 400)
     }
 
+    // SECURITY: amount is taken from server-side config (admin-controlled),
+    // NEVER from user input. Otherwise a user could submit `amount: 1` and
+    // get verified for ৳1 instead of the real pro price.
+    const config = await configService.getConfig()
+    const enforcedAmount = String(config.proPrice ?? '')
+
     const row = {
       user_id: userId,
       email: email || 'No Email',
-      amount: amount ? String(amount) : null,
+      amount: enforcedAmount,
       method: method || 'bKash',
       tran_id: tranId ? String(tranId).toUpperCase() : null,
       phone: phone || null,

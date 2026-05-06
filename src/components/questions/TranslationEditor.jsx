@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
-import MathSymbolPicker from './MathSymbolPicker'
+import MathLiveEditor from './MathLiveEditor'
 
 export default function TranslationEditor({ question }) {
   const updateQuestion = usePaperStore((s) => s.updateQuestion)
@@ -50,7 +50,7 @@ export default function TranslationEditor({ question }) {
             rows={3}
             className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
           />
-          <MathSymbolPicker inputRef={sourceRef} onInsert={(v) => updateQuestion(question.id, { source_text: v })} />
+          <MathLiveEditor inputRef={sourceRef} onInsert={(v) => updateQuestion(question.id, { source_text: v })} />
         </div>
       </div>
 

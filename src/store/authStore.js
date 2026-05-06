@@ -1,4 +1,5 @@
 import api from '@/services/api'
+import { supabase } from '@/lib/supabase'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
@@ -43,11 +44,25 @@ const useAuthStore = create(
 
       setUser: (user) => set({ user }),
 
-      logout: () => {
+      /**
+       * Full logout = clear local store AND invalidate the Supabase session.
+       * Without `supabase.auth.signOut()`, Supabase's own localStorage entry
+       * (`sb-*-auth-token`) would still hold a valid session, so on the next
+       * page load `getSession()` would return it and the app would silently
+       * re-authenticate — bypassing /login and landing on /dashboard.
+       */
+      logout: async () => {
         if (isProcessingLogout) return
         isProcessingLogout = true
         setFlightState(null)
+        // Clear our store first so the UI flips to the unauthenticated tree
+        // immediately even if signOut takes a moment.
         set({ user: null, token: null, refreshToken: null, isAuthenticated: false })
+        try {
+          await supabase.auth.signOut()
+        } catch (err) {
+          console.warn('[authStore] supabase signOut failed:', err.message)
+        }
         setTimeout(() => { isProcessingLogout = false }, 50)
       },
 

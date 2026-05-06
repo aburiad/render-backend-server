@@ -102,4 +102,20 @@ async function optionalAuth(req, res, next) {
   }
 }
 
-module.exports = { requireAuth, optionalAuth, computeTier }
+/**
+ * requireAdmin — gate admin-only routes.
+ * MUST run AFTER `requireAuth` so `req.profile` is populated.
+ *
+ * Security note: only trust `req.profile.role` (DB-side). Never trust
+ * `req.user.role` because that falls back to `user_metadata.role`, which
+ * is CLIENT-CONTROLLED at signup and can be set to "admin" by anyone.
+ * The DB `profiles.role` column is server-managed and authoritative.
+ */
+async function requireAdmin(req, res, next) {
+  if (!req.profile || req.profile.role !== 'admin') {
+    return res.status(403).json({ message: 'Admin access required' })
+  }
+  next()
+}
+
+module.exports = { requireAuth, requireAdmin, optionalAuth, computeTier }

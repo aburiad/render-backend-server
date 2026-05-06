@@ -8,6 +8,9 @@
   --font-bengali: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
   --font-english: 'Inter', system-ui, sans-serif;
 
+  /* MathLive virtual keyboard must sit above the modal backdrop (zIndex 9999) */
+  --keyboard-zindex: 10010;
+
   /* Safe areas */
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-top: env(safe-area-inset-top, 0px);
@@ -495,9 +498,9 @@ input, select, textarea {
 @media print {
   @page {
     size: A4;
-    /* Per-page margin — applies to every page including 2+. The paper element
-       only carries side padding; top/bottom space comes from this. */
-    margin: 14mm 0;
+    /* Per-page margin — applies to every page. The paper element itself has
+       no padding; both horizontal and vertical white space come from here. */
+    margin: 14mm 12mm;
   }
 
   /* Reset everything outside the paper. Classic "isolate one element" trick:
@@ -515,8 +518,8 @@ input, select, textarea {
     top: 0 !important;
     margin: 0 !important;
     box-shadow: none !important;
-    width: 210mm !important;
-    min-height: 297mm !important;
+    width: 186mm !important;
+    min-height: 269mm !important;
   }
 
   body, html {

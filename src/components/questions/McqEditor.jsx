@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
-import MathSymbolPicker from './MathSymbolPicker'
+import MathLiveEditor from './MathLiveEditor'
 import { MathPreview } from '@/utils/mathRender'
 
 export default function McqEditor({ question }) {
@@ -32,7 +32,7 @@ export default function McqEditor({ question }) {
             rows={3}
             style={{ ...InputStyle, minHeight: 80, resize: 'none', flex: 1 }}
           />
-          <MathSymbolPicker inputRef={questionRef} onInsert={(v) => handleChange('question', v)} />
+          <MathLiveEditor inputRef={questionRef} onInsert={(v) => handleChange('question', v)} />
         </div>
         <MathPreview text={question.question} />
       </div>
@@ -68,7 +68,7 @@ export default function McqEditor({ question }) {
                   placeholder={`অপশন ${opt.toUpperCase()}`}
                   style={{ ...InputStyle, padding: '10px 12px', flex: 1 }}
                 />
-                <MathSymbolPicker inputRef={optionRefs[opt]} onInsert={(v) => handleChange(`option_${opt}`, v)} />
+                <MathLiveEditor inputRef={optionRefs[opt]} onInsert={(v) => handleChange(`option_${opt}`, v)} />
               </div>
               <MathPreview text={question[`option_${opt}`]} label="" />
             </div>

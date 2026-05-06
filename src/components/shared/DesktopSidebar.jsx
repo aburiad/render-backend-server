@@ -50,9 +50,9 @@ export default function DesktopSidebar({ className = '' }) {
   const location = useLocation()
   const items = NAV_ITEMS[user?.role] || NAV_ITEMS.school
 
-  const handleLogout = () => {
-    logout()
-    navigate('/login')
+  const handleLogout = async () => {
+    await logout()
+    navigate('/login', { replace: true })
   }
 
   const isPathActive = (itemPath) => {

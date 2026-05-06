@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
-import MathSymbolPicker from './MathSymbolPicker'
+import MathLiveEditor from './MathLiveEditor'
 import { MathPreview } from '@/utils/mathRender'
 
 export default function TableEditor({ question }) {
@@ -77,7 +77,7 @@ export default function TableEditor({ question }) {
             rows={2}
             className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
           />
-          <MathSymbolPicker inputRef={sharedInputRef} onInsert={insertIntoActiveCell} />
+          <MathLiveEditor inputRef={sharedInputRef} onInsert={insertIntoActiveCell} />
         </div>
         <MathPreview text={question.question} />
       </div>

@@ -182,6 +182,7 @@ export default function PaperSetupForm() {
                 >
                   <option value="1-column">১ কলাম</option>
                   <option value="2-column">২ কলাম</option>
+                  <option value="3-column">৩ কলাম</option>
                 </select>
               </InputGroup>
               <InputGroup label="হেডার অ্যালাইনমেন্ট">

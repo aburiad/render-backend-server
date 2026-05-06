@@ -2,10 +2,14 @@ const express = require('express')
 const configService = require('../services/configService')
 const manualPaymentService = require('../services/manualPaymentService')
 const { supabaseAdmin } = require('../config/supabase')
-const { requireAuth } = require('../middleware/auth')
+const { requireAuth, requireAdmin } = require('../middleware/auth')
 
 const router = express.Router()
+// CRITICAL: every admin route requires BOTH (a) valid JWT AND (b) profiles.role === 'admin'.
+// Without requireAdmin, any authenticated user could verify their own payment, change
+// the pro price, or promote themselves — full privilege escalation.
 router.use(requireAuth)
+router.use(requireAdmin)
 
 router.get('/subscription/config', async (req, res, next) => {
   try {

@@ -1,6 +1,6 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
-import MathSymbolPicker from './MathSymbolPicker'
+import MathLiveEditor from './MathLiveEditor'
 import { MathPreview } from '@/utils/mathRender'
 
 const SUB_LABELS = ['ক', 'খ', 'গ', 'ঘ']
@@ -40,7 +40,7 @@ export default function CqEditor({ question }) {
             rows={3}
             className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
-          <MathSymbolPicker inputRef={stimulusRef} onInsert={(v) => handleStimulusChange(v)} />
+          <MathLiveEditor inputRef={stimulusRef} onInsert={(v) => handleStimulusChange(v)} />
         </div>
         <MathPreview text={question.stimulus} />
       </div>
@@ -61,7 +61,7 @@ export default function CqEditor({ question }) {
                 rows={1}
                 className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               />
-              <MathSymbolPicker
+              <MathLiveEditor
                 inputRef={{ get current() { return subRefs.current[i] } }}
                 onInsert={(v) => handleSubChange(i, 'text', v)}
               />

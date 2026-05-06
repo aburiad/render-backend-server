@@ -21,9 +21,10 @@ router.get('/config', async (req, res, next) => {
  */
 router.post('/manual', requireAuth, async (req, res, next) => {
   try {
-    const { amount, method, tranId, phone, screenshot } = req.body
+    // Note: `amount` is intentionally NOT pulled from req.body. The service
+    // looks it up from subscription_config so users can't fake a low price.
+    const { method, tranId, phone, screenshot } = req.body
     const payment = await manualPaymentService.submitManualPayment(req.user.uid, {
-      amount,
       method,
       tranId,
       phone,

@@ -17,19 +17,20 @@ const PaperTemplate = forwardRef(function PaperTemplate(
 ) {
   const fontStack = `"${font}", "Hind Siliguri", "Noto Sans Bengali", serif`
 
-  // Top/bottom padding intentionally 0: when html2pdf splits this tall element
-  // across multiple pages, internal top/bottom padding appears only on page 1
-  // and last page. Page-level margins are added by jsPDF (margin option) and
-  // by @page CSS for browser print, which apply consistently to every page.
+  // No padding on the element itself. Horizontal + vertical margins are added
+  // outside this element so they apply consistently per page in every output:
+  //   - html2pdf  → jsPDF `margin` option (PDFPreview.jsx)
+  //   - browser print → @page margin in index.css
+  //   - on-screen preview → wrapper padding around <PaperTemplate> in PDFPreview.jsx
+  // Width is the printable content area (A4 210mm − 12mm × 2 horizontal margin).
   const pageStyle = {
     fontFamily: fontStack,
     fontSize: size,
     lineHeight: spacing,
     color: '#000',
     background: '#fff',
-    width: '210mm',
-    minHeight: '297mm',
-    padding: '0 12mm',
+    width: '186mm',
+    minHeight: '269mm',
     margin: '0 auto',
     boxSizing: 'border-box',
   }
@@ -102,63 +103,37 @@ function Header({ paper }) {
         )}
       </div>
 
-      {/* Time (left) | Full marks (right)
-          Using a table instead of flex+lineHeight: html2canvas renders
-          flex containers' padding asymmetrically when the parent has a
-          tall line-height (the bottom border drifts up onto descenders).
-          Table cell padding is part of the cell box model and html2canvas
-          honors it symmetrically. */}
-      <table
+      {/* Time (left) | Full marks (right) — borderless layout to avoid the
+          html2canvas vertical-centering quirk with Bengali text inside two
+          borders. Plain flex row — text positions itself naturally, no
+          alignment needed. */}
+      <div
         style={{
-          width: '100%',
-          borderCollapse: 'collapse',
-          borderTop: '1px solid #000',
-          borderBottom: '1px solid #000',
-          marginTop: 4,
-          tableLayout: 'fixed',
+          display: 'flex',
+          justifyContent: 'space-between',
+          marginTop: 8,
+          marginBottom: 4,
+          fontSize: '0.95em',
+          fontWeight: 600,
         }}
       >
-        <tbody>
-          <tr>
-            <td
-              style={{
-                padding: '8px 0',
-                textAlign: 'left',
-                fontSize: '0.95em',
-                fontWeight: 600,
-                lineHeight: 1.3,
-                verticalAlign: 'middle',
-              }}
-            >
-              {paper.time_minutes ? `সময়: ${paper.time_minutes} মিনিট` : ''}
-            </td>
-            <td
-              style={{
-                padding: '8px 0',
-                textAlign: 'right',
-                fontSize: '0.95em',
-                fontWeight: 600,
-                lineHeight: 1.3,
-                verticalAlign: 'middle',
-              }}
-            >
-              {paper.total_marks ? `পূর্ণমান: ${paper.total_marks}` : ''}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+        <span>
+          {paper.time_minutes ? `সময়: ${paper.time_minutes} মিনিট` : ''}
+        </span>
+        <span>
+          {paper.total_marks ? `পূর্ণমান: ${paper.total_marks}` : ''}
+        </span>
+      </div>
 
-      {/* Notes / instructions */}
+      {/* Notes / instructions — plain text, no box. Avoids html2canvas
+          vertical-centering quirks with Bengali fonts. */}
       {paper.instructions && (
         <div
           style={{
             marginTop: 10,
-            padding: '8px 12px',
             fontSize: '0.9em',
             fontStyle: 'italic',
             lineHeight: 1.5,
-            borderLeft: '3px solid #555',
-            background: '#fafafa',
           }}
         >
           <span style={{ fontWeight: 700, fontStyle: 'normal' }}>নির্দেশনা: </span>
@@ -178,12 +153,14 @@ function QuestionList({ questions, layout = '1-column' }) {
     )
   }
 
-  const isTwoCol = layout === '2-column'
-  const containerStyle = isTwoCol
-    ? {
-        columnCount: 2,
-        columnGap: '5mm',
-      }
+  // 1/2/3 column support. Multi-column uses CSS columns; per-question
+  // break-inside avoid (already set on each question wrapper below) keeps
+  // one question from getting sliced across two columns mid-text.
+  const colCount = layout === '3-column' ? 3 : layout === '2-column' ? 2 : 1
+  const containerStyle = colCount === 3
+    ? { columnCount: 3, columnGap: '4mm', fontSize: '0.85em' }
+    : colCount === 2
+    ? { columnCount: 2, columnGap: '5mm' }
     : {}
 
   return (
@@ -287,11 +264,8 @@ function CqQuestion({ q }) {
           as="div"
           text={q.stimulus}
           style={{
-            padding: '6px 8px',
-            border: '1px solid #999',
             margin: '2px 0 4px',
-            background: '#fafafa',
-            // Stimulus is a bordered box — splitting it across pages looks bad
+            // Stimulus often spans multiple lines — keep it together on one page
             breakInside: 'avoid',
             pageBreakInside: 'avoid',
           }}
@@ -338,6 +312,9 @@ function MatchingQuestion({ q }) {
           borderCollapse: 'collapse',
           marginTop: 6,
           fontSize: '0.95em',
+          // Matching tables look broken when split mid-row across pages
+          breakInside: 'avoid',
+          pageBreakInside: 'avoid',
         }}
       >
         <thead>
@@ -400,7 +377,15 @@ function TableQuestion({ q }) {
     <div>
       {q.question && <MathText as="div" text={q.question} />}
       {q.rows && (
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 6 }}>
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            marginTop: 6,
+            breakInside: 'avoid',
+            pageBreakInside: 'avoid',
+          }}
+        >
           <tbody>
             {q.rows.map((row, i) => (
               <tr key={i}>
