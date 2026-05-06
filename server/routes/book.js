@@ -2,8 +2,13 @@ const express = require('express')
 const { AppError } = require('../middleware/errorHandler')
 const bookService = require('../services/bookService')
 const { generateFromBook } = require('../services/aiService')
+const { requireAuth } = require('../middleware/auth')
 
 const router = express.Router()
+// All book endpoints (subjects/chapters listing + AI generation) require auth.
+// Without this, any visitor could spam /api/book/generate and burn the
+// system's AI quota.
+router.use(requireAuth)
 
 /**
  * GET /api/book/subjects/:classNum
@@ -92,19 +97,20 @@ router.post('/generate', async (req, res, next) => {
       })
       .join('\n\n---\n\n')
 
-    // Generate questions via Gemini
-    const result = await generateFromBook(combinedContext, {
-      subject,
-      classNum,
-      questionTypes,
-      count: requestedCount,
-    })
+    // Generate questions — pass userId so user's BYO API keys are tried first.
+    const result = await generateFromBook(
+      combinedContext,
+      { subject, classNum, questionTypes, count: requestedCount },
+      req.user.uid,
+    )
 
     res.json({
       success: true,
       questions: result.questions,
       count: result.questions.length,
-      source: chapterData.map((ch) => ch.title),
+      provider: result.provider,
+      keySource: result.source, // 'user' | 'system' — which key was used (renamed to keySource because `source` already means chapter list here)
+      sourceChapters: chapterData.map((ch) => ch.title),
     })
   } catch (err) {
     console.error('Book Generate Error:', err)

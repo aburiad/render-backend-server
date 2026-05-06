@@ -1,5 +1,6 @@
 const { VISION_CHAIN, TEXT_CHAIN } = require('./aiProviders')
 const { AppError } = require('../middleware/errorHandler')
+const userApiKeyService = require('./userApiKeyService')
 
 /**
  * Robust JSON-array extraction from any LLM output.
@@ -53,52 +54,76 @@ const ENV_KEY = {
   zai: 'Z_API_KEY',
 }
 
-function configuredProviders(chain) {
-  return chain.filter((p) => !!process.env[ENV_KEY[p.name]])
+/**
+ * For a given chain, return the list of providers that have an effective
+ * API key — either user-supplied OR the system .env fallback. Each item
+ * also carries the resolved key + a flag identifying its source.
+ */
+function buildEffectiveProviders(chain, userKeys) {
+  return chain
+    .map((provider) => {
+      const userKey = userKeys[provider.name]
+      const envKey = process.env[ENV_KEY[provider.name]]
+      const apiKey = userKey || envKey
+      if (!apiKey) return null
+      return { provider, apiKey, isUserKey: !!userKey }
+    })
+    .filter(Boolean)
 }
 
-async function callWithFallback(chain, params, label) {
-  const enabled = configuredProviders(chain)
+async function callWithFallback(chain, params, label, userId = null) {
+  const userKeys = userId ? await userApiKeyService.loadAllForUser(userId) : {}
+  const enabled = buildEffectiveProviders(chain, userKeys)
 
   if (enabled.length === 0) {
     throw new AppError(
-      'কোনো AI provider configure করা নেই। .env ফাইলে অন্তত একটি API key বসান।',
+      'কোনো AI provider configure করা নেই। সেটিংস → AI Providers থেকে নিজের API key যোগ করুন অথবা .env-এ system key বসান।',
       503,
     )
   }
 
   const errors = []
-  for (const provider of enabled) {
+  for (const { provider, apiKey, isUserKey } of enabled) {
     try {
-      console.log(`[ai:${label}] trying ${provider.name}…`)
-      const text = await withTimeout(provider.chat(params), PROVIDER_TIMEOUT_MS, provider.name)
+      console.log(`[ai:${label}] trying ${provider.name} (${isUserKey ? 'user-key' : 'system-key'})…`)
+      const text = await withTimeout(
+        provider.chat({ ...params, apiKey }),
+        PROVIDER_TIMEOUT_MS,
+        provider.name,
+      )
       const questions = parseQuestionsJson(text)
       console.log(`[ai:${label}] ✓ ${provider.name} returned ${questions.length} questions`)
-      return { questions, provider: provider.name }
+      // Best-effort: bump last_used_at when the user's own key was used.
+      if (isUserKey && userId) {
+        userApiKeyService.markUsed(userId, provider.name).catch(() => {})
+      }
+      return { questions, provider: provider.name, source: isUserKey ? 'user' : 'system' }
     } catch (err) {
       const msg = err?.message || String(err)
-      // Full technical detail for server logs
       console.warn(`[ai:${label}] ✗ ${provider.name}: ${msg}`)
-      errors.push({ provider: provider.name, message: msg })
+      errors.push({ provider: provider.name, message: msg, source: isUserKey ? 'user' : 'system' })
     }
   }
 
-  // User-facing message: short, actionable, Bengali. Technical detail stays in logs.
-  const triedNames = enabled.map((p) => p.name).join(', ')
+  const triedNames = enabled.map((e) => e.provider.name).join(', ')
   const userMsg =
     label === 'scan'
       ? `প্রশ্ন স্ক্যান করতে পারিনি — সব AI provider সাড়া দিচ্ছে না। আবার চেষ্টা করুন বা ছবি পরিষ্কার তুলে দেখুন। (${triedNames})`
       : `প্রশ্ন তৈরি করতে পারিনি — সব AI provider সাড়া দিচ্ছে না। কিছুক্ষণ পর আবার চেষ্টা করুন। (${triedNames})`
 
   const wrapped = new AppError(userMsg, 502)
-  wrapped.providerErrors = errors // available to logs / debug endpoints
+  wrapped.providerErrors = errors
   throw wrapped
 }
 
 /**
  * Vision: extract questions from an image of a question paper.
+ * @param {string} base64Image
+ * @param {string} mimeType
+ * @param {string|null} userId — when supplied, user's stored API keys are
+ *   tried before .env fallback for each provider.
  */
-async function scanImage(base64Image, mimeType = 'image/jpeg') {
+async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null) {
   if (!base64Image) throw new AppError('Image data is missing', 400)
 
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '')
@@ -129,21 +154,26 @@ Output: ONLY the JSON array. No markdown fences, no commentary. Use \\n for line
     },
   ]
 
-  const { questions, provider } = await callWithFallback(
+  const { questions, provider, source } = await callWithFallback(
     VISION_CHAIN,
     // Temperature 0 → deterministic transcription. Higher temp lets the
     // model "creatively" swap letters/digits, which is the exact failure
     // mode (x ↔ y, m ↔ n, fraction flip) we are trying to eliminate.
     { messages, vision: true, jsonMode: false, temperature: 0 },
     'scan',
+    userId,
   )
-  return { questions, count: questions.length, provider }
+  return { questions, count: questions.length, provider, source }
 }
 
 /**
  * Text: generate questions from book chapter content.
+ * @param {string} chapterContext
+ * @param {object} config
+ * @param {string|null} userId — when supplied, user's stored API keys are
+ *   tried before .env fallback for each provider.
  */
-async function generateFromBook(chapterContext, config = {}) {
+async function generateFromBook(chapterContext, config = {}, userId = null) {
   const { subject = '', classNum = 0, questionTypes = ['MCQ'], count = 5 } = config
 
   const SUBJECTS_BN = {
@@ -224,12 +254,13 @@ ${mathBlock}
 
   const messages = [{ role: 'user', content: prompt }]
 
-  const { questions, provider } = await callWithFallback(
+  const { questions, provider, source } = await callWithFallback(
     TEXT_CHAIN,
     { messages, vision: false, jsonMode: true, temperature: 0.6 },
     'book-generate',
+    userId,
   )
-  return { questions, provider }
+  return { questions, provider, source }
 }
 
 module.exports = { scanImage, generateFromBook, parseQuestionsJson }

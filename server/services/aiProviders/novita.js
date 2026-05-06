@@ -35,8 +35,8 @@ async function tryEndpoint({ apiKey, url, model, messages, jsonMode, temperature
   return data?.choices?.[0]?.message?.content
 }
 
-async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6 }) {
-  const apiKey = process.env.NOVITA_API_KEY
+async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
+  const apiKey = providedKey || process.env.NOVITA_API_KEY
   if (!apiKey) throw new Error('NOVITA_API_KEY not set')
 
   const models = vision ? VISION_MODELS : TEXT_MODELS

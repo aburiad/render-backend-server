@@ -13,6 +13,7 @@ import QuestionBank from '@/pages/QuestionBank'
 import Register from '@/pages/Register'
 import Results from '@/pages/Results'
 import ScanUpload from '@/pages/ScanUpload'
+import SettingsAIKeys from '@/pages/SettingsAIKeys'
 import useAuthStore from '@/store/authStore'
 import { AnimatePresence } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
@@ -81,6 +82,8 @@ export default function App() {
           <Route path="bank" element={<QuestionBank />} />
           <Route path="results" element={<Results />} />
           <Route path="pricing" element={<Pricing />} />
+          <Route path="settings" element={<Navigate to="/settings/ai-keys" replace />} />
+          <Route path="settings/ai-keys" element={<SettingsAIKeys />} />
           <Route
             path="admin"
             element={<AdminRoute><AdminDashboard /></AdminRoute>}

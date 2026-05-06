@@ -11,11 +11,11 @@ router.post('/generate-question', checkLimit('ai_scan'), async (req, res, next) 
   try {
     const { image } = req.body
     if (!image) throw new AppError('Image is required', 400)
-    const result = await scanImage(image)
+    const result = await scanImage(image, 'image/jpeg', req.user.uid)
     if (req.profile) {
       await recordAiScan(req.user.uid, req.profile)
     }
-    res.json({ success: true, questions: result.questions, count: result.count, provider: result.provider })
+    res.json({ success: true, questions: result.questions, count: result.count, provider: result.provider, source: result.source })
   } catch (err) {
     next(err)
   }

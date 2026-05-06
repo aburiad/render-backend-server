@@ -17,7 +17,9 @@ router.post('/scan', checkLimit('ai_scan'), async (req, res, next) => {
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '')
     Buffer.from(base64Data, 'base64')
 
-    const result = await scanImage(image)
+    // Pass userId so the chain runner picks up the user's BYO API keys
+    // (when configured) before falling back to system .env keys.
+    const result = await scanImage(image, 'image/jpeg', req.user.uid)
 
     if (req.profile) {
       await recordAiScan(req.user.uid, req.profile)
@@ -28,6 +30,7 @@ router.post('/scan', checkLimit('ai_scan'), async (req, res, next) => {
       questions: result.questions,
       count: result.count,
       provider: result.provider,
+      source: result.source, // 'user' | 'system' — which key was actually used
     })
   } catch (err) {
     console.error('AI Scan Route Error:', err)

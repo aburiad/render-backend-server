@@ -30,8 +30,8 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   return data?.choices?.[0]?.message?.content
 }
 
-async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6 }) {
-  const apiKey = process.env.GROQ_API_KEY
+async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
+  const apiKey = providedKey || process.env.GROQ_API_KEY
   if (!apiKey) throw new Error('GROQ_API_KEY not set')
 
   const cleanMessages = vision ? messages.filter((m) => m.role !== 'system') : messages
