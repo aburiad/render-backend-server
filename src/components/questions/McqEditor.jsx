@@ -38,7 +38,7 @@ export default function McqEditor({ question }) {
       </div>
 
       {/* Options Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
         {['a', 'b', 'c', 'd'].map((opt) => {
           const isCorrect = question.correct_answer === opt
           return (

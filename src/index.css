@@ -72,6 +72,10 @@
   --text-xl: 20px;
   --text-2xl: 24px;
 
+  /* Mobile-only standardised heading/body sizes (override below in @media). */
+  --text-mobile-heading: 18px;
+  --text-mobile-body: 14px;
+
   /* Nav heights */
   --header-height: 56px;
   --nav-height: 64px;
@@ -131,6 +135,21 @@ input, select, textarea {
     /* Desktop: full width, frame drops away, sidebar takes over */
     max-width: 100%;
     background: transparent;
+  }
+}
+
+/* ─── Mobile typography normalisation ─────────────────────────
+   On phones, collapse the 6-step type scale to just two sizes
+   (heading / body). Anything using a `var(--text-*)` token gets
+   re-mapped automatically. Inputs keep 16px to prevent iOS zoom. */
+@media (max-width: 640px) {
+  :root {
+    --text-xs:  var(--text-mobile-body);     /* 14px */
+    --text-sm:  var(--text-mobile-body);     /* 14px */
+    --text-base: var(--text-mobile-body);    /* 14px */
+    --text-lg:  var(--text-mobile-heading);  /* 18px */
+    --text-xl:  var(--text-mobile-heading);  /* 18px */
+    --text-2xl: var(--text-mobile-heading);  /* 18px */
   }
 }
 
