@@ -141,13 +141,30 @@ export default function PDFPreview() {
   }
 
   function handlePrint() {
-    // Set the document title so browser uses it as default file name
-    const original = document.title
+    if (!paperRef.current) return
+    // Clone the paper into a body-root .print-host wrapper. The print
+    // CSS in index.css then hides everything else and shows just this
+    // wrapper — avoids framer-motion positioning context issues that
+    // were narrowing / shifting the print output.
+    const clone = paperRef.current.cloneNode(true)
+    const host = document.createElement('div')
+    host.className = 'print-host'
+    host.appendChild(clone)
+    document.body.appendChild(host)
+    document.body.classList.add('is-printing')
+
+    const originalTitle = document.title
     document.title = `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}`
-    setTimeout(() => {
-      window.print()
-      document.title = original
-    }, 100)
+
+    const cleanup = () => {
+      document.body.classList.remove('is-printing')
+      host.remove()
+      document.title = originalTitle
+      window.removeEventListener('afterprint', cleanup)
+    }
+    window.addEventListener('afterprint', cleanup, { once: true })
+
+    setTimeout(() => window.print(), 50)
   }
 
   return (

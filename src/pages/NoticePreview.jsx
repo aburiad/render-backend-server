@@ -81,12 +81,26 @@ export default function NoticePreview() {
   }
 
   function handlePrint() {
-    const original = document.title
+    if (!paperRef.current) return
+    const clone = paperRef.current.cloneNode(true)
+    const host = document.createElement('div')
+    host.className = 'print-host'
+    host.appendChild(clone)
+    document.body.appendChild(host)
+    document.body.classList.add('is-printing')
+
+    const originalTitle = document.title
     document.title = notice?.title || 'notice'
-    setTimeout(() => {
-      window.print()
-      document.title = original
-    }, 100)
+
+    const cleanup = () => {
+      document.body.classList.remove('is-printing')
+      host.remove()
+      document.title = originalTitle
+      window.removeEventListener('afterprint', cleanup)
+    }
+    window.addEventListener('afterprint', cleanup, { once: true })
+
+    setTimeout(() => window.print(), 50)
   }
 
   return (

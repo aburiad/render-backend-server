@@ -92,23 +92,36 @@ export default function TeacherSchedulePage() {
   }
 
   function handlePrint() {
-    const styleId = 'teacher-print-orientation'
-    document.getElementById(styleId)?.remove()
+    if (!paperRef.current) return
+
+    // Clone into print-host wrapper at body root.
+    const clone = paperRef.current.cloneNode(true)
+    const host = document.createElement('div')
+    host.className = 'print-host'
+    host.appendChild(clone)
+    document.body.appendChild(host)
+    document.body.classList.add('is-printing')
+
+    // Teacher schedule is always landscape; 5mm horizontal margin matches
+    // the paperRef padding so the 287mm-wide template fills the page.
     const style = document.createElement('style')
-    style.id = styleId
     style.media = 'print'
-    // Match the 5mm horizontal padding baked into paperRef + 12mm vertical
-    // for top/bottom breathing room. Inner content area = 297 − 10 = 287mm,
-    // exactly matches template width so content centers cleanly.
     style.textContent = `@page { size: A4 landscape; margin: 12mm 5mm; }`
     document.head.appendChild(style)
-    const original = document.title
+
+    const originalTitle = document.title
     document.title = `${teacherName} রুটিন`
-    setTimeout(() => {
-      window.print()
-      document.title = original
-      setTimeout(() => style.remove(), 2000)
-    }, 80)
+
+    const cleanup = () => {
+      document.body.classList.remove('is-printing')
+      host.remove()
+      style.remove()
+      document.title = originalTitle
+      window.removeEventListener('afterprint', cleanup)
+    }
+    window.addEventListener('afterprint', cleanup, { once: true })
+
+    setTimeout(() => window.print(), 80)
   }
 
   return (

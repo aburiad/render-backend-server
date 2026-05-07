@@ -86,33 +86,38 @@ export default function RoutinePreview() {
   }
 
   function handlePrint() {
-    // Browsers don't reliably honor named @page rules tied to a specific
-    // class — Safari ignores them entirely, mobile Chrome treats them as
-    // hints. Inject a print-only <style> with the correct @page size right
-    // before window.print(), then remove it after the dialog closes.
+    if (!paperRef.current) return
     const isLandscape = (routine?.orientation || 'landscape') === 'landscape'
-    const styleId = 'routine-print-orientation'
-    document.getElementById(styleId)?.remove()
 
+    // Clone the routine into a body-root .print-host so framer-motion
+    // ancestor positioning context can't shift/narrow the print output.
+    const clone = paperRef.current.cloneNode(true)
+    const host = document.createElement('div')
+    host.className = 'print-host'
+    host.appendChild(clone)
+    document.body.appendChild(host)
+    document.body.classList.add('is-printing')
+
+    // @page orientation injection — landscape vs portrait per routine setting.
     const style = document.createElement('style')
-    style.id = styleId
     style.media = 'print'
-    // Symmetric 12mm margin so inner area matches the template width:
-    //   landscape: 297mm − 24mm = 273mm  (matches template width 273mm)
-    //   portrait:  210mm − 24mm = 186mm  (matches template width 186mm)
     style.textContent = `@page { size: A4 ${isLandscape ? 'landscape' : 'portrait'}; margin: 12mm; }`
     document.head.appendChild(style)
 
-    const original = document.title
+    const originalTitle = document.title
     document.title = routine?.class_name || 'routine'
 
-    // Small delay so the injected @page rule is parsed before printing.
+    const cleanup = () => {
+      document.body.classList.remove('is-printing')
+      host.remove()
+      style.remove()
+      document.title = originalTitle
+      window.removeEventListener('afterprint', cleanup)
+    }
+    window.addEventListener('afterprint', cleanup, { once: true })
+
     setTimeout(() => {
       window.print()
-      document.title = original
-      // Strip the injected rule a bit later — print dialog may still be
-      // active; immediate removal sometimes resets orientation mid-print.
-      setTimeout(() => style.remove(), 2000)
     }, 80)
   }
 

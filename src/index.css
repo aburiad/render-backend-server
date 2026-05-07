@@ -555,37 +555,34 @@ input, select, textarea {
      rules + `page:` property are unreliable across browsers (Safari
      ignores them), so we inject the correct @page size at print time. */
 
-  /* Reset everything outside the paper. Classic "isolate one element" trick:
-   * hide every element by default, then re-show the paper (and its descendants)
-   * and absolutely-position it at the page origin. */
-  body * {
-    visibility: hidden !important;
+  /* During print, handlePrint() in each preview page moves the print
+     target into a `.print-host` wrapper at body root, then sets
+     `body.is-printing`. This CSS hides everything except .print-host,
+     so layout is dead simple — no positioning hacks, no framer-motion
+     positioning context interference, no narrowing surprises. */
+  body.is-printing > *:not(.print-host) {
+    display: none !important;
   }
-  .paper-print, .paper-print *,
-  .notice-print, .notice-print *,
-  .routine-print, .routine-print * {
-    visibility: visible !important;
+  body.is-printing .print-host {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
   }
-  /* `left: 0; right: 0; margin: 0 auto` together force horizontal
-     auto-centering for an absolutely-positioned element with a fixed
-     width — this is the trick that makes the template sit in the middle
-     of the page content area regardless of any width mismatch with the
-     @page inner box. Without `right: 0`, the auto margins resolve to 0
-     and the element pins to the left edge. */
-  .paper-print, .notice-print, .routine-print {
-    position: absolute !important;
-    left: 0 !important;
-    right: 0 !important;
-    top: 0 !important;
+  /* The actual print template — sized to fit @page content area exactly. */
+  body.is-printing .paper-print,
+  body.is-printing .notice-print {
     margin: 0 auto !important;
     box-shadow: none !important;
-  }
-  /* Paper + notice are A4 portrait inner area (210mm − 12mm × 2 margin) */
-  .paper-print, .notice-print {
     width: 186mm !important;
     min-height: 269mm !important;
   }
-  /* Routine inline style controls width (landscape 273mm or portrait 186mm) */
+  /* Routine inline width (landscape 287mm / portrait 186mm) wins; just
+     center and strip shadow. */
+  body.is-printing .routine-print {
+    margin: 0 auto !important;
+    box-shadow: none !important;
+  }
 
   body, html {
     background: #fff !important;
