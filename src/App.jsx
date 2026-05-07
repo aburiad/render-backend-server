@@ -14,6 +14,9 @@ import Register from '@/pages/Register'
 import Results from '@/pages/Results'
 import ScanUpload from '@/pages/ScanUpload'
 import SettingsAIKeys from '@/pages/SettingsAIKeys'
+import NoticesList from '@/pages/NoticesList'
+import NoticeEditor from '@/pages/NoticeEditor'
+import NoticePreview from '@/pages/NoticePreview'
 import useAuthStore from '@/store/authStore'
 import { AnimatePresence } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
@@ -81,6 +84,10 @@ export default function App() {
           <Route path="scan" element={<ScanUpload />} />
           <Route path="bank" element={<QuestionBank />} />
           <Route path="results" element={<Results />} />
+          <Route path="notices" element={<NoticesList />} />
+          <Route path="notices/new" element={<NoticeEditor />} />
+          <Route path="notices/:id" element={<NoticeEditor />} />
+          <Route path="notices/:id/preview" element={<NoticePreview />} />
           <Route path="pricing" element={<Pricing />} />
           <Route path="settings" element={<Navigate to="/settings/ai-keys" replace />} />
           <Route path="settings/ai-keys" element={<SettingsAIKeys />} />
