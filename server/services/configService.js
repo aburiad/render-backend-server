@@ -1,7 +1,12 @@
 const { supabaseAdmin } = require('../config/supabase')
 
 const DEFAULT_RATE_LIMITS = {
-  ai: { max: 30, windowMinutes: 60 },
+  ai: {
+    max: 30, // limit when user uses SYSTEM AI keys (our cost)
+    windowMinutes: 60,
+    byoMax: 0, // limit when user has VERIFIED OWN keys; 0 = unlimited
+    byoWindowMinutes: 60,
+  },
   payment: { max: 5, windowMinutes: 60 },
   userKey: { max: 20, windowMinutes: 60 },
   auth: { max: 10, windowMinutes: 15 },
@@ -31,23 +36,38 @@ const DEFAULT_CONFIG = {
 }
 
 // Sanitize / merge user-supplied rate limits with defaults so partial
-// updates from admin UI don't drop fields we still need.
+// updates from admin UI don't drop fields we still need. The `ai` limiter
+// has extra byoMax/byoWindowMinutes fields for users with their own keys.
 function normalizeRateLimits(input) {
   const out = { ...DEFAULT_RATE_LIMITS }
   if (!input || typeof input !== 'object') return out
   for (const key of Object.keys(DEFAULT_RATE_LIMITS)) {
     const incoming = input[key]
-    if (incoming && typeof incoming === 'object') {
-      const max = Number(incoming.max)
-      const windowMinutes = Number(incoming.windowMinutes)
-      out[key] = {
-        max: Number.isFinite(max) && max > 0 ? Math.floor(max) : DEFAULT_RATE_LIMITS[key].max,
-        windowMinutes:
-          Number.isFinite(windowMinutes) && windowMinutes > 0
-            ? Math.floor(windowMinutes)
-            : DEFAULT_RATE_LIMITS[key].windowMinutes,
-      }
+    if (!(incoming && typeof incoming === 'object')) continue
+
+    const defaults = DEFAULT_RATE_LIMITS[key]
+    const max = Number(incoming.max)
+    const windowMinutes = Number(incoming.windowMinutes)
+    const next = {
+      max: Number.isFinite(max) && max > 0 ? Math.floor(max) : defaults.max,
+      windowMinutes:
+        Number.isFinite(windowMinutes) && windowMinutes > 0
+          ? Math.floor(windowMinutes)
+          : defaults.windowMinutes,
     }
+    // BYO fields — only meaningful for `ai`. byoMax: 0 means UNLIMITED for
+    // BYO users (skip rate limit entirely).
+    if (key === 'ai') {
+      const byoMax = Number(incoming.byoMax)
+      const byoWindowMinutes = Number(incoming.byoWindowMinutes)
+      next.byoMax =
+        Number.isFinite(byoMax) && byoMax >= 0 ? Math.floor(byoMax) : defaults.byoMax
+      next.byoWindowMinutes =
+        Number.isFinite(byoWindowMinutes) && byoWindowMinutes > 0
+          ? Math.floor(byoWindowMinutes)
+          : defaults.byoWindowMinutes
+    }
+    out[key] = next
   }
   return out
 }

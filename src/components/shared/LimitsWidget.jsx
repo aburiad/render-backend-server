@@ -73,8 +73,10 @@ export default function LimitsWidget() {
 
   if (!usage) return null
 
-  const aiPct = (usage.ai.used / usage.ai.max) * 100
-  const aiNearLimit = aiPct >= 70
+  const isUnlimited = usage.ai.unlimited === true
+  const isBYO = usage.ai.mode === 'byo'
+  const aiPct = isUnlimited ? 0 : (usage.ai.used / (usage.ai.max || 1)) * 100
+  const aiNearLimit = !isUnlimited && aiPct >= 70
 
   return (
     <div style={cardStyle}>
@@ -83,11 +85,22 @@ export default function LimitsWidget() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>{LIMIT_META.ai.icon}</span>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a' }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 6 }}>
               {LIMIT_META.ai.label}
+              {isBYO && (
+                <span style={{
+                  fontSize: 9, fontWeight: 800, padding: '2px 6px', borderRadius: 6,
+                  background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0',
+                  letterSpacing: '0.04em',
+                }}>
+                  🔑 OWN KEY
+                </span>
+              )}
             </div>
             <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600 }}>
-              {formatResetIn(usage.ai.resetAt)} • প্রতি {formatWindow(usage.ai.windowMs)}
+              {isUnlimited
+                ? 'নিজের API key — কোনো limit নেই'
+                : `${formatResetIn(usage.ai.resetAt)} • প্রতি ${formatWindow(usage.ai.windowMs)}`}
             </div>
           </div>
         </div>
@@ -95,19 +108,27 @@ export default function LimitsWidget() {
           style={{
             fontSize: 13,
             fontWeight: 800,
-            color: aiNearLimit ? '#dc2626' : LIMIT_META.ai.color,
+            color: isUnlimited ? '#16a34a' : aiNearLimit ? '#dc2626' : LIMIT_META.ai.color,
             fontFamily: 'var(--font-english)',
           }}
         >
-          {usage.ai.used}<span style={{ color: '#94a3b8', fontSize: 11 }}>/{usage.ai.max}</span>
+          {isUnlimited ? (
+            <span style={{ fontSize: 18 }}>∞</span>
+          ) : (
+            <>
+              {usage.ai.used}<span style={{ color: '#94a3b8', fontSize: 11 }}>/{usage.ai.max}</span>
+            </>
+          )}
         </div>
       </div>
 
-      <ProgressBar
-        value={usage.ai.used}
-        max={usage.ai.max}
-        color={aiNearLimit ? '#dc2626' : LIMIT_META.ai.color}
-      />
+      {!isUnlimited && (
+        <ProgressBar
+          value={usage.ai.used}
+          max={usage.ai.max}
+          color={aiNearLimit ? '#dc2626' : LIMIT_META.ai.color}
+        />
+      )}
 
       <button
         onClick={() => setExpanded(!expanded)}
@@ -142,17 +163,31 @@ export default function LimitsWidget() {
         <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
           <LimitRow data={usage.payment} meta={LIMIT_META.payment} />
           <LimitRow data={usage.userKey} meta={LIMIT_META.userKey} />
-          <div style={{
-            fontSize: 10,
-            color: '#94a3b8',
-            padding: '6px 8px',
-            background: '#fafafa',
-            borderRadius: 8,
-            lineHeight: 1.5,
-          }}>
-            💡 limit-গুলো spam protection-এর জন্য। স্বাভাবিক ব্যবহারে আপনি limit-এ পৌঁছাবেন না।
-            যদি বার বার hit করেন → upgrade plan বা settings থেকে নিজের AI key যোগ করুন।
-          </div>
+          {isBYO ? (
+            <div style={{
+              fontSize: 10,
+              color: '#047857',
+              padding: '6px 8px',
+              background: '#ecfdf5',
+              border: '1px solid #a7f3d0',
+              borderRadius: 8,
+              lineHeight: 1.5,
+            }}>
+              ✓ আপনি নিজের API key ব্যবহার করছেন। তাই {isUnlimited ? 'কোনো limit নেই' : 'বেশি quota পাচ্ছেন'}।
+            </div>
+          ) : (
+            <div style={{
+              fontSize: 10,
+              color: '#7c2d12',
+              padding: '6px 8px',
+              background: '#fff7ed',
+              border: '1px solid #fed7aa',
+              borderRadius: 8,
+              lineHeight: 1.5,
+            }}>
+              💡 আরো quota চান? <a href="/settings/ai-keys" style={{ color: '#c2410c', fontWeight: 700, textDecoration: 'underline' }}>নিজের AI key যোগ করুন</a> — সেটিংস থেকে।
+            </div>
+          )}
         </div>
       )}
     </div>

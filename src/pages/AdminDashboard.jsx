@@ -15,7 +15,7 @@ export default function AdminDashboard() {
     features: [],
     manualPaymentMethods: [],
     rateLimits: {
-      ai: { max: 30, windowMinutes: 60 },
+      ai: { max: 30, windowMinutes: 60, byoMax: 0, byoWindowMinutes: 60 },
       payment: { max: 5, windowMinutes: 60 },
       userKey: { max: 20, windowMinutes: 60 },
       auth: { max: 10, windowMinutes: 15 },
@@ -387,8 +387,75 @@ export default function AdminDashboard() {
                   </p>
                 </div>
 
+                {/* AI limiter — dual-tier (system key vs BYO key) */}
+                {(() => {
+                  const ai = config.rateLimits?.ai || { max: 30, windowMinutes: 60, byoMax: 0, byoWindowMinutes: 60 }
+                  const setAi = (fields) =>
+                    setConfig({
+                      ...config,
+                      rateLimits: { ...config.rateLimits, ai: { ...ai, ...fields } },
+                    })
+                  return (
+                    <div className="p-3 bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl border border-purple-100 space-y-3">
+                      <div>
+                        <div className="text-sm font-bold flex items-center gap-2">
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#7c3aed' }} />
+                          AI স্ক্যান + Book Generate
+                        </div>
+                        <div className="text-[10px] text-gray-500 mt-0.5">
+                          ২টা tier: যারা আমাদের system key ব্যবহার করে (cost আমাদের) vs যারা নিজের API key দিয়েছে (cost তাদের)
+                        </div>
+                      </div>
+
+                      {/* System key tier */}
+                      <div className="grid grid-cols-[1fr_90px_90px] gap-3 items-center bg-white p-2.5 rounded-lg border border-gray-100">
+                        <div>
+                          <div className="text-xs font-bold text-gray-700">🏢 System Key User</div>
+                          <div className="text-[10px] text-gray-500">আমাদের AI key ব্যবহারকারী — cost protection</div>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-gray-400 mb-1">সর্বোচ্চ</label>
+                          <input type="number" min={1} value={ai.max}
+                            onChange={(e) => setAi({ max: parseInt(e.target.value, 10) || 0 })}
+                            className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-gray-400 mb-1">মিনিট</label>
+                          <input type="number" min={1} value={ai.windowMinutes}
+                            onChange={(e) => setAi({ windowMinutes: parseInt(e.target.value, 10) || 0 })}
+                            className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-purple-500" />
+                        </div>
+                      </div>
+
+                      {/* BYO key tier */}
+                      <div className="grid grid-cols-[1fr_90px_90px] gap-3 items-center bg-white p-2.5 rounded-lg border border-gray-100">
+                        <div>
+                          <div className="text-xs font-bold text-gray-700">🔑 BYO Key User</div>
+                          <div className="text-[10px] text-gray-500">নিজের key দিয়েছে — সর্বোচ্চ <strong>0 = unlimited</strong></div>
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-gray-400 mb-1">সর্বোচ্চ</label>
+                          <input type="number" min={0} value={ai.byoMax ?? 0}
+                            onChange={(e) => setAi({ byoMax: parseInt(e.target.value, 10) || 0 })}
+                            className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                        <div>
+                          <label className="block text-[9px] font-bold text-gray-400 mb-1">মিনিট</label>
+                          <input type="number" min={1} value={ai.byoWindowMinutes ?? 60}
+                            onChange={(e) => setAi({ byoWindowMinutes: parseInt(e.target.value, 10) || 0 })}
+                            className="w-full px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+                      </div>
+
+                      <div className="text-[10px] text-purple-700 bg-purple-100/40 px-2 py-1.5 rounded">
+                        💡 marketing tip: BYO max <code>0</code> রাখলে — "নিজের API key দিলে unlimited AI scan!" — paid feature/incentive
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Other limiters — single-tier */}
                 {[
-                  { key: 'ai', label: 'AI স্ক্যান + Book Generate', desc: 'প্রতি user, AI provider খরচ থেকে রক্ষা', accent: '#7c3aed' },
                   { key: 'payment', label: 'Manual Payment Submit', desc: 'প্রতি user, admin inbox spam রোধ', accent: '#16a34a' },
                   { key: 'userKey', label: 'AI Key Save / Test', desc: 'প্রতি user, BYO key brute-force রোধ', accent: '#0891b2' },
                   { key: 'auth', label: 'Login / Register', desc: 'প্রতি IP, password brute-force রোধ', accent: '#dc2626' },
@@ -409,45 +476,27 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <label className="block text-[9px] font-bold text-gray-400 mb-1">সর্বোচ্চ</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={limit.max}
-                          onChange={(e) =>
-                            setConfig({
-                              ...config,
-                              rateLimits: {
-                                ...config.rateLimits,
-                                [row.key]: {
-                                  ...limit,
-                                  max: parseInt(e.target.value, 10) || 0,
-                                },
-                              },
-                            })
-                          }
-                          className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <input type="number" min={1} value={limit.max}
+                          onChange={(e) => setConfig({
+                            ...config,
+                            rateLimits: {
+                              ...config.rateLimits,
+                              [row.key]: { ...limit, max: parseInt(e.target.value, 10) || 0 },
+                            },
+                          })}
+                          className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                       <div>
                         <label className="block text-[9px] font-bold text-gray-400 mb-1">মিনিট</label>
-                        <input
-                          type="number"
-                          min={1}
-                          value={limit.windowMinutes}
-                          onChange={(e) =>
-                            setConfig({
-                              ...config,
-                              rateLimits: {
-                                ...config.rateLimits,
-                                [row.key]: {
-                                  ...limit,
-                                  windowMinutes: parseInt(e.target.value, 10) || 0,
-                                },
-                              },
-                            })
-                          }
-                          className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        />
+                        <input type="number" min={1} value={limit.windowMinutes}
+                          onChange={(e) => setConfig({
+                            ...config,
+                            rateLimits: {
+                              ...config.rateLimits,
+                              [row.key]: { ...limit, windowMinutes: parseInt(e.target.value, 10) || 0 },
+                            },
+                          })}
+                          className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
                       </div>
                     </div>
                   )

@@ -167,12 +167,79 @@ async function loadAllForUser(userId) {
   }
 }
 
+/**
+ * Fast boolean check: does this user have AT LEAST ONE verified API key?
+ * Used by the rate limiter to decide whether to apply BYO-tier limits
+ * (or skip entirely) without burning a full key-decrypt round-trip on
+ * every AI request.
+ *
+ * Cached in-memory per Vercel function instance for HAS_KEY_CACHE_MS.
+ * Cache is invalidated by setKey/removeKey so admin UI changes propagate.
+ */
+const HAS_KEY_CACHE_MS = 5 * 60 * 1000
+const hasKeyCache = new Map() // userId -> { has: bool, fetchedAt: ms }
+
+function invalidateHasKey(userId) {
+  if (userId) hasKeyCache.delete(userId)
+}
+
+async function userHasOwnKeys(userId) {
+  if (!userId) return false
+  const cached = hasKeyCache.get(userId)
+  const now = Date.now()
+  if (cached && now - cached.fetchedAt < HAS_KEY_CACHE_MS) return cached.has
+
+  try {
+    // Only count VERIFIED keys — unverified ones might be broken/typos.
+    // Limit 1 → query short-circuits, no full row fetch.
+    const { data, error } = await supabaseAdmin
+      .from(TABLE)
+      .select('provider', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('is_verified', true)
+      .limit(1)
+    if (error) throw error
+    const has = (data?.length ?? 0) > 0 || false
+    // The head:true variant returns count via .count, not data; supabase-js
+    // surfaces it differently across versions, so we check both shapes.
+    hasKeyCache.set(userId, { has, fetchedAt: now })
+    return has
+  } catch (err) {
+    console.warn('[userApiKeyService.userHasOwnKeys]', err.message)
+    return cached?.has ?? false // fail-conservative: serve last-known
+  }
+}
+
+// Replace setKey + removeKey wrappers to also bust the cache.
+const _setKey = setKey
+async function setKeyAndInvalidate(userId, provider, plaintextKey, opts) {
+  const result = await _setKey(userId, provider, plaintextKey, opts)
+  invalidateHasKey(userId)
+  return result
+}
+
+const _removeKey = removeKey
+async function removeKeyAndInvalidate(userId, provider) {
+  const result = await _removeKey(userId, provider)
+  invalidateHasKey(userId)
+  return result
+}
+
+const _markVerified = markVerified
+async function markVerifiedAndInvalidate(userId, provider, isVerified) {
+  const result = await _markVerified(userId, provider, isVerified)
+  invalidateHasKey(userId)
+  return result
+}
+
 module.exports = {
   listForUser,
   getDecryptedKey,
-  setKey,
-  removeKey,
+  setKey: setKeyAndInvalidate,
+  removeKey: removeKeyAndInvalidate,
   markUsed,
-  markVerified,
+  markVerified: markVerifiedAndInvalidate,
   loadAllForUser,
+  userHasOwnKeys,
+  invalidateHasKey,
 }

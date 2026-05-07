@@ -123,9 +123,11 @@ app.use('/api/book', jsonBook)
 app.use(jsonDefault)
 app.use(urlEncodedDefault)
 
-// Global IP cap — applied AFTER body parsing so 429 responses don't even
-// load the parser.
-if (process.env.NODE_ENV !== 'test') {
+// Global IP cap — production only. In dev, all your hot-reload + page
+// reloads + multiple browser tabs share localhost IP and easily blow past
+// 200/15min, breaking your own iteration loop. Production attackers are
+// the actual threat target.
+if (process.env.NODE_ENV === 'production') {
   app.use('/api', globalLimiter)
 }
 
@@ -144,26 +146,28 @@ app.get('/api/health', (_req, res) => {
 //
 // `requireAuth` inside the router is harmless duplication (idempotent
 // — JWT verify cached on req.user); leaving it for safety.
-const isTest = process.env.NODE_ENV === 'test'
+// Rate limiters apply ONLY in production. Dev + test bypass them so
+// hot-reload page-spam doesn't lock you out of your own app.
+const isProd = process.env.NODE_ENV === 'production'
 const noop = (_, __, n) => n()
 
-app.use('/api/auth', isTest ? noop : authLimiter, authRoutes)
+app.use('/api/auth', isProd ? authLimiter : noop, authRoutes)
 app.use('/api/papers', paperRoutes)
 app.use('/api/exam', examRoutes)
 // /api/payment is mixed (config public, manual auth) — limiter applied
 // inside payment.js on the /manual endpoint after requireAuth, not here.
 app.use('/api/payment', paymentRoutes)
 app.use('/api/admin', adminRoutes)
-app.use('/api/ai', requireAuth, isTest ? noop : aiLimiter, aiRoutes)
+app.use('/api/ai', requireAuth, isProd ? aiLimiter : noop, aiRoutes)
 app.use('/api/questions', questionRoutes)
-app.use('/api/book', requireAuth, isTest ? noop : aiLimiter, bookRoutes)
-app.use('/api/user', requireAuth, isTest ? noop : userKeyLimiter, userRoutes)
+app.use('/api/book', requireAuth, isProd ? aiLimiter : noop, bookRoutes)
+app.use('/api/user', requireAuth, isProd ? userKeyLimiter : noop, userRoutes)
 app.use('/api/notices', noticeRoutes)
 app.use('/api/routines', routineRoutes)
 // Status read endpoint — read-only, no rate limiter applied so the
 // dashboard can poll it without affecting the user's actual quota.
 app.use('/api/limits', limitsRoutes)
-app.use('/api', requireAuth, isTest ? noop : aiLimiter, generateRoutes)
+app.use('/api', requireAuth, isProd ? aiLimiter : noop, generateRoutes)
 
 app.use(errorHandler)
 
