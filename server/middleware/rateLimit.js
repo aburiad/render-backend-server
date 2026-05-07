@@ -1,5 +1,6 @@
-const { rateLimit, ipKeyGenerator, MemoryStore } = require('express-rate-limit')
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit')
 const configService = require('../services/configService')
+const SupabaseStore = require('./rateLimitStore')
 
 /**
  * Tiered rate limiting with admin-configurable values.
@@ -40,12 +41,14 @@ const friendlyHandler = (key) => (req, res /*, next, options */) => {
   })
 }
 
-// Stores — explicit so /api/limits/status can peek at usage.
-const aiStore = new MemoryStore()
-const paymentStore = new MemoryStore()
-const userKeyStore = new MemoryStore()
-const globalStore = new MemoryStore()
-const authStore = new MemoryStore()
+// Stores — Supabase-backed so counters survive Vercel cold starts and
+// are consistent across all function instances. Each scope gets its own
+// store; the underlying table partitions counters by (scope, key).
+const aiStore = new SupabaseStore('ai')
+const paymentStore = new SupabaseStore('payment')
+const userKeyStore = new SupabaseStore('userKey')
+const globalStore = new SupabaseStore('global')
+const authStore = new SupabaseStore('auth')
 
 // In-memory cache of admin-configured limits. Refreshed on demand from
 // configService (which itself caches Supabase reads). On boot we use safe
