@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import useAuthStore from '@/store/authStore'
 import api from '@/services/api'
 import DashboardSkeleton from '@/components/shared/SkeletonCard'
+import LimitsWidget from '@/components/shared/LimitsWidget'
 import toast from 'react-hot-toast'
 
 /* ─── Hub config per role ─────────────────────────────────── */
@@ -269,6 +270,11 @@ export default function Dashboard() {
           <StatCard label="এই মাসে" value={thisMonthPapers} color="#10b981" />
           <StatCard label="মোট প্রশ্ন" value={totalQuestions} color="#8b5cf6" />
         </div>
+      </motion.div>
+
+      {/* ── Rate-limit Usage Widget ──────────────────────── */}
+      <motion.div variants={item}>
+        <LimitsWidget />
       </motion.div>
 
       {/* ── Quick Actions ──────────────────────────────────── */}

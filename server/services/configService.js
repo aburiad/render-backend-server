@@ -1,5 +1,13 @@
 const { supabaseAdmin } = require('../config/supabase')
 
+const DEFAULT_RATE_LIMITS = {
+  ai: { max: 30, windowMinutes: 60 },
+  payment: { max: 5, windowMinutes: 60 },
+  userKey: { max: 20, windowMinutes: 60 },
+  auth: { max: 10, windowMinutes: 15 },
+  global: { max: 200, windowMinutes: 15 },
+}
+
 const DEFAULT_CONFIG = {
   pro_price: 299,
   trial_days: 90,
@@ -14,11 +22,34 @@ const DEFAULT_CONFIG = {
     'আনলিমিটেড প্রশ্ন ব্যাংক',
     'আনলিমিটেড AI স্ক্যান',
     'নিজের লোগো ব্যবহার',
-    'ওয়াটারমার্ক ছাড়া প্রিন্ট',
+    'ওয়াটারমার্ক ছাড়া প্রিন্ট',
     'OMR জেনারেটর',
     'এক্সক্লুসিভ পিডিএফ লেআউট',
     'ডেডিকেটেড সাপোর্ট',
   ],
+  rate_limits: DEFAULT_RATE_LIMITS,
+}
+
+// Sanitize / merge user-supplied rate limits with defaults so partial
+// updates from admin UI don't drop fields we still need.
+function normalizeRateLimits(input) {
+  const out = { ...DEFAULT_RATE_LIMITS }
+  if (!input || typeof input !== 'object') return out
+  for (const key of Object.keys(DEFAULT_RATE_LIMITS)) {
+    const incoming = input[key]
+    if (incoming && typeof incoming === 'object') {
+      const max = Number(incoming.max)
+      const windowMinutes = Number(incoming.windowMinutes)
+      out[key] = {
+        max: Number.isFinite(max) && max > 0 ? Math.floor(max) : DEFAULT_RATE_LIMITS[key].max,
+        windowMinutes:
+          Number.isFinite(windowMinutes) && windowMinutes > 0
+            ? Math.floor(windowMinutes)
+            : DEFAULT_RATE_LIMITS[key].windowMinutes,
+      }
+    }
+  }
+  return out
 }
 
 function rowToConfig(row) {
@@ -29,13 +60,18 @@ function rowToConfig(row) {
     isTrialActive: row.is_trial_active,
     manualPaymentMethods: row.manual_payment_methods,
     features: row.features,
+    rateLimits: normalizeRateLimits(row.rate_limits),
     updatedAt: row.updated_at,
   }
 }
 
 const configService = {
   async getConfig() {
-    const { data, error } = await supabaseAdmin.from('subscription_config').select('*').eq('id', 1).maybeSingle()
+    const { data, error } = await supabaseAdmin
+      .from('subscription_config')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle()
     if (error) throw error
     if (!data) {
       await this.updateConfig({
@@ -44,6 +80,7 @@ const configService = {
         isTrialActive: DEFAULT_CONFIG.is_trial_active,
         manualPaymentMethods: DEFAULT_CONFIG.manual_payment_methods,
         features: DEFAULT_CONFIG.features,
+        rateLimits: DEFAULT_CONFIG.rate_limits,
       })
       return {
         proPrice: DEFAULT_CONFIG.pro_price,
@@ -51,17 +88,10 @@ const configService = {
         isTrialActive: DEFAULT_CONFIG.is_trial_active,
         manualPaymentMethods: DEFAULT_CONFIG.manual_payment_methods,
         features: DEFAULT_CONFIG.features,
+        rateLimits: DEFAULT_CONFIG.rate_limits,
       }
     }
-    const c = rowToConfig(data)
-    return {
-      proPrice: c.proPrice,
-      trialDays: c.trialDays,
-      isTrialActive: c.isTrialActive,
-      manualPaymentMethods: c.manualPaymentMethods,
-      features: c.features,
-      updatedAt: c.updatedAt,
-    }
+    return rowToConfig(data)
   },
 
   async updateConfig(newConfig) {
@@ -71,6 +101,12 @@ const configService = {
       is_trial_active: newConfig.is_trial_active ?? newConfig.isTrialActive,
       manual_payment_methods: newConfig.manual_payment_methods ?? newConfig.manualPaymentMethods,
       features: newConfig.features,
+      rate_limits:
+        newConfig.rate_limits !== undefined
+          ? normalizeRateLimits(newConfig.rate_limits)
+          : newConfig.rateLimits !== undefined
+          ? normalizeRateLimits(newConfig.rateLimits)
+          : undefined,
       updated_at: new Date().toISOString(),
     }
     Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k])
@@ -81,16 +117,9 @@ const configService = {
       .select()
       .single()
     if (error) throw error
-    const c = rowToConfig(data)
-    return {
-      proPrice: c.proPrice,
-      trialDays: c.trialDays,
-      isTrialActive: c.isTrialActive,
-      manualPaymentMethods: c.manualPaymentMethods,
-      features: c.features,
-      updatedAt: c.updatedAt,
-    }
+    return rowToConfig(data)
   },
 }
 
 module.exports = configService
+module.exports.DEFAULT_RATE_LIMITS = DEFAULT_RATE_LIMITS

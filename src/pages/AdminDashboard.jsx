@@ -8,7 +8,20 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('settings')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState(null)
-  const [config, setConfig] = useState({ proPrice: 0, trialDays: 0, isTrialActive: false, features: [], manualPaymentMethods: [] })
+  const [config, setConfig] = useState({
+    proPrice: 0,
+    trialDays: 0,
+    isTrialActive: false,
+    features: [],
+    manualPaymentMethods: [],
+    rateLimits: {
+      ai: { max: 30, windowMinutes: 60 },
+      payment: { max: 5, windowMinutes: 60 },
+      userKey: { max: 20, windowMinutes: 60 },
+      auth: { max: 10, windowMinutes: 15 },
+      global: { max: 200, windowMinutes: 15 },
+    },
+  })
   const [pendingPayments, setPendingPayments] = useState([])
   const [users, setUsers] = useState([])
   const [allPayments, setAllPayments] = useState([])
@@ -360,6 +373,85 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 ))}
+              </div>
+
+              {/* Rate Limits — admin-configurable */}
+              <div className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                    Rate Limits (অপব্যবহার রোধ)
+                  </h3>
+                  <p className="text-xs text-gray-400 mt-1">
+                    সব value backend-এ ৬০ সেকেন্ড cache হয় — সেভ করার পর
+                    ১ মিনিটের মধ্যে effect হবে।
+                  </p>
+                </div>
+
+                {[
+                  { key: 'ai', label: 'AI স্ক্যান + Book Generate', desc: 'প্রতি user, AI provider খরচ থেকে রক্ষা', accent: '#7c3aed' },
+                  { key: 'payment', label: 'Manual Payment Submit', desc: 'প্রতি user, admin inbox spam রোধ', accent: '#16a34a' },
+                  { key: 'userKey', label: 'AI Key Save / Test', desc: 'প্রতি user, BYO key brute-force রোধ', accent: '#0891b2' },
+                  { key: 'auth', label: 'Login / Register', desc: 'প্রতি IP, password brute-force রোধ', accent: '#dc2626' },
+                  { key: 'global', label: 'Global API Cap', desc: 'প্রতি IP, DDoS catch-all', accent: '#475569' },
+                ].map((row) => {
+                  const limit = config.rateLimits?.[row.key] || { max: 0, windowMinutes: 0 }
+                  return (
+                    <div
+                      key={row.key}
+                      className="grid grid-cols-[1fr_90px_90px] gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100 items-center"
+                    >
+                      <div>
+                        <div className="text-sm font-bold flex items-center gap-2">
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: row.accent }} />
+                          {row.label}
+                        </div>
+                        <div className="text-[10px] text-gray-500 mt-0.5">{row.desc}</div>
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-gray-400 mb-1">সর্বোচ্চ</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={limit.max}
+                          onChange={(e) =>
+                            setConfig({
+                              ...config,
+                              rateLimits: {
+                                ...config.rateLimits,
+                                [row.key]: {
+                                  ...limit,
+                                  max: parseInt(e.target.value, 10) || 0,
+                                },
+                              },
+                            })
+                          }
+                          className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] font-bold text-gray-400 mb-1">মিনিট</label>
+                        <input
+                          type="number"
+                          min={1}
+                          value={limit.windowMinutes}
+                          onChange={(e) =>
+                            setConfig({
+                              ...config,
+                              rateLimits: {
+                                ...config.rateLimits,
+                                [row.key]: {
+                                  ...limit,
+                                  windowMinutes: parseInt(e.target.value, 10) || 0,
+                                },
+                              },
+                            })
+                          }
+                          className="w-full px-2 py-1.5 bg-white border border-gray-200 rounded-lg text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
 
               <button

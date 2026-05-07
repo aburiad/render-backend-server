@@ -3,6 +3,10 @@ const router = express.Router()
 const manualPaymentService = require('../services/manualPaymentService')
 const configService = require('../services/configService')
 const { requireAuth } = require('../middleware/auth')
+const { paymentLimiter } = require('../middleware/rateLimit')
+
+const isTest = process.env.NODE_ENV === 'test'
+const noop = (_, __, n) => n()
 
 /**
  * GET /api/payment/config — public subscription settings (price, methods, features)
@@ -19,7 +23,9 @@ router.get('/config', async (req, res, next) => {
 /**
  * POST /api/payment/manual — User submits a manual transaction (tranId and/or screenshot)
  */
-router.post('/manual', requireAuth, async (req, res, next) => {
+// requireAuth must run BEFORE paymentLimiter so the limiter's keyGenerator
+// reads req.user.uid (matches the read-side /api/limits/status call).
+router.post('/manual', requireAuth, isTest ? noop : paymentLimiter, async (req, res, next) => {
   try {
     // Note: `amount` is intentionally NOT pulled from req.body. The service
     // looks it up from subscription_config so users can't fake a low price.
