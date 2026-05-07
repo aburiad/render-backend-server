@@ -513,6 +513,34 @@ input, select, textarea {
     0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
+/* ─── Routine preview scroll — force-visible thin scrollbar so mobile
+       users see they can scroll horizontally past the wide grid. */
+.routine-preview-scroll::-webkit-scrollbar,
+.routine-grid-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.routine-preview-scroll::-webkit-scrollbar-track,
+.routine-grid-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 4px;
+}
+.routine-preview-scroll::-webkit-scrollbar-thumb,
+.routine-grid-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 4px;
+}
+.routine-preview-scroll::-webkit-scrollbar-thumb:hover,
+.routine-grid-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.45);
+}
+.routine-preview-scroll,
+.routine-grid-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.25) rgba(15, 23, 42, 0.04);
+  -webkit-overflow-scrolling: touch;
+}
+
 /* ─── Print overrides ────────────────────────────────────── */
 @media print {
   @page {
@@ -522,24 +550,42 @@ input, select, textarea {
     margin: 14mm 12mm;
   }
 
+  /* Routine landscape orientation is injected dynamically by
+     RoutinePreview.handlePrint() — see that function. CSS `@page` named
+     rules + `page:` property are unreliable across browsers (Safari
+     ignores them), so we inject the correct @page size at print time. */
+
   /* Reset everything outside the paper. Classic "isolate one element" trick:
    * hide every element by default, then re-show the paper (and its descendants)
    * and absolutely-position it at the page origin. */
   body * {
     visibility: hidden !important;
   }
-  .paper-print, .paper-print * {
+  .paper-print, .paper-print *,
+  .notice-print, .notice-print *,
+  .routine-print, .routine-print * {
     visibility: visible !important;
   }
-  .paper-print {
+  /* `left: 0; right: 0; margin: 0 auto` together force horizontal
+     auto-centering for an absolutely-positioned element with a fixed
+     width — this is the trick that makes the template sit in the middle
+     of the page content area regardless of any width mismatch with the
+     @page inner box. Without `right: 0`, the auto margins resolve to 0
+     and the element pins to the left edge. */
+  .paper-print, .notice-print, .routine-print {
     position: absolute !important;
     left: 0 !important;
+    right: 0 !important;
     top: 0 !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     box-shadow: none !important;
+  }
+  /* Paper + notice are A4 portrait inner area (210mm − 12mm × 2 margin) */
+  .paper-print, .notice-print {
     width: 186mm !important;
     min-height: 269mm !important;
   }
+  /* Routine inline style controls width (landscape 273mm or portrait 186mm) */
 
   body, html {
     background: #fff !important;
@@ -547,10 +593,15 @@ input, select, textarea {
     padding: 0 !important;
   }
 
-  /* Avoid bad page breaks inside questions */
+  /* Avoid bad page breaks inside atomic blocks */
   .paper-print > div > div,
   .paper-print li,
-  .paper-print table {
+  .paper-print table,
+  .notice-print > div,
+  .notice-print li,
+  .notice-print table,
+  .routine-print > header,
+  .routine-print table {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
   }

@@ -17,6 +17,8 @@ const PAGE_TITLES = {
   '/settings/ai-keys': 'AI Providers',
   '/notices': 'আমার নোটিশ',
   '/notices/new': 'নতুন নোটিশ',
+  '/routines': 'ক্লাস রুটিন',
+  '/routines/new': 'নতুন রুটিন',
 }
 
 function BackIcon() {
@@ -52,6 +54,9 @@ export default function MobileHeader({ className = '' }) {
   if (isEditor) title = location.search.includes('scan=true') ? 'AI স্ক্যান' : 'প্রশ্নপত্র সম্পাদক'
   if (location.pathname.startsWith('/notices/') && location.pathname !== '/notices/new') {
     title = location.pathname.endsWith('/preview') ? 'নোটিশ প্রিভিউ' : 'নোটিশ সম্পাদনা'
+  }
+  if (location.pathname.startsWith('/routines/') && location.pathname !== '/routines/new') {
+    title = location.pathname.endsWith('/preview') ? 'রুটিন প্রিভিউ' : 'রুটিন সম্পাদনা'
   }
 
   const handleLogout = async () => {
@@ -211,6 +216,16 @@ export default function MobileHeader({ className = '' }) {
             }
           />
         )}
+
+        <BottomSheetItem
+          onClick={() => { setMenuOpen(false); navigate('/routines') }}
+          label="ক্লাস রুটিন"
+          icon={
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+            </svg>
+          }
+        />
 
         <BottomSheetItem
           onClick={() => { setMenuOpen(false); navigate('/notices') }}

@@ -17,6 +17,9 @@ import SettingsAIKeys from '@/pages/SettingsAIKeys'
 import NoticesList from '@/pages/NoticesList'
 import NoticeEditor from '@/pages/NoticeEditor'
 import NoticePreview from '@/pages/NoticePreview'
+import RoutinesList from '@/pages/RoutinesList'
+import RoutineEditor from '@/pages/RoutineEditor'
+import RoutinePreview from '@/pages/RoutinePreview'
 import useAuthStore from '@/store/authStore'
 import { AnimatePresence } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
@@ -88,6 +91,10 @@ export default function App() {
           <Route path="notices/new" element={<NoticeEditor />} />
           <Route path="notices/:id" element={<NoticeEditor />} />
           <Route path="notices/:id/preview" element={<NoticePreview />} />
+          <Route path="routines" element={<RoutinesList />} />
+          <Route path="routines/new" element={<RoutineEditor />} />
+          <Route path="routines/:id" element={<RoutineEditor />} />
+          <Route path="routines/:id/preview" element={<RoutinePreview />} />
           <Route path="pricing" element={<Pricing />} />
           <Route path="settings" element={<Navigate to="/settings/ai-keys" replace />} />
           <Route path="settings/ai-keys" element={<SettingsAIKeys />} />
