@@ -19,6 +19,7 @@ function rowToPaper(row) {
     watermark: row.watermark,
     set_variant: row.set_variant,
     logo_url: row.logo_url,
+    section_mode: row.section_mode ?? false,
     questions: row.questions || [],
     deleted: row.deleted,
     createdAt: row.created_at,
@@ -43,6 +44,7 @@ const paperService = {
       watermark: paperData.watermark ?? null,
       set_variant: paperData.set_variant ?? null,
       logo_url: paperData.logo_url ?? null,
+      section_mode: paperData.section_mode ?? false,
       questions: paperData.questions || [],
       deleted: false,
     }
@@ -89,6 +91,7 @@ const paperService = {
       watermark: 'watermark',
       set_variant: 'set_variant',
       logo_url: 'logo_url',
+      section_mode: 'section_mode',
       questions: 'questions',
     }
     for (const [k, col] of Object.entries(map)) {

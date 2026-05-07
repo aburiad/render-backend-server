@@ -37,10 +37,17 @@ import MatchingEditor from '@/components/questions/MatchingEditor'
 import RearrangingEditor from '@/components/questions/RearrangingEditor'
 import TranslationEditor from '@/components/questions/TranslationEditor'
 import TableEditor from '@/components/questions/TableEditor'
+import AccountingEditor from '@/components/questions/AccountingEditor'
+import SectionDivider from '@/components/questions/SectionDivider'
+import {
+  computeQuestionNumbers,
+  defaultSectionTitle,
+} from '@/utils/sectionNumbering'
 
 const QUESTION_TYPES = [
   { type: 'MCQ', label: 'MCQ', icon: '○' },
   { type: 'CQ', label: 'সৃজনশীল (CQ)', icon: '✎' },
+  { type: 'accounting', label: 'হিসাববিজ্ঞান', icon: '৳' },
   { type: 'short', label: 'সংক্ষিপ্ত', icon: '—' },
   { type: 'broad', label: 'রচনামূলক', icon: '¶' },
   { type: 'fill_blank', label: 'শূন্যস্থান', icon: '___' },
@@ -53,6 +60,7 @@ const QUESTION_TYPES = [
 const EDITOR_MAP = {
   MCQ: McqEditor,
   CQ: CqEditor,
+  accounting: AccountingEditor,
   short: ShortEditor,
   broad: BroadEditor,
   fill_blank: FillBlankEditor,
@@ -62,7 +70,7 @@ const EDITOR_MAP = {
   table: TableEditor,
 }
 
-function SortableQuestion({ question, index }) {
+function SortableQuestion({ question, index, displayNumber }) {
   const {
     attributes,
     listeners,
@@ -79,6 +87,15 @@ function SortableQuestion({ question, index }) {
     zIndex: isDragging ? 50 : 'auto',
   }
 
+  // Section dividers render outside QuestionWrapper — they're not questions.
+  if (question.type === 'section') {
+    return (
+      <div ref={setNodeRef} style={style} {...attributes}>
+        <SectionDivider question={question} dragHandleProps={listeners} />
+      </div>
+    )
+  }
+
   const Editor = EDITOR_MAP[question.type]
 
   if (!Editor) return null
@@ -88,6 +105,7 @@ function SortableQuestion({ question, index }) {
       <QuestionWrapper
         question={question}
         index={index}
+        displayNumber={displayNumber}
         dragHandleProps={listeners}
       >
         <Editor question={question} />
@@ -203,7 +221,13 @@ export default function PaperEditor() {
 
   const handleAddQuestion = (type) => {
     const defaults = { type, section: '' }
-    if (type === 'MCQ') {
+    if (type === 'section') {
+      const existingSections = questions.filter((q) => q?.type === 'section').length
+      Object.assign(defaults, {
+        title: defaultSectionTitle(existingSections),
+        instruction: '',
+      })
+    } else if (type === 'MCQ') {
       Object.assign(defaults, { question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: null, marks: 1 })
     } else if (type === 'CQ') {
       Object.assign(defaults, { stimulus: '', sub_questions: [{ label: 'ক', text: '', marks: 0 }, { label: 'খ', text: '', marks: 0 }, { label: 'গ', text: '', marks: 0 }, { label: 'ঘ', text: '', marks: 0 }] })
@@ -217,6 +241,36 @@ export default function PaperEditor() {
       Object.assign(defaults, { source_text: '', direction: 'bn-en', marks: 5 })
     } else if (type === 'table') {
       Object.assign(defaults, { question: '', headers: ['', '', ''], rows: [['', '', ''], ['', '', '']], accounting_type: false, marks: 5 })
+    } else if (type === 'accounting') {
+      Object.assign(defaults, {
+        description: 'শাপলু এন্ড কোং-এর ২০১৬ সালের ৩০ জুন তারিখের রেওয়ামিলটি নিম্নরূপ:',
+        title_lines: ['শাপলু এন্ড কোং', 'রেওয়ামিল', '৩০ জুন ২০১৬ খ্রি.'],
+        headers: ['হিসাবের নাম', 'ডেবিট (টাকা)', 'ক্রেডিট (টাকা)'],
+        alignments: ['left', 'right', 'right'],
+        rows: [
+          ['ক্রয় ও বিক্রয়', '৮০,০০০', '১,৬৯,০০০'],
+          ['ফেরত', '৭,০০০', '৬,০০০'],
+          ['পরিবহন', '৮,০০০', ''],
+          ['কুঋণ ও কুঋণ সঞ্চিতি', '২,০০০', '৩,৫০০'],
+          ['উপভাড়া', '', '২২,০০০'],
+          ['বেতন', '১৭,৫০০', ''],
+          ['শুল্ক', '১২,০০০', ''],
+          ['দেনাদার ও পাওনাদার', '৭৫,৫০০', '২০,০০০'],
+          ['মনিহারি', '৩,৫০০', ''],
+          ['কমিশন', '২,০০০', '৫,০০০'],
+          ['মজুদ পণ্য (০১.০৭.২০১৫)', '১৫,৫০০', ''],
+          ['বিজ্ঞাপন', '২,৫০০', ''],
+        ],
+        show_total: true,
+        total_row: ['মোট', '২,২৫,৫০০', '২,২৫,৫০০'],
+        notes_label: 'সমন্বয়সমূহ',
+        notes: '১. সমাপনী মজুদ পণ্য ৩৫,০০০ টাকা। ২. দেনাদারের ২,৫০০ টাকা আদায়যোগ্য নয়। ৩. ভোক্তাদের নিকট বিনামূল্যে পণ্য বিতরণ ২,০০০ টাকা হিসাবভুক্ত হয়নি। ৪. বেতন বকেয়া আছে ৫,০০০ টাকা।',
+        sub_questions: [
+          { label: 'ক', text: 'শাপলু এন্ড কোং-এর চলতি দায়ের পরিমাণ নির্ণয় করো।', marks: 2 },
+          { label: 'খ', text: 'শাপলু এন্ড কোং-এর মোট মুনাফা বা ক্ষতির পরিমাণ নির্ণয় করো।', marks: 4 },
+          { label: 'গ', text: 'শাপলু এন্ড কোং-এর পরিচালন মুনাফা নির্ণয় করো।', marks: 4 },
+        ],
+      })
     } else {
       Object.assign(defaults, { question: '', marks: 1 })
     }
@@ -364,16 +418,95 @@ export default function PaperEditor() {
           </div>
         )}
 
-        {/* DnD Questions */}
+        {/* Section mode toggle — small chip; disabled mode just filters
+            section dividers from view, data is preserved. */}
+        <div
+          style={{
+            background: '#fff',
+            borderRadius: 14,
+            padding: '8px 14px',
+            border: '1px solid #f1f5f9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14 }}>📑</span>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#0f172a' }}>সেকশন মোড</div>
+              <div style={{ fontSize: 10, color: '#94a3b8' }}>
+                {currentPaper?.section_mode
+                  ? 'বিভাগ অনুযায়ী প্রশ্ন নম্বরিং রিসেট হবে'
+                  : 'সব প্রশ্ন এক ধারাবাহিকতায় থাকবে'}
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => updatePaper({ section_mode: !currentPaper?.section_mode })}
+            className="btn-press"
+            style={{
+              position: 'relative',
+              width: 44,
+              height: 24,
+              borderRadius: 999,
+              border: 'none',
+              background: currentPaper?.section_mode ? '#10b981' : '#e2e8f0',
+              transition: 'background 0.2s',
+              cursor: 'pointer',
+            }}
+            aria-label="সেকশন মোড টগল"
+          >
+            <span
+              style={{
+                position: 'absolute',
+                top: 2,
+                left: currentPaper?.section_mode ? 22 : 2,
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                background: '#fff',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                transition: 'left 0.2s',
+              }}
+            />
+          </button>
+        </div>
+
+        {/* DnD Questions — section dividers hidden when section mode off */}
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={questions.map((q) => q.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext
+            items={(currentPaper?.section_mode
+              ? questions
+              : questions.filter((q) => q?.type !== 'section')
+            ).map((q) => q.id)}
+            strategy={verticalListSortingStrategy}
+          >
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               <AnimatePresence>
-                {questions.map((q, i) => (
-                  <motion.div key={q.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -15 }}>
-                    <SortableQuestion question={q} index={i} />
-                  </motion.div>
-                ))}
+                {(() => {
+                  const sectionMode = !!currentPaper?.section_mode
+                  const visible = sectionMode
+                    ? questions
+                    : questions.filter((q) => q?.type !== 'section')
+                  const numbers = computeQuestionNumbers(visible, sectionMode)
+                  return visible.map((q, i) => (
+                    <motion.div
+                      key={q.id}
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -15 }}
+                    >
+                      <SortableQuestion
+                        question={q}
+                        index={i}
+                        displayNumber={numbers[i]}
+                      />
+                    </motion.div>
+                  ))
+                })()}
               </AnimatePresence>
             </div>
           </SortableContext>
@@ -442,7 +575,22 @@ export default function PaperEditor() {
           <div style={{ height: 1, background: '#f1f5f9', margin: '4px 0' }} />
 
           <p style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', paddingLeft: 4 }}>ম্যানুয়ালি যোগ করুন</p>
-          <div className="no-scrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 10 }}>
+          <div className="no-scrollbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 10 }}>
+            {currentPaper?.section_mode && (
+              <button
+                onClick={() => handleAddQuestion('section')}
+                className="btn-press"
+                style={{
+                  flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                  width: 80, padding: '12px 6px', borderRadius: 14,
+                  background: 'linear-gradient(135deg, #1e293b, #334155)',
+                  border: '1px solid #334155', color: '#fff',
+                }}
+              >
+                <span style={{ fontSize: 18 }}>📑</span>
+                <span style={{ fontSize: 9, fontWeight: 700, color: '#fbbf24' }}>বিভাগ</span>
+              </button>
+            )}
             {QUESTION_TYPES.map(qt => (
               <button key={qt.type} onClick={() => handleAddQuestion(qt.type)} className="btn-press" style={{
                 flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,

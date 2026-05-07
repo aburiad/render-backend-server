@@ -1,5 +1,7 @@
 import { forwardRef } from 'react'
 import { MathText } from '@/utils/mathRender'
+import { getSubLabel } from '@/utils/subNumbering'
+import { computeQuestionNumbers } from '@/utils/sectionNumbering'
 
 /**
  * Renders a paper as A4-sized HTML, ready to print or pass to html2pdf.
@@ -38,7 +40,11 @@ const PaperTemplate = forwardRef(function PaperTemplate(
   return (
     <div ref={ref} className="paper-print" style={pageStyle}>
       <Header paper={paper} />
-      <QuestionList questions={questions} layout={paper?.layout || '1-column'} />
+      <QuestionList
+        questions={questions}
+        layout={paper?.layout || '1-column'}
+        sectionMode={!!paper?.section_mode}
+      />
     </div>
   )
 })
@@ -144,7 +150,7 @@ function Header({ paper }) {
   )
 }
 
-function QuestionList({ questions, layout = '1-column' }) {
+function QuestionList({ questions, layout = '1-column', sectionMode = false }) {
   if (!questions || questions.length === 0) {
     return (
       <p style={{ textAlign: 'center', padding: '40px 0', color: '#666' }}>
@@ -152,6 +158,14 @@ function QuestionList({ questions, layout = '1-column' }) {
       </p>
     )
   }
+
+  // Section dividers are filtered out entirely when section mode is off.
+  // When on, they stay in the array and the renderer below outputs a
+  // header for each one, while computeQuestionNumbers resets the counter.
+  const visible = sectionMode
+    ? questions
+    : questions.filter((q) => q?.type !== 'section')
+  const numbers = computeQuestionNumbers(visible, sectionMode)
 
   // 1/2/3 column support. Multi-column uses CSS columns; per-question
   // break-inside avoid (already set on each question wrapper below) keeps
@@ -165,21 +179,64 @@ function QuestionList({ questions, layout = '1-column' }) {
 
   return (
     <div style={containerStyle}>
-      {questions.map((q, i) => (
+      {visible.map((q, i) => {
+        if (q?.type === 'section') {
+          return <SectionHeader key={q.id || `s-${i}`} q={q} />
+        }
+        return (
+          <div
+            key={q.id || i}
+            style={{
+              marginBottom: 14,
+              // No break-inside avoid here. With html2pdf, "avoid" pushes the
+              // whole tall question to the next page if it doesn't fit, leaving
+              // a big gap on the current page. We let questions split naturally
+              // — only protect atomic blocks like the CQ stimulus and tables.
+              WebkitColumnBreakInside: 'avoid', // still keep for column layout
+            }}
+          >
+            <QuestionRow index={numbers[i]} q={q} />
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function SectionHeader({ q }) {
+  return (
+    <div
+      style={{
+        margin: '14px 0 8px',
+        textAlign: 'center',
+        breakInside: 'avoid',
+        pageBreakInside: 'avoid',
+      }}
+    >
+      <div
+        style={{
+          display: 'inline-block',
+          fontSize: '1.1em',
+          fontWeight: 700,
+          padding: '2px 24px',
+          borderTop: '1.5px solid #000',
+          borderBottom: '1.5px solid #000',
+        }}
+      >
+        {q.title || ''}
+      </div>
+      {q.instruction && (
         <div
-          key={q.id || i}
           style={{
-            marginBottom: 14,
-            // No break-inside avoid here. With html2pdf, "avoid" pushes the
-            // whole tall question to the next page if it doesn't fit, leaving
-            // a big gap on the current page. We let questions split naturally
-            // — only protect atomic blocks like the CQ stimulus and tables.
-            WebkitColumnBreakInside: 'avoid', // still keep for column layout
+            fontSize: '0.9em',
+            fontStyle: 'italic',
+            marginTop: 4,
+            textAlign: 'center',
           }}
         >
-          <QuestionRow index={i + 1} q={q} />
+          {q.instruction}
         </div>
-      ))}
+      )}
     </div>
   )
 }
@@ -213,6 +270,8 @@ function QuestionBody({ q }) {
       return <TranslationQuestion q={q} />
     case 'table':
       return <TableQuestion q={q} />
+    case 'accounting':
+      return <AccountingQuestion q={q} />
     case 'short':
     case 'broad':
     default:
@@ -225,30 +284,34 @@ function SimpleQuestion({ q }) {
 }
 
 function McqQuestion({ q }) {
-  const options = [
-    ['ক', q.option_a],
-    ['খ', q.option_b],
-    ['গ', q.option_c],
-    ['ঘ', q.option_d],
-  ].filter(([, v]) => v !== undefined && v !== null && v !== '')
+  const numbering = q.sub_numbering || 'bn-letter'
+  const layout = q.sub_layout || 2
+  const optionKeys = ['a', 'b', 'c', 'd']
+  const options = optionKeys
+    .map((key, i) => ({
+      label: getSubLabel(numbering, i, key.toUpperCase()),
+      value: q[`option_${key}`],
+    }))
+    .filter((o) => o.value !== undefined && o.value !== null && o.value !== '')
 
+  const cols = layout === 1 || layout === 2 || layout === 4 ? layout : 2
   return (
     <div>
       <MathText text={q.question || ''} />
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
           columnGap: 24,
           rowGap: 4,
           marginTop: 6,
           marginLeft: 4,
         }}
       >
-        {options.map(([label, val]) => (
-          <div key={label} style={{ display: 'flex', gap: 6 }}>
-            <span style={{ fontWeight: 600, minWidth: '1.2em' }}>{label}.</span>
-            <MathText text={String(val)} />
+        {options.map((o, i) => (
+          <div key={i} style={{ display: 'flex', gap: 6, minWidth: 0 }}>
+            <span style={{ fontWeight: 600, flexShrink: 0 }}>{o.label}.</span>
+            <MathText as="span" text={String(o.value)} style={{ flex: 1, minWidth: 0 }} />
           </div>
         ))}
       </div>
@@ -271,17 +334,77 @@ function CqQuestion({ q }) {
           }}
         />
       )}
-      <div>
-        {(q.sub_questions || []).map((sq, i) => (
-          <div key={i} style={{ marginBottom: 2, display: 'flex', gap: 4 }}>
-            <span style={{ fontWeight: 600 }}>{sq.label || ''}</span>
-            <MathText as="span" text={sq.text || ''} style={{ flex: 1 }} />
+      {q.stimulus_image && (
+        <div
+          style={{
+            margin: '6px 0',
+            textAlign: 'center',
+            breakInside: 'avoid',
+            pageBreakInside: 'avoid',
+          }}
+        >
+          <img
+            src={q.stimulus_image}
+            alt=""
+            style={{
+              maxWidth: '100%',
+              maxHeight: '90mm',
+              objectFit: 'contain',
+              display: 'inline-block',
+            }}
+            crossOrigin="anonymous"
+          />
+        </div>
+      )}
+      <SubQuestionGrid
+        subs={q.sub_questions || []}
+        numbering={q.sub_numbering || 'bn-letter'}
+        layout={q.sub_layout || 1}
+        labelSuffix=")"
+      />
+    </div>
+  )
+}
+
+function SubQuestionGrid({ subs, numbering, layout, labelSuffix = '.' }) {
+  if (!subs.length) return null
+  const cols = layout === 2 || layout === 4 ? layout : 1
+  const containerStyle =
+    cols === 1
+      ? { marginTop: 4 }
+      : {
+          marginTop: 4,
+          display: 'grid',
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          columnGap: 12,
+          rowGap: 2,
+        }
+  return (
+    <div style={containerStyle}>
+      {subs.map((sq, i) => {
+        const displayLabel = getSubLabel(numbering, i, sq.label || '')
+        return (
+          <div
+            key={i}
+            style={{
+              marginBottom: 2,
+              display: 'flex',
+              gap: 4,
+              alignItems: 'baseline',
+              minWidth: 0,
+            }}
+          >
+            <span style={{ fontWeight: 600, flexShrink: 0 }}>
+              {displayLabel}
+              {displayLabel ? labelSuffix : ''}
+            </span>
+            <MathText as="span" text={sq.text || ''} style={{ flex: 1, minWidth: 0 }} />
             {sq.marks ? (
-              <span style={{ fontWeight: 600 }}>[{sq.marks}]</span>
+              <span style={{ fontWeight: 600, flexShrink: 0 }}>{sq.marks}</span>
             ) : null}
           </div>
-        ))}
-      </div>
+        )
+      })}
     </div>
   )
 }
@@ -337,16 +460,45 @@ function MatchingQuestion({ q }) {
 }
 
 function RearrangingQuestion({ q }) {
+  const numbering = q.sub_numbering || 'arabic-en'
+  const layout = q.sub_layout || 1
+  const cols = layout === 1 || layout === 2 || layout === 4 ? layout : 1
+  const sentences = q.sentences || []
+  const containerStyle =
+    cols === 1
+      ? { marginTop: 4 }
+      : {
+          marginTop: 4,
+          display: 'grid',
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          columnGap: 24,
+          rowGap: 4,
+        }
   return (
     <div>
       <div style={{ fontStyle: 'italic', marginBottom: 4 }}>
-        সঠিক ক্রমে সাজাও:
+        {q.question || 'সঠিক ক্রমে সাজাও:'}
       </div>
-      <ol style={{ listStyle: 'decimal', paddingLeft: '1.5em', margin: 0 }}>
-        {(q.sentences || []).map((s, i) => (
-          <li key={i}><MathText text={s} /></li>
-        ))}
-      </ol>
+      <div style={containerStyle}>
+        {sentences.map((s, i) => {
+          const displayLabel = getSubLabel(numbering, i, String(i + 1))
+          return (
+            <div
+              key={i}
+              style={{
+                display: 'flex',
+                gap: 6,
+                alignItems: 'baseline',
+                marginBottom: cols === 1 ? 2 : 0,
+                minWidth: 0,
+              }}
+            >
+              <span style={{ fontWeight: 600, flexShrink: 0 }}>{displayLabel}.</span>
+              <MathText as="span" text={s} style={{ flex: 1, minWidth: 0 }} />
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
@@ -397,6 +549,153 @@ function TableQuestion({ q }) {
           </tbody>
         </table>
       )}
+    </div>
+  )
+}
+
+function AccountingQuestion({ q }) {
+  const headers = q.headers || []
+  const alignments = q.alignments || headers.map((_, i) => (i === 0 ? 'left' : 'right'))
+  const titleLines = (q.title_lines || []).filter((l) => l && String(l).trim() !== '')
+  const showTotal = q.show_total !== false && Array.isArray(q.total_row)
+  const subs = q.sub_questions || []
+
+  return (
+    <div>
+      {/* বিবরণ — top intro */}
+      {q.description && (
+        <MathText as="div" text={q.description} style={{ marginBottom: 4 }} />
+      )}
+
+      {/* Optional stimulus image attached to বিবরণ */}
+      {q.description_image && (
+        <div
+          style={{
+            margin: '6px 0',
+            textAlign: 'center',
+            breakInside: 'avoid',
+            pageBreakInside: 'avoid',
+          }}
+        >
+          <img
+            src={q.description_image}
+            alt=""
+            style={{
+              maxWidth: '100%',
+              maxHeight: '90mm',
+              objectFit: 'contain',
+              display: 'inline-block',
+            }}
+            crossOrigin="anonymous"
+          />
+        </div>
+      )}
+
+      {/* Centered title block */}
+      {titleLines.length > 0 && (
+        <div
+          style={{
+            textAlign: 'center',
+            margin: '4px 0 6px',
+            breakInside: 'avoid',
+            pageBreakInside: 'avoid',
+          }}
+        >
+          {titleLines.map((line, i) => (
+            <div key={i} style={{ fontWeight: 600, lineHeight: 1.4 }}>
+              <MathText as="span" text={line} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Table */}
+      {q.rows && headers.length > 0 && (
+        <table
+          style={{
+            width: '100%',
+            borderCollapse: 'collapse',
+            margin: '4px 0',
+            fontSize: '0.95em',
+            breakInside: 'avoid',
+            pageBreakInside: 'avoid',
+          }}
+        >
+          <thead>
+            <tr>
+              {headers.map((h, i) => (
+                <th
+                  key={i}
+                  style={{
+                    border: '1px solid #000',
+                    padding: '4px 8px',
+                    fontWeight: 700,
+                    textAlign: 'center',
+                    background: '#f0f0f0',
+                  }}
+                >
+                  <MathText as="span" text={h || ''} />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {q.rows.map((row, ri) => (
+              <tr key={ri}>
+                {headers.map((_, ci) => (
+                  <td
+                    key={ci}
+                    style={{
+                      border: '1px solid #555',
+                      padding: '3px 8px',
+                      textAlign: alignments[ci] || 'left',
+                    }}
+                  >
+                    <MathText as="span" text={(row && row[ci]) || ''} />
+                  </td>
+                ))}
+              </tr>
+            ))}
+            {showTotal && (
+              <tr>
+                {headers.map((_, ci) => (
+                  <td
+                    key={ci}
+                    style={{
+                      border: '1px solid #000',
+                      borderTop: '2px solid #000',
+                      borderBottom: '3px double #000',
+                      padding: '4px 8px',
+                      fontWeight: 700,
+                      textAlign: alignments[ci] || 'left',
+                    }}
+                  >
+                    <MathText as="span" text={q.total_row[ci] || ''} />
+                  </td>
+                ))}
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
+
+      {/* সমন্বয় / Notes */}
+      {q.notes && (
+        <div style={{ marginTop: 4, marginBottom: 4 }}>
+          {q.notes_label && (
+            <span style={{ fontWeight: 700 }}>{q.notes_label}: </span>
+          )}
+          <MathText as="span" text={q.notes} />
+        </div>
+      )}
+
+      {/* Sub-questions */}
+      <SubQuestionGrid
+        subs={subs}
+        numbering={q.sub_numbering || 'bn-letter'}
+        layout={q.sub_layout || 1}
+        labelSuffix="."
+      />
     </div>
   )
 }

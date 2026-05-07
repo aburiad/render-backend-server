@@ -12,7 +12,8 @@ const TYPE_LABELS = {
   matching: 'মিলকরণ',
   rearranging: 'পুনর্বিন্যাস',
   translation: 'অনুবাদ',
-  table: 'টেবিল/হিসাববিজ্ঞান',
+  table: 'টেবিল',
+  accounting: 'হিসাববিজ্ঞান CQ',
 }
 
 const TYPE_COLORS = {
@@ -25,9 +26,10 @@ const TYPE_COLORS = {
   rearranging: { bg: '#fefce8', border: '#fef9c3', text: '#854d0e' },
   translation: { bg: '#eef2ff', border: '#e0e7ff', text: '#4f46e5' },
   table: { bg: '#fef2f2', border: '#fee2e2', text: '#dc2626' },
+  accounting: { bg: '#ecfdf5', border: '#d1fae5', text: '#059669' },
 }
 
-export default function QuestionWrapper({ question, index, children, dragHandleProps }) {
+export default function QuestionWrapper({ question, index, displayNumber, children, dragHandleProps }) {
   const removeQuestion = usePaperStore((s) => s.removeQuestion)
   const duplicateQuestion = usePaperStore((s) => s.duplicateQuestion)
   const currentPaper = usePaperStore((s) => s.currentPaper)
@@ -80,7 +82,7 @@ export default function QuestionWrapper({ question, index, children, dragHandleP
           </svg>
         </button>
 
-        <span style={{ fontSize: 13, fontWeight: 900, color: '#94a3b8', minWidth: 20 }}>{index + 1}.</span>
+        <span style={{ fontSize: 13, fontWeight: 900, color: '#94a3b8', minWidth: 20 }}>{(displayNumber != null ? displayNumber : index + 1)}.</span>
 
         <span style={{
           fontSize: 10, fontWeight: 800, padding: '4px 10px',

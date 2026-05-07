@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathLiveEditor from './MathLiveEditor'
-import { hasMath, MathText } from '@/utils/mathRender'
+import { hasMath, MathText, MathPreview } from '@/utils/mathRender'
 
 export default function MatchingEditor({ question }) {
   const updateQuestion = usePaperStore((s) => s.updateQuestion)
@@ -66,6 +66,7 @@ export default function MatchingEditor({ question }) {
           />
           <MathLiveEditor inputRef={sharedInputRef} onInsert={insertIntoActiveCell} />
         </div>
+        <MathPreview text={question.question} />
       </div>
 
       {/* Two column matching */}
@@ -119,16 +120,13 @@ export default function MatchingEditor({ question }) {
         ))}
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center">
         <button
           onClick={addRow}
           className="text-xs text-pink-600 font-medium hover:text-pink-700"
         >
           + আরেকটি সারি যোগ করুন
         </button>
-        <span className="text-[10px] text-gray-400">
-          গণিত লিখতে: $\frac{'{a}'}{'{b}'}$ বা $\sqrt{'{x}'}$
-        </span>
       </div>
 
       <div className="flex items-center gap-2">

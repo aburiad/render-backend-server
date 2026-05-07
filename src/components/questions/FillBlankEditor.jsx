@@ -18,7 +18,7 @@ export default function FillBlankEditor({ question }) {
             ref={sentenceRef}
             value={question.sentence || ''}
             onChange={(e) => updateQuestion(question.id, { sentence: e.target.value })}
-            placeholder="বাংলাদেশের রাজধানী ___ । (গণিত: $x^2 + 1 = ___$)"
+            placeholder="বাক্য লিখুন (শূন্যস্থানের জন্য ___ ব্যবহার করুন)"
             rows={2}
             className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
           />

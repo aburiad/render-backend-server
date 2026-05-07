@@ -134,6 +134,23 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null) {
 Schema per question type:
 - MCQ: { type: "MCQ", question, option_a, option_b, option_c, option_d, correct_answer, marks, confidence }
 - CQ:  { type: "CQ", stimulus, sub_questions: [{ label, text, marks }], confidence }
+- accounting (USE THIS for accounting/finance questions that contain a tabular ledger/trial-balance/journal followed by adjustments and ক/খ/গ sub-questions — NOT plain CQ):
+  {
+    type: "accounting",
+    description: "intro line ABOVE the table (e.g. 'X কোম্পানির ৩১ ডিসেম্বর তারিখের রেওয়ামিল নিম্নরূপ:')",
+    title_lines: ["company name", "table type like রেওয়ামিল / জাবেদা", "date"],
+    headers: ["হিসাবের নাম", "ডেবিট (টাকা)", "ক্রেডিট (টাকা)"],
+    alignments: ["left", "right", "right"],
+    rows: [["account name", "debit", "credit"], ...],
+    show_total: true,
+    total_row: ["মোট", "total debit", "total credit"],
+    notes_label: "সমন্বয়সমূহ",
+    notes: "adjustments paragraph below the table",
+    sub_questions: [{ label: "ক", text, marks }, { label: "খ", text, marks }, { label: "গ", text, marks }],
+    confidence
+  }
+  Detection signals: words ডেবিট / ক্রেডিট / রেওয়ামিল / জাবেদা / খতিয়ান / নগদান বই / হিসাব শিরোনাম, monetary amounts in two columns, "মোট" total row, follow-up "সমন্বয়সমূহ" or "অন্যান্য তথ্যাবলি" paragraph, ক/খ/গ sub-questions. If ALL of these are present, output ONE accounting object — do NOT split it into separate table + CQ entries.
+- table: { type: "table", question, headers: [], rows: [[]], marks, confidence } — for non-accounting plain tables
 - short / broad: { type, question, marks, confidence }
 - fill_blank: { type: "fill_blank", sentence, clues, marks, confidence }
 - matching: { type: "matching", column_a: [], column_b: [], marks, confidence }
@@ -141,6 +158,8 @@ Schema per question type:
 - translation: { type: "translation", source_text, direction, marks, confidence }
 
 Math: wrap math expressions in $...$ using LaTeX (e.g. $\\frac{a}{b}$, $\\sqrt{x}$, $x^{2}$). Keep an entire equation inside a SINGLE $...$ pair — don't split around + or =.
+
+Numbers in accounting tables: keep Bengali numerals as shown in the image (যেমন: ৮০,০০০ — do NOT convert to 80,000).
 
 Output: ONLY the JSON array. No markdown fences, no commentary. Use \\n for line breaks inside text — never <br> tags.`
 

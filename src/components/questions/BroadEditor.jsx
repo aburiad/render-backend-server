@@ -15,7 +15,7 @@ export default function BroadEditor({ question }) {
             ref={questionRef}
             value={question.question || ''}
             onChange={(e) => updateQuestion(question.id, { question: e.target.value })}
-            placeholder="রচনামূলক প্রশ্ন লিখুন... (গণিত: $\frac{a}{b}$)"
+            placeholder="রচনামূলক প্রশ্ন লিখুন..."
             rows={3}
             className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
           />

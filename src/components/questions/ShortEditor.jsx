@@ -15,7 +15,7 @@ export default function ShortEditor({ question }) {
             ref={questionRef}
             value={question.question || ''}
             onChange={(e) => updateQuestion(question.id, { question: e.target.value })}
-            placeholder="সংক্ষিপ্ত প্রশ্ন লিখুন... (গণিত: $\sqrt{x}$)"
+            placeholder="সংক্ষিপ্ত প্রশ্ন লিখুন..."
             rows={2}
             className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
           />

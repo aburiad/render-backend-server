@@ -73,7 +73,7 @@ export default function TableEditor({ question }) {
             value={question.question || ''}
             onChange={(e) => updateQuestion(question.id, { question: e.target.value })}
             onFocus={(e) => onCellFocus(e.target, (v) => updateQuestion(question.id, { question: v }))}
-            placeholder="প্রশ্ন/নির্দেশনা লিখুন... (গণিত: $\frac{a}{b}$)"
+            placeholder="প্রশ্ন/নির্দেশনা লিখুন..."
             rows={2}
             className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
           />

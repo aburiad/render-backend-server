@@ -79,7 +79,7 @@ const usePaperStore = create((set, get) => ({
   getTotalMarks: () => {
     const { questions } = get()
     return questions.reduce((sum, q) => {
-      if (q.type === 'CQ') {
+      if (q.type === 'CQ' || q.type === 'accounting') {
         const subMarks = (q.sub_questions || []).reduce(
           (s, sq) => s + (Number(sq.marks) || 0),
           0

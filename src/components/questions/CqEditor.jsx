@@ -2,19 +2,28 @@ import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathLiveEditor from './MathLiveEditor'
 import { MathPreview } from '@/utils/mathRender'
+import StimulusImage from '@/components/shared/StimulusImage'
+import {
+  NUMBERING_OPTIONS,
+  LAYOUT_OPTIONS,
+  getSubLabel,
+} from '@/utils/subNumbering'
 
-const SUB_LABELS = ['ক', 'খ', 'গ', 'ঘ']
+const DEFAULT_SUBS = [
+  { label: 'ক', text: '', marks: 0 },
+  { label: 'খ', text: '', marks: 0 },
+  { label: 'গ', text: '', marks: 0 },
+  { label: 'ঘ', text: '', marks: 0 },
+]
 
 export default function CqEditor({ question }) {
   const updateQuestion = usePaperStore((s) => s.updateQuestion)
   const stimulusRef = useRef(null)
   const subRefs = useRef([])
 
-  const subQuestions = question.sub_questions || SUB_LABELS.map((label) => ({
-    label,
-    text: '',
-    marks: 0,
-  }))
+  const subQuestions = question.sub_questions || DEFAULT_SUBS
+  const numbering = question.sub_numbering || 'bn-letter'
+  const layout = question.sub_layout || 1
 
   const handleStimulusChange = (value) => {
     updateQuestion(question.id, { stimulus: value })
@@ -26,6 +35,28 @@ export default function CqEditor({ question }) {
     updateQuestion(question.id, { sub_questions: updated })
   }
 
+  const addSub = () => {
+    updateQuestion(question.id, {
+      sub_questions: [...subQuestions, { label: '', text: '', marks: 0 }],
+    })
+  }
+
+  const removeSub = (index) => {
+    if (subQuestions.length <= 1) return
+    updateQuestion(question.id, {
+      sub_questions: subQuestions.filter((_, i) => i !== index),
+    })
+  }
+
+  const gridStyle =
+    layout === 1
+      ? { display: 'flex', flexDirection: 'column', gap: 8 }
+      : {
+          display: 'grid',
+          gridTemplateColumns: `repeat(${layout}, minmax(0, 1fr))`,
+          gap: 8,
+        }
+
   return (
     <div className="space-y-3">
       {/* Stimulus / Uddipok */}
@@ -36,59 +67,121 @@ export default function CqEditor({ question }) {
             ref={stimulusRef}
             value={question.stimulus || ''}
             onChange={(e) => handleStimulusChange(e.target.value)}
-            placeholder="উদ্দীপক লিখুন... (গণিত: $\frac{a}{b}$, $\sqrt{x^2+1}$)"
+            placeholder="উদ্দীপক লিখুন..."
             rows={3}
             className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
           <MathLiveEditor inputRef={stimulusRef} onInsert={(v) => handleStimulusChange(v)} />
         </div>
         <MathPreview text={question.stimulus} />
+        <StimulusImage
+          value={question.stimulus_image}
+          onChange={(v) => updateQuestion(question.id, { stimulus_image: v })}
+          accentColor="#7c3aed"
+        />
       </div>
 
-      {/* Sub-questions */}
-      <div className="space-y-2">
-        {subQuestions.map((sub, i) => (
-          <div key={sub.label}>
-            <div className="flex items-start gap-2">
-              <span className="w-6 h-8 flex items-center justify-center text-sm font-bold text-purple-500 flex-shrink-0">
-                {sub.label})
-              </span>
-              <textarea
-                ref={(el) => { subRefs.current[i] = el }}
-                value={sub.text}
-                onChange={(e) => handleSubChange(i, 'text', e.target.value)}
-                placeholder={`${sub.label} নং প্রশ্ন...`}
-                rows={1}
-                className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-              />
-              <MathLiveEditor
-                inputRef={{ get current() { return subRefs.current[i] } }}
-                onInsert={(v) => handleSubChange(i, 'text', v)}
-              />
-              <div className="flex items-center gap-1 flex-shrink-0">
+      {/* Numbering + layout controls */}
+      <div className="flex flex-wrap items-center gap-3 px-2 py-2 bg-purple-50 border border-purple-100 rounded-xl">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold text-purple-700">নম্বরিং:</span>
+          <select
+            value={numbering}
+            onChange={(e) => updateQuestion(question.id, { sub_numbering: e.target.value })}
+            className="text-xs px-2 py-1 bg-white border border-purple-200 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500"
+          >
+            {NUMBERING_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold text-purple-700">কলাম:</span>
+          <div className="flex bg-white border border-purple-200 rounded-md p-0.5">
+            {LAYOUT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => updateQuestion(question.id, { sub_layout: opt.value })}
+                className={`px-2 py-0.5 text-xs font-semibold rounded ${
+                  layout === opt.value
+                    ? 'bg-purple-600 text-white'
+                    : 'text-purple-600 hover:bg-purple-50'
+                }`}
+              >
+                {opt.value}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Sub-questions — laid out in chosen column count */}
+      <div style={gridStyle}>
+        {subQuestions.map((sub, i) => {
+          const displayLabel = getSubLabel(numbering, i, sub.label)
+          return (
+            <div key={i}>
+              <div className="flex items-start gap-2">
+                <span className="w-7 h-8 flex items-center justify-center text-sm font-bold text-purple-500 flex-shrink-0">
+                  {displayLabel})
+                </span>
+                <textarea
+                  ref={(el) => { subRefs.current[i] = el }}
+                  value={sub.text}
+                  onChange={(e) => handleSubChange(i, 'text', e.target.value)}
+                  placeholder={`${displayLabel} নং প্রশ্ন...`}
+                  rows={layout > 1 ? 2 : 1}
+                  className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                {layout === 1 && (
+                  <MathLiveEditor
+                    inputRef={{ get current() { return subRefs.current[i] } }}
+                    onInsert={(v) => handleSubChange(i, 'text', v)}
+                  />
+                )}
                 <input
                   type="number"
                   value={sub.marks || ''}
                   onChange={(e) => handleSubChange(i, 'marks', Number(e.target.value))}
                   min={0}
-                  className="w-14 px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                  placeholder="নম্বর"
+                  className="w-12 px-1.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent flex-shrink-0"
+                  placeholder="মার্ক"
                 />
+                {subQuestions.length > 1 && (
+                  <button
+                    onClick={() => removeSub(i)}
+                    className="px-1 text-gray-300 hover:text-red-500 flex-shrink-0"
+                    title="মুছুন"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
               </div>
+              {layout === 1 && (
+                <div className="pl-9">
+                  <MathPreview text={sub.text} label="" />
+                </div>
+              )}
             </div>
-            <div className="pl-8">
-              <MathPreview text={sub.text} label="" />
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
-      {/* Total marks display */}
-      <div className="flex items-center gap-2 text-xs text-gray-400">
-        <span>মোট নম্বর:</span>
-        <span className="font-semibold text-purple-600">
-          {subQuestions.reduce((sum, sq) => sum + (Number(sq.marks) || 0), 0)}
-        </span>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={addSub}
+          className="text-xs font-semibold text-purple-700 hover:text-purple-800"
+        >
+          + প্রশ্ন যোগ করুন
+        </button>
+        <div className="flex items-center gap-2 text-xs text-gray-400">
+          <span>মোট নম্বর:</span>
+          <span className="font-semibold text-purple-600">
+            {subQuestions.reduce((sum, sq) => sum + (Number(sq.marks) || 0), 0)}
+          </span>
+        </div>
       </div>
     </div>
   )

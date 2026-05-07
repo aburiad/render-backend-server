@@ -1,9 +1,20 @@
+import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
+import MathLiveEditor from './MathLiveEditor'
+import { MathPreview } from '@/utils/mathRender'
+import {
+  NUMBERING_OPTIONS,
+  LAYOUT_OPTIONS,
+  getSubLabel,
+} from '@/utils/subNumbering'
 
 export default function RearrangingEditor({ question }) {
   const updateQuestion = usePaperStore((s) => s.updateQuestion)
+  const sentenceRefs = useRef([])
 
   const sentences = question.sentences || ['', '', '', '']
+  const numbering = question.sub_numbering || 'arabic-en'
+  const layout = question.sub_layout || 1
 
   const handleSentenceChange = (index, value) => {
     const updated = [...sentences]
@@ -37,31 +48,94 @@ export default function RearrangingEditor({ question }) {
         />
       </div>
 
-      <div className="space-y-2">
-        <span className="text-[10px] font-semibold text-gray-400">
+      {/* Numbering + layout controls */}
+      <div className="flex flex-wrap items-center gap-3 px-2 py-2 bg-yellow-50 border border-yellow-100 rounded-xl">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold text-yellow-800">নম্বরিং:</span>
+          <select
+            value={numbering}
+            onChange={(e) => updateQuestion(question.id, { sub_numbering: e.target.value })}
+            className="text-xs px-2 py-1 bg-white border border-yellow-200 rounded-md focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          >
+            {NUMBERING_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold text-yellow-800">কলাম:</span>
+          <div className="flex bg-white border border-yellow-200 rounded-md p-0.5">
+            {LAYOUT_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => updateQuestion(question.id, { sub_layout: opt.value })}
+                className={`px-2 py-0.5 text-xs font-semibold rounded ${
+                  layout === opt.value
+                    ? 'bg-yellow-600 text-white'
+                    : 'text-yellow-700 hover:bg-yellow-50'
+                }`}
+              >
+                {opt.value}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div
+        style={
+          layout === 1
+            ? { display: 'flex', flexDirection: 'column', gap: 8 }
+            : {
+                display: 'grid',
+                gridTemplateColumns: `repeat(${layout}, minmax(0, 1fr))`,
+                gap: 8,
+              }
+        }
+      >
+        <span className="text-[10px] font-semibold text-gray-400" style={{ gridColumn: '1 / -1' }}>
           বাক্যগুলো (এলোমেলো ক্রমে)
         </span>
-        {sentences.map((s, i) => (
-          <div key={i} className="flex items-center gap-2">
-            <span className="text-xs text-gray-400 w-5 text-right">{i + 1}.</span>
-            <input
-              type="text"
-              value={s}
-              onChange={(e) => handleSentenceChange(i, e.target.value)}
-              placeholder={`বাক্য ${i + 1}`}
-              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
-            />
-            <button
-              onClick={() => removeSentence(i)}
-              disabled={sentences.length <= 2}
-              className="p-1 text-gray-300 hover:text-red-500 disabled:opacity-30 disabled:hover:text-gray-300"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        ))}
+        {sentences.map((s, i) => {
+          const displayLabel = getSubLabel(numbering, i, String(i + 1))
+          return (
+            <div key={i}>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-semibold text-gray-500 flex-shrink-0">
+                  {displayLabel}.
+                </span>
+                <input
+                  ref={(el) => { sentenceRefs.current[i] = el }}
+                  type="text"
+                  value={s}
+                  onChange={(e) => handleSentenceChange(i, e.target.value)}
+                  placeholder={`বাক্য ${displayLabel}`}
+                  className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent"
+                />
+                {layout === 1 && (
+                  <MathLiveEditor
+                    inputRef={{ get current() { return sentenceRefs.current[i] } }}
+                    onInsert={(v) => handleSentenceChange(i, v)}
+                  />
+                )}
+                <button
+                  onClick={() => removeSentence(i)}
+                  disabled={sentences.length <= 2}
+                  className="p-1 text-gray-300 hover:text-red-500 disabled:opacity-30 disabled:hover:text-gray-300 flex-shrink-0"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {layout === 1 && (
+                <div className="pl-7">
+                  <MathPreview text={s} label="" />
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <button

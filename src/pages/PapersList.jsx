@@ -32,7 +32,7 @@ function formatDate(timestamp) {
 }
 
 /* ─── Paper Item row ─────────────────────────────────────── */
-function PaperItem({ paper, onLongPress, onDelete, deleting }) {
+function PaperItem({ paper, onLongPress, onDelete, onDuplicate, deleting, duplicating }) {
   const qCount = getQuestionCount(paper)
   const marks = getMarksTotal(paper)
   const initial = (paper.exam_title || paper.institution_name || 'প')?.charAt(0)
@@ -163,6 +163,11 @@ function PaperItem({ paper, onLongPress, onDelete, deleting }) {
           label="PDF প্রিভিউ"
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
         />
+        <BottomSheetItem
+          onClick={() => { setMenuOpen(false); onDuplicate(paper) }}
+          label={duplicating === paper.id ? 'কপি হচ্ছে...' : 'ডুপ্লিকেট করুন'}
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>}
+        />
         <div className="divider" />
         <BottomSheetItem
           onClick={async () => {
@@ -215,6 +220,7 @@ export default function PapersList() {
   const [papers, setPapers] = useState([])
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState(null)
+  const [duplicating, setDuplicating] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const navigate = useNavigate()
   const clearPaper = usePaperStore((s) => s.clearPaper)
@@ -244,6 +250,33 @@ export default function PapersList() {
       toast.error('মুছতে ব্যর্থ')
     } finally {
       setDeleting(null)
+    }
+  }
+
+  async function handleDuplicate(paper) {
+    setDuplicating(paper.id)
+    try {
+      // Strip server-managed fields, regenerate question IDs so the
+      // duplicate is fully independent (drag-reorder, edits stay isolated).
+      const { id, userId, createdAt, updatedAt, deleted, ...rest } = paper
+      const newQuestions = (rest.questions || []).map((q) => ({
+        ...q,
+        id: (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      }))
+      const payload = {
+        ...rest,
+        questions: newQuestions,
+        exam_title: `${paper.exam_title || 'প্রশ্নপত্র'} (কপি)`,
+      }
+      const { data } = await api.post('/papers', payload)
+      setPapers(prev => [data.paper, ...prev])
+      toast.success('প্রশ্নপত্র ডুপ্লিকেট হয়েছে')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'ডুপ্লিকেট করতে ব্যর্থ')
+    } finally {
+      setDuplicating(null)
     }
   }
 
@@ -330,7 +363,9 @@ export default function PapersList() {
                 key={paper.id}
                 paper={paper}
                 onDelete={handleDelete}
+                onDuplicate={handleDuplicate}
                 deleting={deleting}
+                duplicating={duplicating}
               />
             ))}
           </AnimatePresence>

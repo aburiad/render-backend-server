@@ -23,6 +23,7 @@ router.post('/', checkLimit('paper_count'), async (req, res, next) => {
       watermark,
       set_variant,
       logo_url,
+      section_mode,
       questions,
     } = req.body
 
@@ -44,6 +45,7 @@ router.post('/', checkLimit('paper_count'), async (req, res, next) => {
       watermark: req.user.tier !== 'free' ? watermark ?? null : 'AI Question Hub',
       set_variant,
       logo_url: req.user.tier !== 'free' ? logo_url || null : null,
+      section_mode: !!section_mode,
       questions: questions || [],
     })
 
@@ -88,6 +90,7 @@ router.put('/:id', async (req, res, next) => {
       'watermark',
       'set_variant',
       'logo_url',
+      'section_mode',
       'questions',
     ]
     const updates = {}

@@ -322,7 +322,7 @@ export default function MagicScanModal({ onClose }) {
                             </div>
                           </div>
                           <div className="text-sm text-gray-800 font-medium leading-relaxed">
-                            <MathText text={q.question || q.stimulus || (q.sentence?.replace(/___/g, '______')) || 'প্রশ্ন খুঁজে পাওয়া যায়নি'} />
+                            <MathText text={q.question || q.stimulus || q.description || (q.sentence?.replace(/___/g, '______')) || 'প্রশ্ন খুঁজে পাওয়া যায়নি'} />
                           </div>
                           {q.type === 'MCQ' && (
                             <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 pl-2">
@@ -334,12 +334,83 @@ export default function MagicScanModal({ onClose }) {
                               ))}
                             </div>
                           )}
+                          {q.type === 'accounting' && (
+                            <div className="mt-2 space-y-1.5">
+                              {Array.isArray(q.title_lines) && q.title_lines.filter(Boolean).length > 0 && (
+                                <div className="text-center text-[11px] font-semibold text-gray-700 leading-tight">
+                                  {q.title_lines.filter(Boolean).map((line, ti) => (
+                                    <div key={ti}>{line}</div>
+                                  ))}
+                                </div>
+                              )}
+                              {Array.isArray(q.headers) && q.headers.length > 0 && Array.isArray(q.rows) && (
+                                <div className="overflow-x-auto">
+                                  <table className="w-full text-[10px] border border-gray-200">
+                                    <thead className="bg-gray-50">
+                                      <tr>
+                                        {q.headers.map((h, hi) => (
+                                          <th key={hi} className="border border-gray-200 px-1.5 py-1 font-bold text-center">
+                                            {h}
+                                          </th>
+                                        ))}
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {q.rows.slice(0, 4).map((row, ri) => (
+                                        <tr key={ri}>
+                                          {(row || []).map((cell, ci) => (
+                                            <td
+                                              key={ci}
+                                              className="border border-gray-200 px-1.5 py-0.5"
+                                              style={{ textAlign: (q.alignments && q.alignments[ci]) || 'left' }}
+                                            >
+                                              {cell}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      ))}
+                                      {q.rows.length > 4 && (
+                                        <tr>
+                                          <td
+                                            colSpan={q.headers.length}
+                                            className="border border-gray-200 px-1.5 py-0.5 text-center text-gray-400 italic"
+                                          >
+                                            … +{q.rows.length - 4}
+                                          </td>
+                                        </tr>
+                                      )}
+                                      {q.show_total !== false && Array.isArray(q.total_row) && (
+                                        <tr className="bg-emerald-50 font-bold">
+                                          {q.total_row.map((cell, ci) => (
+                                            <td
+                                              key={ci}
+                                              className="border-2 border-emerald-300 px-1.5 py-0.5"
+                                              style={{ textAlign: (q.alignments && q.alignments[ci]) || 'left' }}
+                                            >
+                                              {cell}
+                                            </td>
+                                          ))}
+                                        </tr>
+                                      )}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              )}
+                              {q.notes && (
+                                <div className="text-[10px] text-gray-600 leading-snug">
+                                  <span className="font-bold">{q.notes_label || 'Notes'}:</span>{' '}
+                                  <MathText text={q.notes} />
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {q.sub_questions && (
                             <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-100">
                               {q.sub_questions.map((sq, si) => (
                                 <div key={si} className="text-[11px] text-gray-500">
                                   <span className="font-bold mr-1">{sq.label}.</span>
                                   <MathText text={sq.text} />
+                                  {sq.marks ? <span className="ml-1 text-gray-400">[{sq.marks}]</span> : null}
                                 </div>
                               ))}
                             </div>
