@@ -20,6 +20,8 @@ import NoticePreview from '@/pages/NoticePreview'
 import RoutinesList from '@/pages/RoutinesList'
 import RoutineEditor from '@/pages/RoutineEditor'
 import RoutinePreview from '@/pages/RoutinePreview'
+import TeachersList from '@/pages/TeachersList'
+import TeacherSchedulePage from '@/pages/TeacherSchedulePage'
 import useAuthStore from '@/store/authStore'
 import { AnimatePresence } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
@@ -93,6 +95,8 @@ export default function App() {
           <Route path="notices/:id/preview" element={<NoticePreview />} />
           <Route path="routines" element={<RoutinesList />} />
           <Route path="routines/new" element={<RoutineEditor />} />
+          <Route path="routines/teachers" element={<TeachersList />} />
+          <Route path="routines/teachers/:name" element={<TeacherSchedulePage />} />
           <Route path="routines/:id" element={<RoutineEditor />} />
           <Route path="routines/:id/preview" element={<RoutinePreview />} />
           <Route path="pricing" element={<Pricing />} />
