@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathLiveEditor from './MathLiveEditor'
+import AutoTextarea from '@/components/shared/AutoTextarea'
 import { MathPreview } from '@/utils/mathRender'
 
 export default function BroadEditor({ question }) {
@@ -10,16 +11,18 @@ export default function BroadEditor({ question }) {
   return (
     <div className="space-y-3">
       <div>
-        <div className="flex items-start gap-1.5">
-          <textarea
+        <div className="flex flex-col sm:flex-row sm:items-start gap-1.5">
+          <AutoTextarea
             ref={questionRef}
             value={question.question || ''}
             onChange={(e) => updateQuestion(question.id, { question: e.target.value })}
             placeholder="রচনামূলক প্রশ্ন লিখুন..."
             rows={3}
-            className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+            className="flex-1 min-w-0 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
           />
-          <MathLiveEditor inputRef={questionRef} onInsert={(v) => updateQuestion(question.id, { question: v })} />
+          <div className="flex justify-end sm:block">
+            <MathLiveEditor inputRef={questionRef} onInsert={(v) => updateQuestion(question.id, { question: v })} />
+          </div>
         </div>
         <MathPreview text={question.question} />
       </div>

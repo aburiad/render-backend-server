@@ -3,6 +3,7 @@ import usePaperStore from '@/store/paperStore'
 import MathLiveEditor from './MathLiveEditor'
 import { MathPreview } from '@/utils/mathRender'
 import StimulusImage from '@/components/shared/StimulusImage'
+import AutoTextarea from '@/components/shared/AutoTextarea'
 import {
   NUMBERING_OPTIONS,
   LAYOUT_OPTIONS,
@@ -62,16 +63,18 @@ export default function CqEditor({ question }) {
       {/* Stimulus / Uddipok */}
       <div>
         <label className="block text-xs font-medium text-gray-500 mb-1">উদ্দীপক</label>
-        <div className="flex items-start gap-1.5">
-          <textarea
+        <div className="flex flex-col sm:flex-row sm:items-start gap-1.5">
+          <AutoTextarea
             ref={stimulusRef}
             value={question.stimulus || ''}
             onChange={(e) => handleStimulusChange(e.target.value)}
             placeholder="উদ্দীপক লিখুন..."
             rows={3}
-            className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="flex-1 min-w-0 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
           />
-          <MathLiveEditor inputRef={stimulusRef} onInsert={(v) => handleStimulusChange(v)} />
+          <div className="flex justify-end sm:block">
+            <MathLiveEditor inputRef={stimulusRef} onInsert={(v) => handleStimulusChange(v)} />
+          </div>
         </div>
         <MathPreview text={question.stimulus} />
         <StimulusImage
@@ -121,43 +124,47 @@ export default function CqEditor({ question }) {
           const displayLabel = getSubLabel(numbering, i, sub.label)
           return (
             <div key={i}>
-              <div className="flex items-start gap-2">
-                <span className="w-7 h-8 flex items-center justify-center text-sm font-bold text-purple-500 flex-shrink-0">
-                  {displayLabel})
-                </span>
-                <textarea
-                  ref={(el) => { subRefs.current[i] = el }}
-                  value={sub.text}
-                  onChange={(e) => handleSubChange(i, 'text', e.target.value)}
-                  placeholder={`${displayLabel} নং প্রশ্ন...`}
-                  rows={layout > 1 ? 2 : 1}
-                  className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                />
-                {layout === 1 && (
-                  <MathLiveEditor
-                    inputRef={{ get current() { return subRefs.current[i] } }}
-                    onInsert={(v) => handleSubChange(i, 'text', v)}
+              <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-2">
+                <div className="flex items-start gap-2 flex-1 min-w-0">
+                  <span className="w-7 h-8 flex items-center justify-center text-sm font-bold text-purple-500 flex-shrink-0">
+                    {displayLabel})
+                  </span>
+                  <AutoTextarea
+                    ref={(el) => { subRefs.current[i] = el }}
+                    value={sub.text}
+                    onChange={(e) => handleSubChange(i, 'text', e.target.value)}
+                    placeholder={`${displayLabel} নং প্রশ্ন...`}
+                    rows={2}
+                    className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
-                )}
-                <input
-                  type="number"
-                  value={sub.marks || ''}
-                  onChange={(e) => handleSubChange(i, 'marks', Number(e.target.value))}
-                  min={0}
-                  className="w-12 px-1.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent flex-shrink-0"
-                  placeholder="মার্ক"
-                />
-                {subQuestions.length > 1 && (
-                  <button
-                    onClick={() => removeSub(i)}
-                    className="px-1 text-gray-300 hover:text-red-500 flex-shrink-0"
-                    title="মুছুন"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
+                </div>
+                <div className="flex items-center gap-1.5 pl-9 sm:pl-0">
+                  {layout === 1 && (
+                    <MathLiveEditor
+                      inputRef={{ get current() { return subRefs.current[i] } }}
+                      onInsert={(v) => handleSubChange(i, 'text', v)}
+                    />
+                  )}
+                  <input
+                    type="number"
+                    value={sub.marks || ''}
+                    onChange={(e) => handleSubChange(i, 'marks', Number(e.target.value))}
+                    min={0}
+                    className="w-12 px-1.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent flex-shrink-0"
+                    placeholder="মার্ক"
+                  />
+                  {subQuestions.length > 1 && (
+                    <button
+                      onClick={() => removeSub(i)}
+                      className="px-1 text-gray-300 hover:text-red-500 flex-shrink-0"
+                      title="মুছুন"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
               </div>
               {layout === 1 && (
                 <div className="pl-9">

@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import { MathPreview } from '@/utils/mathRender'
 import StimulusImage from '@/components/shared/StimulusImage'
+import AutoTextarea from '@/components/shared/AutoTextarea'
 import MathLiveEditor from './MathLiveEditor'
 import {
   NUMBERING_OPTIONS,
@@ -124,16 +125,18 @@ export default function AccountingEditor({ question }) {
       {/* 1. বিবরণ — top intro line */}
       <div>
         <label className="block text-xs font-semibold text-gray-500 mb-1">বিবরণ (উপরের পরিচিতি)</label>
-        <div className="flex items-start gap-1.5">
-          <textarea
+        <div className="flex flex-col sm:flex-row sm:items-start gap-1.5">
+          <AutoTextarea
             ref={descriptionRef}
             value={description}
             onChange={(e) => set({ description: e.target.value })}
             placeholder="উদা: শাপলু এন্ড কোং-এর ২০১৬ সালের ৩০ জুন তারিখের রেওয়ামিলটি নিম্নরূপ:"
             rows={2}
-            className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="flex-1 min-w-0 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           />
-          <MathLiveEditor inputRef={descriptionRef} onInsert={(v) => set({ description: v })} />
+          <div className="flex justify-end sm:block">
+            <MathLiveEditor inputRef={descriptionRef} onInsert={(v) => set({ description: v })} />
+          </div>
         </div>
         <MathPreview text={description} />
         <StimulusImage
@@ -311,16 +314,18 @@ export default function AccountingEditor({ question }) {
             className="w-40 px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
-        <div className="flex items-start gap-1.5">
-          <textarea
+        <div className="flex flex-col sm:flex-row sm:items-start gap-1.5">
+          <AutoTextarea
             ref={notesRef}
             value={notes}
             onChange={(e) => set({ notes: e.target.value })}
             placeholder="উদা: ১. সমাপনী মজুদ পণ্য ৩৫,০০০ টাকা। ২. দেনাদারের ২,৫০০ টাকা আদায়যোগ্য নয়। ..."
             rows={3}
-            className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            className="flex-1 min-w-0 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
           />
-          <MathLiveEditor inputRef={notesRef} onInsert={(v) => set({ notes: v })} />
+          <div className="flex justify-end sm:block">
+            <MathLiveEditor inputRef={notesRef} onInsert={(v) => set({ notes: v })} />
+          </div>
         </div>
         <MathPreview text={notes} />
       </div>
@@ -378,43 +383,47 @@ export default function AccountingEditor({ question }) {
             const displayLabel = getSubLabel(numbering, i, sub.label)
             return (
               <div key={i}>
-                <div className="flex items-start gap-2">
-                  <span className="w-7 h-8 flex items-center justify-center text-sm font-bold text-emerald-700 flex-shrink-0">
-                    {displayLabel}.
-                  </span>
-                  <textarea
-                    ref={(el) => { subRefs.current[i] = el }}
-                    value={sub.text}
-                    onChange={(e) => updateSub(i, 'text', e.target.value)}
-                    placeholder={`${displayLabel} নং প্রশ্ন...`}
-                    rows={layout > 1 ? 2 : 1}
-                    className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  />
-                  {layout === 1 && (
-                    <MathLiveEditor
-                      inputRef={{ get current() { return subRefs.current[i] } }}
-                      onInsert={(v) => updateSub(i, 'text', v)}
+                <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-2">
+                  <div className="flex items-start gap-2 flex-1 min-w-0">
+                    <span className="w-7 h-8 flex items-center justify-center text-sm font-bold text-emerald-700 flex-shrink-0">
+                      {displayLabel}.
+                    </span>
+                    <AutoTextarea
+                      ref={(el) => { subRefs.current[i] = el }}
+                      value={sub.text}
+                      onChange={(e) => updateSub(i, 'text', e.target.value)}
+                      placeholder={`${displayLabel} নং প্রশ্ন...`}
+                      rows={2}
+                      className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     />
-                  )}
-                  <input
-                    type="number"
-                    value={sub.marks || ''}
-                    onChange={(e) => updateSub(i, 'marks', Number(e.target.value))}
-                    min={0}
-                    placeholder="মার্ক"
-                    className="w-12 px-1.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 flex-shrink-0"
-                  />
-                  {subQuestions.length > 1 && (
-                    <button
-                      onClick={() => removeSub(i)}
-                      className="px-1 text-gray-300 hover:text-red-500 flex-shrink-0"
-                      title="মুছুন"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  )}
+                  </div>
+                  <div className="flex items-center gap-1.5 pl-9 sm:pl-0">
+                    {layout === 1 && (
+                      <MathLiveEditor
+                        inputRef={{ get current() { return subRefs.current[i] } }}
+                        onInsert={(v) => updateSub(i, 'text', v)}
+                      />
+                    )}
+                    <input
+                      type="number"
+                      value={sub.marks || ''}
+                      onChange={(e) => updateSub(i, 'marks', Number(e.target.value))}
+                      min={0}
+                      placeholder="মার্ক"
+                      className="w-12 px-1.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-emerald-500 flex-shrink-0"
+                    />
+                    {subQuestions.length > 1 && (
+                      <button
+                        onClick={() => removeSub(i)}
+                        className="px-1 text-gray-300 hover:text-red-500 flex-shrink-0"
+                        title="মুছুন"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
                 </div>
                 {layout === 1 && (
                   <div className="pl-9">

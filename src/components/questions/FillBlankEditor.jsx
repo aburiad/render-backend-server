@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathLiveEditor from './MathLiveEditor'
+import AutoTextarea from '@/components/shared/AutoTextarea'
 import { MathPreview } from '@/utils/mathRender'
 
 export default function FillBlankEditor({ question }) {
@@ -13,16 +14,18 @@ export default function FillBlankEditor({ question }) {
         <label className="block text-xs font-medium text-gray-500 mb-1">
           বাক্য (শূন্যস্থানে ___ ব্যবহার করুন)
         </label>
-        <div className="flex items-start gap-1.5">
-          <textarea
+        <div className="flex flex-col sm:flex-row sm:items-start gap-1.5">
+          <AutoTextarea
             ref={sentenceRef}
             value={question.sentence || ''}
             onChange={(e) => updateQuestion(question.id, { sentence: e.target.value })}
             placeholder="বাক্য লিখুন (শূন্যস্থানের জন্য ___ ব্যবহার করুন)"
             rows={2}
-            className="flex-1 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+            className="flex-1 min-w-0 px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
           />
-          <MathLiveEditor inputRef={sentenceRef} onInsert={(v) => updateQuestion(question.id, { sentence: v })} />
+          <div className="flex justify-end sm:block">
+            <MathLiveEditor inputRef={sentenceRef} onInsert={(v) => updateQuestion(question.id, { sentence: v })} />
+          </div>
         </div>
         <MathPreview text={question.sentence} />
       </div>

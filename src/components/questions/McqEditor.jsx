@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathLiveEditor from './MathLiveEditor'
+import AutoTextarea from '@/components/shared/AutoTextarea'
 import { MathPreview } from '@/utils/mathRender'
 import {
   NUMBERING_OPTIONS,
@@ -33,16 +34,18 @@ export default function McqEditor({ question }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {/* Question text */}
       <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-          <textarea
+        <div className="flex flex-col sm:flex-row sm:items-start gap-1.5">
+          <AutoTextarea
             ref={questionRef}
             value={question.question || ''}
             onChange={(e) => handleChange('question', e.target.value)}
             placeholder="প্রশ্ন লিখুন..."
             rows={3}
-            style={{ ...InputStyle, minHeight: 80, resize: 'none', flex: 1 }}
+            style={{ ...InputStyle, minHeight: 80, resize: 'none', flex: 1, minWidth: 0 }}
           />
-          <MathLiveEditor inputRef={questionRef} onInsert={(v) => handleChange('question', v)} />
+          <div className="flex justify-end sm:block">
+            <MathLiveEditor inputRef={questionRef} onInsert={(v) => handleChange('question', v)} />
+          </div>
         </div>
         <MathPreview text={question.question} />
       </div>
@@ -98,7 +101,7 @@ export default function McqEditor({ question }) {
           const displayLabel = getSubLabel(numbering, i, opt.toUpperCase())
           return (
             <div key={opt} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <button
                   type="button"
                   onClick={() => handleChange('correct_answer', opt)}
@@ -116,13 +119,13 @@ export default function McqEditor({ question }) {
                 >
                   {displayLabel}
                 </button>
-                <input
+                <AutoTextarea
                   ref={optionRefs[opt]}
-                  type="text"
                   value={question[`option_${opt}`] || ''}
                   onChange={(e) => handleChange(`option_${opt}`, e.target.value)}
                   placeholder={`অপশন ${displayLabel}`}
-                  style={{ ...InputStyle, padding: '10px 12px', flex: 1, minWidth: 0 }}
+                  rows={1}
+                  style={{ ...InputStyle, padding: '8px 12px', flex: 1, minWidth: 0, resize: 'none', lineHeight: 1.5 }}
                 />
                 {layout === 1 && (
                   <MathLiveEditor inputRef={optionRefs[opt]} onInsert={(v) => handleChange(`option_${opt}`, v)} />
