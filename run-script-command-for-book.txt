@@ -1,0 +1,1 @@
+node server/scripts/seedClass8Math.js
