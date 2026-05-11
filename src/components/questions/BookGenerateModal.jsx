@@ -27,12 +27,19 @@ export default function BookGenerateModal({ onClose }) {
   const [subjects, setSubjects] = useState([])
   const [selectedSubject, setSelectedSubject] = useState(null)
   const [chapters, setChapters] = useState([])
-  const [selectedChapters, setSelectedChapters] = useState([])
+
+  // Selections: { chapterId: { subchapterIds: Set, count: number } }
+  // Use 'all' marker in subchapterIds Set to mean "whole chapter"
+  const [selections, setSelections] = useState({})
+  const [subchapterCache, setSubchapterCache] = useState({})
+  const [expanded, setExpanded] = useState({})
+
+  const [mode, setMode] = useState('existing') // 'existing' | 'ai'
   const [questionTypes, setQuestionTypes] = useState(['MCQ'])
-  const [count, setCount] = useState(5)
   const [loading, setLoading] = useState(false)
   const [generatedQuestions, setGeneratedQuestions] = useState([])
   const [sourceChapters, setSourceChapters] = useState([])
+  const [resultMeta, setResultMeta] = useState(null)
 
   const addQuestion = usePaperStore((s) => s.addQuestion)
 
@@ -42,57 +49,206 @@ export default function BookGenerateModal({ onClose }) {
     setSubjects([])
     setSelectedSubject(null)
     setChapters([])
-    setSelectedChapters([])
+    setSelections({})
+    setSubchapterCache({})
+    setExpanded({})
 
-    api.get(`/book/subjects/${classNum}`).then(({ data }) => {
-      setSubjects(data.subjects || [])
-    }).catch(() => toast.error('বিষয় লোড করতে ব্যর্থ'))
+    api
+      .get(`/book/subjects/${classNum}`)
+      .then(({ data }) => {
+        setSubjects(data.subjects || [])
+      })
+      .catch(() => toast.error('বিষয় লোড করতে ব্যর্থ'))
   }, [classNum])
 
   // Fetch chapters when subject changes
   useEffect(() => {
     if (!classNum || !selectedSubject) return
     setChapters([])
-    setSelectedChapters([])
+    setSelections({})
+    setSubchapterCache({})
+    setExpanded({})
 
-    api.get(`/book/chapters/${classNum}/${selectedSubject}`).then(({ data }) => {
-      setChapters(data.chapters || [])
-    }).catch(() => toast.error('চ্যাপ্টার লোড করতে ব্যর্থ'))
+    api
+      .get(`/book/chapters/${classNum}/${selectedSubject}`)
+      .then(({ data }) => {
+        setChapters(data.chapters || [])
+      })
+      .catch(() => toast.error('চ্যাপ্টার লোড করতে ব্যর্থ'))
   }, [classNum, selectedSubject])
 
-  const toggleChapter = (id) => {
-    setSelectedChapters((prev) =>
-      prev.includes(id) ? prev.filter((c) => c !== id) : [...prev, id]
-    )
+  // --- Selection helpers ---
+  const isChapterSelected = (id) => Boolean(selections[id])
+  const isAllSelected = (id) => selections[id]?.subchapterIds.has('all')
+  const isSubchapterSelected = (chapterId, subId) => {
+    const sel = selections[chapterId]
+    if (!sel) return false
+    return sel.subchapterIds.has('all') || sel.subchapterIds.has(subId)
+  }
+
+  const toggleChapterAll = (chapterId) => {
+    setSelections((prev) => {
+      const next = { ...prev }
+      if (next[chapterId] && next[chapterId].subchapterIds.has('all')) {
+        delete next[chapterId]
+      } else {
+        next[chapterId] = { subchapterIds: new Set(['all']), count: 5 }
+      }
+      return next
+    })
+  }
+
+  const toggleSubchapter = (chapterId, subId) => {
+    setSelections((prev) => {
+      const next = { ...prev }
+      let cur = next[chapterId]
+      if (!cur) {
+        cur = { subchapterIds: new Set([subId]), count: 5 }
+      } else if (cur.subchapterIds.has('all')) {
+        // "all" mode → expand to explicit list, then uncheck the clicked one
+        const allSubs = subchapterCache[chapterId] || []
+        const explicit = new Set(allSubs.map((s) => s.id))
+        explicit.delete(subId)
+        cur = { ...cur, subchapterIds: explicit }
+      } else {
+        cur = { ...cur, subchapterIds: new Set(cur.subchapterIds) }
+        if (cur.subchapterIds.has(subId)) cur.subchapterIds.delete(subId)
+        else cur.subchapterIds.add(subId)
+      }
+      if (cur.subchapterIds.size === 0) delete next[chapterId]
+      else next[chapterId] = cur
+      return next
+    })
+  }
+
+  const setChapterCount = (chapterId, count) => {
+    setSelections((prev) => {
+      const cur = prev[chapterId]
+      if (!cur) return prev
+      return { ...prev, [chapterId]: { ...cur, count: Math.max(1, Math.min(20, count)) } }
+    })
+  }
+
+  const toggleExpand = async (chapterId) => {
+    setExpanded((p) => ({ ...p, [chapterId]: !p[chapterId] }))
+    if (!subchapterCache[chapterId]) {
+      try {
+        const { data } = await api.get(
+          `/book/subchapters/${classNum}/${selectedSubject}/${chapterId}`,
+        )
+        setSubchapterCache((p) => ({ ...p, [chapterId]: data.subchapters || [] }))
+      } catch {
+        toast.error('সাবচ্যাপ্টার লোড করতে ব্যর্থ')
+      }
+    }
   }
 
   const toggleType = (type) => {
     setQuestionTypes((prev) =>
-      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type],
     )
   }
 
+  // --- Build API selections ---
+  const apiSelections = Object.entries(selections).map(([chapterId, sel]) => ({
+    chapterId,
+    subchapterIds: [...sel.subchapterIds],
+    count: sel.count,
+  }))
+  const totalSelected = apiSelections.length
+  const totalCount = apiSelections.reduce((s, x) => s + x.count, 0)
+
   const handleGenerate = async () => {
-    if (questionTypes.length === 0) {
+    if (mode === 'ai' && questionTypes.length === 0) {
       toast.error('কমপক্ষে ১টি প্রশ্নের ধরন সিলেক্ট করুন')
       return
     }
 
     setStep('review')
     setLoading(true)
+    setGeneratedQuestions([])
+    setResultMeta(null)
 
     try {
-      const { data } = await api.post('/book/generate', {
-        classNum,
-        subject: selectedSubject,
-        chapters: selectedChapters,
-        questionTypes,
-        count,
-      })
-
-      if (data.success) {
-        setGeneratedQuestions(data.questions)
-        setSourceChapters(data.source || [])
+      if (mode === 'existing') {
+        const { data } = await api.post('/book/existing-questions', {
+          classNum,
+          subject: selectedSubject,
+          selections: apiSelections.map(({ chapterId, subchapterIds }) => ({
+            chapterId,
+            subchapterIds,
+          })),
+          filters: { types: questionTypes.map((t) => t.toLowerCase()) },
+        })
+        // Normalize existing question shape to match generated shape
+        const normalized = (data.questions || []).map((q) => {
+          const d = q.data || {}
+          if (q.type === 'mcq') {
+            return {
+              type: 'MCQ',
+              question: d.question,
+              option_a: d.options?.['ক'] || d.options?.['i'],
+              option_b: d.options?.['খ'] || d.options?.['ii'],
+              option_c: d.options?.['গ'] || d.options?.['iii'],
+              option_d: d.options?.['ঘ'],
+              _source: q.source,
+              _id: q.id,
+            }
+          }
+          if (q.type === 'cq') {
+            return {
+              type: 'CQ',
+              stimulus: d.scenario,
+              question: d.scenario,
+              sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({
+                label: k,
+                text: v,
+              })),
+              _source: q.source,
+              _id: q.id,
+            }
+          }
+          // SAQ
+          return {
+            type: 'short',
+            question: d.question,
+            sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({
+              label: k,
+              text: v,
+            })),
+            _source: q.source,
+            _id: q.id,
+          }
+        })
+        setGeneratedQuestions(normalized)
+        setSourceChapters(
+          chapters.filter((c) => selections[c.id]).map((c) => c.title),
+        )
+        setResultMeta({ source: 'book', count: data.count })
+        if (normalized.length === 0) {
+          toast('সিলেক্ট করা অংশে কোনো প্রশ্ন পাওয়া যায়নি', { icon: 'ℹ️' })
+        }
+      } else {
+        // AI mode
+        const { data } = await api.post('/book/generate', {
+          classNum,
+          subject: selectedSubject,
+          selections: apiSelections.map(({ chapterId, subchapterIds }) => ({
+            chapterId,
+            subchapterIds,
+          })),
+          questionTypes,
+          count: Math.min(totalCount, 15),
+        })
+        if (data.success) {
+          setGeneratedQuestions(data.questions)
+          setSourceChapters(data.sourceChapters || [])
+          setResultMeta({
+            source: 'ai',
+            provider: data.provider,
+            keySource: data.keySource,
+          })
+        }
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'প্রশ্ন তৈরি করতে ব্যর্থ')
@@ -114,7 +270,7 @@ export default function BookGenerateModal({ onClose }) {
     toast.success('প্রশ্নটি পেপারে যোগ হয়েছে')
   }
 
-  const canProceed = classNum && selectedSubject && selectedChapters.length > 0
+  const canProceed = classNum && selectedSubject && totalSelected > 0
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-8">
@@ -141,14 +297,25 @@ export default function BookGenerateModal({ onClose }) {
             <div>
               <h2 className="text-lg font-bold text-gray-900">বই থেকে প্রশ্ন</h2>
               <p className="text-xs text-gray-500">
-                {step === 'select' ? 'ক্লাস, বিষয় ও চ্যাপ্টার বেছে নিন' :
-                 step === 'configure' ? 'প্রশ্নের ধরন ও সংখ্যা ঠিক করুন' :
-                 'জেনারেটেড প্রশ্ন রিভিউ করুন'}
+                {step === 'select'
+                  ? 'ক্লাস, বিষয় ও অধ্যায় বেছে নিন'
+                  : step === 'configure'
+                    ? 'উৎস ও ধরন ঠিক করুন'
+                    : 'প্রশ্ন রিভিউ করুন'}
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+          <button
+            onClick={onClose}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-colors"
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              strokeWidth={2.5}
+            >
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
@@ -168,7 +335,9 @@ export default function BookGenerateModal({ onClose }) {
               >
                 {/* Class */}
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">ক্লাস</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    ক্লাস
+                  </label>
                   <div className="flex flex-wrap gap-2">
                     {CLASSES.map((c) => (
                       <button
@@ -189,7 +358,9 @@ export default function BookGenerateModal({ onClose }) {
                 {/* Subject */}
                 {classNum && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">বিষয়</label>
+                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                      বিষয়
+                    </label>
                     {subjects.length === 0 ? (
                       <p className="text-sm text-gray-400 py-4 text-center bg-white rounded-xl border border-dashed border-gray-200">
                         এই ক্লাসে এখনো কোনো বিষয় যোগ করা হয়নি
@@ -219,61 +390,222 @@ export default function BookGenerateModal({ onClose }) {
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                        অধ্যায় সমূহ <span className="text-emerald-600">({selectedChapters.length} সিলেক্টেড)</span>
+                        অধ্যায় সমূহ{' '}
+                        <span className="text-emerald-600">
+                          ({totalSelected} সিলেক্টেড)
+                        </span>
                       </label>
-                      {chapters.length > 0 && (
-                        <div className="flex gap-2">
-                          {selectedChapters.length === chapters.length ? (
-                            <button 
-                              onClick={() => setSelectedChapters([])}
-                              className="text-[10px] font-bold text-red-500 hover:text-red-600 px-2 py-1 bg-red-50 rounded-lg border border-red-100"
-                            >
-                              সব অপশন বাদ দিন
-                            </button>
-                          ) : (
-                            <button 
-                              onClick={() => setSelectedChapters(chapters.map(c => c.id))}
-                              className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 px-2 py-1 bg-emerald-50 rounded-lg border border-emerald-100"
-                            >
-                              সবগুলো সিলেক্ট করুন
-                            </button>
-                          )}
-                        </div>
-                      )}
                     </div>
                     {chapters.length === 0 ? (
                       <p className="text-sm text-gray-400 py-4 text-center bg-white rounded-xl border border-dashed border-gray-200">
                         এই বিষয়ে এখনো কোনো চ্যাপ্টার যোগ করা হয়নি
                       </p>
                     ) : (
-                      <div className="grid gap-2 max-h-[250px] overflow-y-auto pr-1">
-                        {chapters.map((ch) => (
-                          <button
-                            key={ch.id}
-                            onClick={() => toggleChapter(ch.id)}
-                            className={`flex items-center gap-3 p-3 rounded-xl text-left transition-all ${
-                              selectedChapters.includes(ch.id)
-                                ? 'bg-emerald-50 border-2 border-emerald-400 shadow-sm'
-                                : 'bg-white border border-gray-200 hover:border-emerald-200'
-                            }`}
-                          >
-                            <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                              selectedChapters.includes(ch.id)
-                                ? 'bg-emerald-600 border-emerald-600'
-                                : 'border-gray-300'
-                            }`}>
-                              {selectedChapters.includes(ch.id) && (
-                                <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                                </svg>
+                      <div className="grid gap-2 max-h-[300px] overflow-y-auto pr-1">
+                        {chapters.map((ch) => {
+                          const isSel = isChapterSelected(ch.id)
+                          const isAll = isAllSelected(ch.id)
+                          const isExp = expanded[ch.id]
+                          const subs = subchapterCache[ch.id] || []
+                          const selSubCount = isSel
+                            ? [...selections[ch.id].subchapterIds].filter(
+                                (x) => x !== 'all',
+                              ).length
+                            : 0
+                          return (
+                            <div
+                              key={ch.id}
+                              className={`rounded-xl transition-all ${
+                                isSel
+                                  ? 'bg-emerald-50 border-2 border-emerald-400 shadow-sm'
+                                  : 'bg-white border border-gray-200 hover:border-emerald-200'
+                              }`}
+                            >
+                              {/* Chapter row */}
+                              <button
+                                onClick={() => toggleChapterAll(ch.id)}
+                                className="flex items-center gap-3 p-3 text-left w-full"
+                              >
+                                <div
+                                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                    isAll
+                                      ? 'bg-emerald-600 border-emerald-600'
+                                      : isSel
+                                        ? 'bg-emerald-200 border-emerald-400'
+                                        : 'border-gray-300'
+                                  }`}
+                                >
+                                  {isAll && (
+                                    <svg
+                                      className="w-3 h-3 text-white"
+                                      fill="none"
+                                      stroke="currentColor"
+                                      viewBox="0 0 24 24"
+                                      strokeWidth={3}
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        d="M5 13l4 4L19 7"
+                                      />
+                                    </svg>
+                                  )}
+                                  {isSel && !isAll && (
+                                    <div className="w-2 h-0.5 bg-emerald-700 rounded" />
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-gray-900 truncate">
+                                    {ch.title}
+                                  </p>
+                                  <p className="text-[10px] text-gray-400 mt-0.5">
+                                    {isSel && !isAll
+                                      ? `${selSubCount}টি সাবচ্যাপ্টার সিলেক্টেড`
+                                      : isAll
+                                        ? 'পুরো অধ্যায়'
+                                        : ch.type || 'chapter'}
+                                  </p>
+                                </div>
+                                {isSel && (
+                                  <div
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex items-center gap-1.5 text-xs"
+                                  >
+                                    <span className="text-gray-500">কয়টি:</span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max="20"
+                                      value={selections[ch.id].count}
+                                      onChange={(e) =>
+                                        setChapterCount(
+                                          ch.id,
+                                          parseInt(e.target.value) || 1,
+                                        )
+                                      }
+                                      onClick={(e) => e.stopPropagation()}
+                                      onMouseDown={(e) => e.stopPropagation()}
+                                      className="w-12 rounded-lg border border-emerald-300 px-1.5 py-1 text-center font-bold text-emerald-700 bg-white"
+                                    />
+                                  </div>
+                                )}
+                              </button>
+
+                              {/* Subchapter expand link (when selected) */}
+                              {isSel && (
+                                <div className="border-t border-emerald-200 px-3 py-2">
+                                  <button
+                                    onClick={(e) => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      toggleExpand(ch.id)
+                                    }}
+                                    className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 hover:text-emerald-900 hover:underline"
+                                  >
+                                    <span>{isExp ? '▼' : '▶'}</span>
+                                    <span>
+                                      {isExp
+                                        ? 'সাবচ্যাপ্টার লুকান'
+                                        : 'নির্দিষ্ট সাবচ্যাপ্টার সিলেক্ট করো'}
+                                    </span>
+                                  </button>
+
+                                  <AnimatePresence>
+                                    {isExp && (
+                                      <motion.div
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden"
+                                      >
+                                        <div className="mt-2 ml-4 border-l-2 border-emerald-300 pl-3 space-y-0.5">
+                                          {subs.length === 0 ? (
+                                            <p className="py-2 text-[11px] text-gray-500">
+                                              লোড হচ্ছে...
+                                            </p>
+                                          ) : (
+                                            subs.map((sub) => {
+                                              const subSel = isSubchapterSelected(
+                                                ch.id,
+                                                sub.id,
+                                              )
+                                              return (
+                                                <label
+                                                  key={sub.id}
+                                                  className={`flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs cursor-pointer transition ${
+                                                    subSel
+                                                      ? 'bg-emerald-100 text-emerald-900'
+                                                      : 'hover:bg-white'
+                                                  }`}
+                                                >
+                                                  <div
+                                                    className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                                                      subSel
+                                                        ? 'bg-emerald-600 border-emerald-600'
+                                                        : 'border-gray-300 bg-white'
+                                                    }`}
+                                                  >
+                                                    {subSel && (
+                                                      <svg
+                                                        className="w-2.5 h-2.5 text-white"
+                                                        fill="none"
+                                                        stroke="currentColor"
+                                                        viewBox="0 0 24 24"
+                                                        strokeWidth={3}
+                                                      >
+                                                        <path
+                                                          strokeLinecap="round"
+                                                          strokeLinejoin="round"
+                                                          d="M5 13l4 4L19 7"
+                                                        />
+                                                      </svg>
+                                                    )}
+                                                  </div>
+                                                  <input
+                                                    type="checkbox"
+                                                    checked={subSel}
+                                                    onChange={() =>
+                                                      toggleSubchapter(ch.id, sub.id)
+                                                    }
+                                                    className="sr-only"
+                                                  />
+                                                  <span className="font-mono text-[10px] text-gray-500 min-w-[2rem]">
+                                                    {sub.id}
+                                                  </span>
+                                                  <span className="flex-1 truncate">
+                                                    {sub.title}
+                                                  </span>
+                                                  {sub.type !== 'concept' && (
+                                                    <span
+                                                      className={`rounded px-1.5 py-0.5 text-[9px] font-bold flex-shrink-0 ${
+                                                        sub.type === 'exercise'
+                                                          ? 'bg-green-200 text-green-800'
+                                                          : 'bg-purple-200 text-purple-800'
+                                                      }`}
+                                                    >
+                                                      {sub.type === 'exercise'
+                                                        ? 'অনুশীলনী'
+                                                        : 'নমুনা'}
+                                                    </span>
+                                                  )}
+                                                  {sub.questionCounts?.total > 0 && (
+                                                    <span className="rounded bg-gray-200 px-1.5 py-0.5 text-[9px] font-bold text-gray-700 flex-shrink-0">
+                                                      {sub.questionCounts.total}
+                                                    </span>
+                                                  )}
+                                                </label>
+                                              )
+                                            })
+                                          )}
+                                        </div>
+                                      </motion.div>
+                                    )}
+                                  </AnimatePresence>
+                                </div>
                               )}
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-bold text-gray-900 truncate">{ch.title}</p>
-                              {ch.type && <p className="text-[10px] text-gray-400 mt-0.5">{ch.type}</p>}
-                            </div>
-                          </button>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                   </motion.div>
@@ -288,10 +620,50 @@ export default function BookGenerateModal({ onClose }) {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                className="space-y-6"
+                className="space-y-5"
               >
+                {/* Mode Toggle */}
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">প্রশ্নের ধরন (একাধিক বেছে নিন)</label>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    প্রশ্নের উৎস
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setMode('existing')}
+                      className={`p-4 rounded-2xl text-left transition-all ${
+                        mode === 'existing'
+                          ? 'bg-emerald-50 border-2 border-emerald-500 shadow-sm'
+                          : 'bg-white border border-gray-200 hover:border-emerald-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">📚</div>
+                      <p className="text-sm font-bold text-gray-900">শুধু বই থেকে</p>
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        অনুশীলনী + নমুনা প্রশ্ন থেকে existing দাও
+                      </p>
+                    </button>
+                    <button
+                      onClick={() => setMode('ai')}
+                      className={`p-4 rounded-2xl text-left transition-all ${
+                        mode === 'ai'
+                          ? 'bg-purple-50 border-2 border-purple-500 shadow-sm'
+                          : 'bg-white border border-gray-200 hover:border-purple-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-1">🤖</div>
+                      <p className="text-sm font-bold text-gray-900">AI বানাবে</p>
+                      <p className="text-[10px] text-gray-500 mt-1">
+                        বইয়ের content থেকে নতুন প্রশ্ন
+                      </p>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Question types */}
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    প্রশ্নের ধরন (একাধিক বেছে নিন)
+                  </label>
                   <div className="flex flex-wrap gap-2">
                     {QUESTION_TYPE_OPTIONS.map((opt) => (
                       <button
@@ -310,28 +682,29 @@ export default function BookGenerateModal({ onClose }) {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                    প্রশ্ন সংখ্যা: <span className="text-blue-600 text-sm">{count}</span>
-                  </label>
-                  <input
-                    type="range"
-                    min={1}
-                    max={15}
-                    value={count}
-                    onChange={(e) => setCount(parseInt(e.target.value))}
-                    className="w-full accent-blue-600"
-                  />
-                  <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                    <span>১</span>
-                    <span>১৫</span>
-                  </div>
-                </div>
-
-                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
-                  <p className="text-xs text-emerald-800 font-medium">
-                    📖 {selectedChapters.length} টি চ্যাপ্টার থেকে {count} টি {questionTypes.join(' + ')} প্রশ্ন তৈরি হবে
+                {/* Summary */}
+                <div
+                  className={`p-4 rounded-2xl border ${
+                    mode === 'existing'
+                      ? 'bg-emerald-50 border-emerald-100'
+                      : 'bg-purple-50 border-purple-100'
+                  }`}
+                >
+                  <p
+                    className={`text-xs font-medium ${
+                      mode === 'existing' ? 'text-emerald-800' : 'text-purple-800'
+                    }`}
+                  >
+                    {mode === 'existing' ? '📖' : '🤖'} {totalSelected} টি অধ্যায়/সাবচ্যাপ্টার থেকে{' '}
+                    {mode === 'existing'
+                      ? 'বইয়ের existing প্রশ্ন আনা হবে'
+                      : `${Math.min(totalCount, 15)} টি নতুন প্রশ্ন তৈরি হবে`}
                   </p>
+                  {mode === 'existing' && (
+                    <p className="text-[10px] text-emerald-700 mt-1.5">
+                      💡 শুধু অনুশীলনী + নমুনা প্রশ্ন থেকে আসবে।
+                    </p>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -354,24 +727,45 @@ export default function BookGenerateModal({ onClose }) {
                         transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                       />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">AI বই পড়ছে...</h3>
-                    <p className="text-sm text-gray-500">চ্যাপ্টারের তথ্য থেকে প্রশ্ন তৈরি হচ্ছে</p>
+                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                      {mode === 'existing' ? 'বই থেকে আনছি...' : 'AI বই পড়ছে...'}
+                    </h3>
+                    <p className="text-sm text-gray-500">
+                      {mode === 'existing'
+                        ? 'সিলেক্ট করা অংশ থেকে প্রশ্ন বের করা হচ্ছে'
+                        : 'চ্যাপ্টারের তথ্য থেকে প্রশ্ন তৈরি হচ্ছে'}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
                     {sourceChapters.length > 0 && (
                       <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 inline-block mb-2">
                         📖 সোর্স: {sourceChapters.join(', ')}
+                        {resultMeta?.source === 'ai' && resultMeta?.provider && (
+                          <span className="ml-2 text-purple-600">
+                            · 🤖 {resultMeta.provider} ({resultMeta.keySource})
+                          </span>
+                        )}
                       </p>
                     )}
                     {generatedQuestions.map((q, i) => (
-                      <div key={i} className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm group">
+                      <div
+                        key={i}
+                        className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm group"
+                      >
                         <div className="flex items-start justify-between gap-2 mb-2">
                           <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black text-gray-300">#{i + 1}</span>
+                            <span className="text-[10px] font-black text-gray-300">
+                              #{i + 1}
+                            </span>
                             <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
                               {q.type}
                             </span>
+                            {q._source && (
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                                {q._source}
+                              </span>
+                            )}
                           </div>
                           <button
                             onClick={() => handleAddSingle(q, i)}
@@ -381,23 +775,39 @@ export default function BookGenerateModal({ onClose }) {
                           </button>
                         </div>
                         <div className="text-sm text-gray-800 font-medium leading-relaxed">
-                          <MathText text={q.question || q.stimulus || q.sentence?.replace(/___/g, '______') || 'প্রশ্ন'} />
+                          <MathText
+                            text={
+                              q.question ||
+                              q.stimulus ||
+                              q.sentence?.replace(/___/g, '______') ||
+                              'প্রশ্ন'
+                            }
+                          />
                         </div>
-                        {q.sub_questions && (
+                        {q.sub_questions && q.sub_questions.length > 0 && (
                           <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-100">
                             {q.sub_questions.map((sq, si) => (
                               <div key={si} className="text-[11px] text-gray-500">
-                                <span className="font-bold mr-1">{sq.label}.</span> <MathText text={sq.text} />
+                                <span className="font-bold mr-1">{sq.label}.</span>{' '}
+                                <MathText text={sq.text} />
                               </div>
                             ))}
                           </div>
                         )}
                         {q.option_a && (
                           <div className="grid grid-cols-2 gap-1 mt-2 pl-4 text-[11px] text-gray-500">
-                            <span>ক) <MathText text={String(q.option_a)} /></span>
-                            <span>খ) <MathText text={String(q.option_b || '')} /></span>
-                            <span>গ) <MathText text={String(q.option_c || '')} /></span>
-                            <span>ঘ) <MathText text={String(q.option_d || '')} /></span>
+                            <span>
+                              ক) <MathText text={String(q.option_a)} />
+                            </span>
+                            <span>
+                              খ) <MathText text={String(q.option_b || '')} />
+                            </span>
+                            <span>
+                              গ) <MathText text={String(q.option_c || '')} />
+                            </span>
+                            <span>
+                              ঘ) <MathText text={String(q.option_d || '')} />
+                            </span>
                           </div>
                         )}
                       </div>
@@ -405,7 +815,7 @@ export default function BookGenerateModal({ onClose }) {
 
                     {generatedQuestions.length === 0 && !loading && (
                       <div className="text-center py-10 text-gray-400">
-                        <p className="text-sm font-medium">কোনো প্রশ্ন তৈরি হয়নি</p>
+                        <p className="text-sm font-medium">কোনো প্রশ্ন পাওয়া যায়নি</p>
                       </div>
                     )}
                   </div>
@@ -440,10 +850,14 @@ export default function BookGenerateModal({ onClose }) {
               </button>
               <button
                 onClick={handleGenerate}
-                disabled={questionTypes.length === 0}
-                className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-600/25 btn-press disabled:opacity-40 text-sm"
+                disabled={mode === 'ai' && questionTypes.length === 0}
+                className={`px-6 py-3 text-white rounded-xl font-bold shadow-lg btn-press disabled:opacity-40 text-sm ${
+                  mode === 'existing'
+                    ? 'bg-emerald-600 shadow-emerald-600/25'
+                    : 'bg-purple-600 shadow-purple-600/25'
+                }`}
               >
-                🤖 প্রশ্ন তৈরি করুন
+                {mode === 'existing' ? '📚 প্রশ্ন আনো' : '🤖 প্রশ্ন তৈরি করুন'}
               </button>
             </>
           )}
@@ -451,7 +865,10 @@ export default function BookGenerateModal({ onClose }) {
           {step === 'review' && (
             <>
               <button
-                onClick={() => { setStep('configure'); setGeneratedQuestions([]) }}
+                onClick={() => {
+                  setStep('configure')
+                  setGeneratedQuestions([])
+                }}
                 disabled={loading}
                 className="px-4 py-2.5 text-gray-600 bg-gray-100 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm disabled:opacity-40"
               >

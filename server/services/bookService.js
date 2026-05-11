@@ -99,11 +99,13 @@ const bookService = {
   },
 
   async getChapters(classNum, subject) {
+    // Only fetch full chapters (not subchapter rows). Use is_subchapter=false flag.
     const { data, error } = await supabaseAdmin
       .from('book_chapters')
       .select('chapter_id, title, payload')
       .eq('class_num', classNum)
       .eq('subject', subject)
+      .eq('is_subchapter', false)
     if (error) throw error
     const fromDb = (data || []).map((row) => {
       const p = row.payload || {}
@@ -114,7 +116,14 @@ const bookService = {
         chapterNumber: p.metadata?.chapterNumber ?? null,
       }
     })
-    if (fromDb.length > 0) return fromDb
+    if (fromDb.length > 0) {
+      // Sort by chapter number
+      return fromDb.sort((a, b) => {
+        const aNum = a.chapterNumber ?? parseInt(a.id.replace(/\D/g, '')) ?? 0
+        const bNum = b.chapterNumber ?? parseInt(b.id.replace(/\D/g, '')) ?? 0
+        return aNum - bNum
+      })
+    }
 
     const curriculum = await loadCurriculum()
     return fallbackChaptersFlat(curriculum, classNum, subject)
@@ -176,6 +185,145 @@ const bookService = {
     )
     if (error) throw error
     return { success: true, path: `book_chapters/${classNum}/${subject}/${chapterId}` }
+  },
+
+  /**
+   * Get subchapters for a given chapter (with question counts)
+   */
+  async getSubchapters(classNum, subject, parentChapterId) {
+    const { data, error } = await supabaseAdmin
+      .from('book_chapters')
+      .select('chapter_id, subchapter_id, title, payload')
+      .eq('class_num', classNum)
+      .eq('subject', subject)
+      .eq('parent_chapter_id', parentChapterId)
+      .eq('is_subchapter', true)
+    if (error) throw error
+
+    // Get question counts per subchapter
+    const subIds = (data || []).map((r) => r.subchapter_id).filter(Boolean)
+    const counts = {}
+    if (subIds.length > 0) {
+      const { data: qData } = await supabaseAdmin
+        .from('book_questions')
+        .select('subchapter_id, question_type')
+        .eq('class_num', classNum)
+        .eq('subject', subject)
+        .eq('chapter_id', parentChapterId)
+        .in('subchapter_id', subIds)
+      for (const q of qData || []) {
+        if (!counts[q.subchapter_id]) {
+          counts[q.subchapter_id] = { mcq: 0, cq: 0, saq: 0, total: 0 }
+        }
+        counts[q.subchapter_id].total++
+        if (counts[q.subchapter_id][q.question_type] !== undefined) {
+          counts[q.subchapter_id][q.question_type]++
+        }
+      }
+    }
+
+    return (data || [])
+      .map((r) => ({
+        id: r.subchapter_id,
+        title: r.title,
+        type: r.payload?.type || 'concept',
+        questionCounts: counts[r.subchapter_id] || { mcq: 0, cq: 0, saq: 0, total: 0 },
+      }))
+      .sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true }))
+  },
+
+  /**
+   * Get existing book questions for selected chapters/subchapters.
+   * selections: [{ chapterId, subchapterIds: ['1.1', 'all', ...] }, ...]
+   */
+  async getExistingQuestions(classNum, subject, selections, filters = {}) {
+    const results = []
+
+    for (const sel of selections || []) {
+      let q = supabaseAdmin
+        .from('book_questions')
+        .select('*')
+        .eq('class_num', classNum)
+        .eq('subject', subject)
+        .eq('chapter_id', sel.chapterId)
+
+      // Filter by subchapter_ids if not "all"
+      const wantsAll = !sel.subchapterIds || sel.subchapterIds.includes('all') || sel.subchapterIds.length === 0
+      if (!wantsAll) {
+        q = q.in('subchapter_id', sel.subchapterIds)
+      }
+
+      if (filters.types && filters.types.length > 0) {
+        q = q.in('question_type', filters.types)
+      }
+
+      const { data, error } = await q.order('ordering', { ascending: true })
+      if (error) throw error
+
+      for (const row of data || []) {
+        results.push({
+          id: row.id,
+          chapterId: row.chapter_id,
+          subchapterId: row.subchapter_id,
+          type: row.question_type,
+          data: row.question_data,
+          source: row.source_section,
+        })
+      }
+    }
+
+    return results
+  },
+
+  /**
+   * Get content (full_text) for selected chapters/subchapters — used as AI context
+   */
+  async getContentForSelections(classNum, subject, selections) {
+    const blocks = []
+
+    for (const sel of selections || []) {
+      const wantsAll = !sel.subchapterIds || sel.subchapterIds.includes('all') || sel.subchapterIds.length === 0
+
+      if (wantsAll) {
+        // Fetch full chapter
+        const { data, error } = await supabaseAdmin
+          .from('book_chapters')
+          .select('chapter_id, title, payload')
+          .eq('class_num', classNum)
+          .eq('subject', subject)
+          .eq('chapter_id', sel.chapterId)
+          .maybeSingle()
+        if (error) throw error
+        if (data) {
+          blocks.push({
+            chapterId: sel.chapterId,
+            subchapterId: null,
+            title: data.title,
+            content: data.payload?.full_text || '',
+          })
+        }
+      } else {
+        // Fetch each subchapter
+        const { data, error } = await supabaseAdmin
+          .from('book_chapters')
+          .select('chapter_id, subchapter_id, title, payload')
+          .eq('class_num', classNum)
+          .eq('subject', subject)
+          .eq('parent_chapter_id', sel.chapterId)
+          .in('subchapter_id', sel.subchapterIds)
+        if (error) throw error
+        for (const row of data || []) {
+          blocks.push({
+            chapterId: sel.chapterId,
+            subchapterId: row.subchapter_id,
+            title: row.title,
+            content: row.payload?.full_text || '',
+          })
+        }
+      }
+    }
+
+    return blocks
   },
 }
 

@@ -49,6 +49,66 @@ router.get('/chapters/:classNum/:subject', async (req, res, next) => {
 })
 
 /**
+ * GET /api/book/subchapters/:classNum/:subject/:chapterId
+ * List subchapters with question counts for a given chapter.
+ */
+router.get('/subchapters/:classNum/:subject/:chapterId', async (req, res, next) => {
+  try {
+    const classNum = parseInt(req.params.classNum)
+    const { subject, chapterId } = req.params
+
+    if (classNum < 6 || classNum > 10) {
+      throw new AppError('Class must be between 6 and 10', 400)
+    }
+
+    const subchapters = await bookService.getSubchapters(classNum, subject, chapterId)
+    res.json({ success: true, subchapters })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * POST /api/book/existing-questions
+ * Get existing book questions (অনুশীলনী + নমুনা প্রশ্ন) — no AI call.
+ *
+ * Body: {
+ *   classNum: 8,
+ *   subject: 'math',
+ *   selections: [
+ *     { chapterId: 'ch-1', subchapterIds: ['1.1', '1.3'] },
+ *     { chapterId: 'ch-3', subchapterIds: ['all'] }
+ *   ],
+ *   filters: { types: ['mcq', 'cq', 'saq'] }  // optional
+ * }
+ */
+router.post('/existing-questions', async (req, res, next) => {
+  try {
+    const { classNum, subject, selections, filters } = req.body
+
+    if (!classNum || !subject || !Array.isArray(selections) || selections.length === 0) {
+      throw new AppError('ক্লাস, বিষয় এবং কমপক্ষে ১টি অধ্যায় সিলেক্ট করুন', 400)
+    }
+
+    const questions = await bookService.getExistingQuestions(
+      classNum,
+      subject,
+      selections,
+      filters || {},
+    )
+
+    res.json({
+      success: true,
+      questions,
+      count: questions.length,
+      source: 'book',
+    })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
  * POST /api/book/generate
  * Generate questions from selected chapters using Gemini.
  *
@@ -62,10 +122,10 @@ router.get('/chapters/:classNum/:subject', async (req, res, next) => {
  */
 router.post('/generate', async (req, res, next) => {
   try {
-    const { classNum, subject, chapters, questionTypes, count } = req.body
+    const { classNum, subject, chapters, selections, questionTypes, count } = req.body
 
-    if (!classNum || !subject || !chapters || !Array.isArray(chapters) || chapters.length === 0) {
-      throw new AppError('ক্লাস, বিষয় এবং চ্যাপ্টার সিলেক্ট করুন', 400)
+    if (!classNum || !subject) {
+      throw new AppError('ক্লাস ও বিষয় সিলেক্ট করুন', 400)
     }
 
     if (!questionTypes || !Array.isArray(questionTypes) || questionTypes.length === 0) {
@@ -74,28 +134,67 @@ router.post('/generate', async (req, res, next) => {
 
     const requestedCount = Math.min(count || 5, 15)
 
-    // Fetch question_points for selected chapters
-    let chapterData = await bookService.getChapterPoints(classNum, subject, chapters)
+    // Support both old format (chapters: [...]) and new format (selections: [{chapterId, subchapterIds}])
+    let chapterData = []
+    let combinedContext = ''
 
-    if (chapterData.length === 0) {
-      throw new AppError('সিলেক্ট করা চ্যাপ্টারে কোন ডাটা পাওয়া যায়নি', 404)
-    }
+    if (Array.isArray(selections) && selections.length > 0) {
+      // NEW: subchapter-aware mode — fetch full_text content from book_chapters
+      const blocks = await bookService.getContentForSelections(classNum, subject, selections)
+      if (blocks.length === 0) {
+        throw new AppError('সিলেক্ট করা অংশে কোনো ডাটা পাওয়া যায়নি', 404)
+      }
 
-    chapterData = chapterData.filter((ch) => Array.isArray(ch.points) && ch.points.length > 0)
-    if (chapterData.length === 0) {
-      throw new AppError(
-        'সিলেক্ট করা চ্যাপ্টারে question_points খালি। বই/পিডিএফ কনটেন্ট সীড চেক করুন।',
-        404,
+      // Optionally pull a few existing sample questions for style reference
+      const sampleQuestions = await bookService.getExistingQuestions(
+        classNum,
+        subject,
+        selections.map((s) => ({ chapterId: s.chapterId, subchapterIds: ['all'] })),
+        { types: questionTypes.map((t) => t.toLowerCase()) },
       )
-    }
+      const styleExamples = sampleQuestions
+        .slice(0, 3)
+        .map((q, i) => `Style Example ${i + 1} (${q.type.toUpperCase()}):\n${JSON.stringify(q.data, null, 2)}`)
+        .join('\n\n')
 
-    // Combine all points into a single context
-    const combinedContext = chapterData
-      .map((ch) => {
-        const pointsText = ch.points.map((p, i) => `  ${i + 1}. ${p}`).join('\n')
-        return `## ${ch.title}\n${ch.summary ? ch.summary + '\n' : ''}Key Points:\n${pointsText}`
-      })
-      .join('\n\n---\n\n')
+      combinedContext = blocks
+        .map((b) => {
+          const head = b.subchapterId ? `## ${b.subchapterId} ${b.title}` : `## ${b.title}`
+          return `${head}\n\n${b.content}`
+        })
+        .join('\n\n---\n\n')
+
+      if (styleExamples) {
+        combinedContext += `\n\n---\nSTYLE REFERENCES (use as templates, do NOT copy):\n${styleExamples}`
+      }
+
+      chapterData = blocks.map((b) => ({
+        title: b.title,
+        chapterId: b.chapterId,
+        subchapterId: b.subchapterId,
+      }))
+    } else if (Array.isArray(chapters) && chapters.length > 0) {
+      // LEGACY: chapter-level mode (kept for backward compatibility)
+      chapterData = await bookService.getChapterPoints(classNum, subject, chapters)
+      if (chapterData.length === 0) {
+        throw new AppError('সিলেক্ট করা চ্যাপ্টারে কোন ডাটা পাওয়া যায়নি', 404)
+      }
+      chapterData = chapterData.filter((ch) => Array.isArray(ch.points) && ch.points.length > 0)
+      if (chapterData.length === 0) {
+        throw new AppError(
+          'সিলেক্ট করা চ্যাপ্টারে question_points খালি। বই/পিডিএফ কনটেন্ট সীড চেক করুন।',
+          404,
+        )
+      }
+      combinedContext = chapterData
+        .map((ch) => {
+          const pointsText = ch.points.map((p, i) => `  ${i + 1}. ${p}`).join('\n')
+          return `## ${ch.title}\n${ch.summary ? ch.summary + '\n' : ''}Key Points:\n${pointsText}`
+        })
+        .join('\n\n---\n\n')
+    } else {
+      throw new AppError('চ্যাপ্টার বা সাবচ্যাপ্টার সিলেক্ট করুন', 400)
+    }
 
     // Generate questions — pass userId so user's BYO API keys are tried first.
     const result = await generateFromBook(
@@ -109,7 +208,7 @@ router.post('/generate', async (req, res, next) => {
       questions: result.questions,
       count: result.questions.length,
       provider: result.provider,
-      keySource: result.source, // 'user' | 'system' — which key was used (renamed to keySource because `source` already means chapter list here)
+      keySource: result.source,
       sourceChapters: chapterData.map((ch) => ch.title),
     })
   } catch (err) {
