@@ -31,22 +31,30 @@ function fallbackSubjectEntries(curriculum, classNum) {
   }))
 }
 
-function fallbackChaptersFlat(curriculum, classNum, subject) {
+function fallbackChapters(curriculum, classNum, subject) {
   if (!curriculum) return []
   const subj = curriculum[String(classNum)]?.subjects?.[subject]
   if (!subj?.chapters) return []
-  const out = []
-  for (const ch of subj.chapters) {
-    for (const sub of ch.subchapters || []) {
-      out.push({
-        id: sub.id,
-        title: `${ch.title} — ${sub.title}`,
-        type: 'উপঅধ্যায়',
-        chapterNumber: null,
-      })
-    }
-  }
-  return out
+  return subj.chapters.map((ch) => ({
+    id: ch.id,
+    title: ch.title,
+    type: '',
+    chapterNumber: parseInt(String(ch.id).replace(/\D/g, '')) || null,
+  }))
+}
+
+function fallbackSubchapters(curriculum, classNum, subject, parentChapterId) {
+  if (!curriculum) return []
+  const subj = curriculum[String(classNum)]?.subjects?.[subject]
+  if (!subj?.chapters) return []
+  const ch = subj.chapters.find((c) => c.id === parentChapterId)
+  if (!ch) return []
+  return (ch.subchapters || []).map((s) => ({
+    id: s.id,
+    title: s.title,
+    type: s.type || 'concept',
+    questionCounts: { mcq: 0, cq: 0, saq: 0, total: 0 },
+  }))
 }
 
 function curriculumSyntheticPoints(curriculum, classNum, subject, chapterId) {
@@ -126,7 +134,7 @@ const bookService = {
     }
 
     const curriculum = await loadCurriculum()
-    return fallbackChaptersFlat(curriculum, classNum, subject)
+    return fallbackChapters(curriculum, classNum, subject)
   },
 
   async getChapterPoints(classNum, subject, chapterIds) {
@@ -222,14 +230,20 @@ const bookService = {
       }
     }
 
-    return (data || [])
-      .map((r) => ({
-        id: r.subchapter_id,
-        title: r.title,
-        type: r.payload?.type || 'concept',
-        questionCounts: counts[r.subchapter_id] || { mcq: 0, cq: 0, saq: 0, total: 0 },
-      }))
-      .sort((a, b) => String(a.id).localeCompare(String(b.id), 'en', { numeric: true }))
+    const fromDb = (data || []).map((r) => ({
+      id: r.subchapter_id,
+      title: r.title,
+      type: r.payload?.type || 'concept',
+      questionCounts: counts[r.subchapter_id] || { mcq: 0, cq: 0, saq: 0, total: 0 },
+    }))
+    if (fromDb.length > 0) {
+      return fromDb.sort((a, b) =>
+        String(a.id).localeCompare(String(b.id), 'en', { numeric: true }),
+      )
+    }
+
+    const curriculum = await loadCurriculum()
+    return fallbackSubchapters(curriculum, classNum, subject, parentChapterId)
   },
 
   /**

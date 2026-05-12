@@ -2,6 +2,7 @@ import AppShell from '@/components/shared/AppShell'
 import AdminDashboard from '@/pages/AdminDashboard'
 import AuthCallback from '@/pages/AuthCallback'
 import Dashboard from '@/pages/Dashboard'
+import LearningHub from '@/pages/LearningHub'
 import ExamPortal from '@/pages/ExamPortal'
 import Login from '@/pages/Login'
 import OmrPreview from '@/pages/OmrPreview'
@@ -100,6 +101,7 @@ export default function App() {
           <Route path="routines/:id" element={<RoutineEditor />} />
           <Route path="routines/:id/preview" element={<RoutinePreview />} />
           <Route path="pricing" element={<Pricing />} />
+          <Route path="learning" element={<LearningHub />} />
           <Route path="settings" element={<Navigate to="/settings/ai-keys" replace />} />
           <Route path="settings/ai-keys" element={<SettingsAIKeys />} />
           <Route

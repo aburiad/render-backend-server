@@ -1,1 +1,6 @@
-node server/scripts/seedClass8Math.js
+node server/scripts/seedClass9Math.js
+
+
+
+
+SVG/TikZ later

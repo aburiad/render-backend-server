@@ -34,6 +34,12 @@ function renderLatex(latex, displayMode) {
     return katex.renderToString(latex, {
       throwOnError: false,
       displayMode,
+      // Tried `htmlAndMathml` + html2canvas foreignObjectRendering for the
+      // PDF-download path: Chromium silently produces a blank capture
+      // because SVG <foreignObject> doesn't pull in @font-face web fonts
+      // reliably. Reverted to plain `html` output and the aggressive
+      // style-pin onclone hook in PDFPreview, which keeps the PDF working
+      // even if a small set of complex fractions still drift slightly.
       output: 'html',
       strict: 'ignore',
       trust: false,
@@ -69,7 +75,15 @@ export function renderMathToHtml(input) {
   let m
   while ((m = INLINE_RE.exec(text)) !== null) {
     if (m.index > lastIndex) {
-      parts.push(escapeHtml(text.slice(lastIndex, m.index)))
+      // Plain-text segment: escape HTML AND turn newlines into <br/>.
+      // We do the newline replacement HERE per-segment instead of once at
+      // the end, because KaTeX's `htmlAndMathml` output contains SVG
+      // <path d="…"> attributes with literal newlines in their data; a
+      // global \n → <br/> replacement on the joined string injects <br/>
+      // into the path data and breaks SVG parsing (browser throws
+      // "Expected path command"). Plain-text segments are the only place
+      // newlines should become <br/> anyway.
+      parts.push(escapeHtml(text.slice(lastIndex, m.index)).replace(/\n/g, '<br/>'))
     }
     if (m[1] !== undefined) {
       parts.push(renderLatex(m[1], true))
@@ -79,9 +93,9 @@ export function renderMathToHtml(input) {
     lastIndex = m.index + m[0].length
   }
   if (lastIndex < text.length) {
-    parts.push(escapeHtml(text.slice(lastIndex)))
+    parts.push(escapeHtml(text.slice(lastIndex)).replace(/\n/g, '<br/>'))
   }
-  return parts.join('').replace(/\n/g, '<br/>')
+  return parts.join('')
 }
 
 /**

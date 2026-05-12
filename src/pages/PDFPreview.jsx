@@ -17,9 +17,54 @@ export default function PDFPreview() {
 
   const [variant, setVariant] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
+  // Defaults match the values used by paper rows that pre-date the
+  // print_settings column. Once the paper loads, the useEffect below
+  // overwrites these with whatever is in paper.print_settings.
   const [font, setFont] = useState('Noto Serif Bengali')
   const [size, setSize] = useState('12pt')
   const [spacing, setSpacing] = useState('1.6')
+  const [orientation, setOrientation] = useState('portrait')
+  // empty string => let PaperTemplate fall back to its per-layout default
+  // (5mm for 2-col, 4mm for 3-col). Otherwise this value (e.g. '8mm') is used.
+  const [columnGap, setColumnGap] = useState('')
+  const [savingSettings, setSavingSettings] = useState(false)
+
+  const isLandscape = orientation === 'landscape'
+
+  // Hydrate UI state from the paper's persisted print_settings (if any)
+  // exactly once per paper id. Keyed on paper?.id (not the whole paper
+  // object) so editing-and-saving the paper elsewhere doesn't snap the
+  // local UI back mid-session.
+  useEffect(() => {
+    const s = paper?.print_settings
+    if (!s) return
+    if (s.font) setFont(s.font)
+    if (s.size) setSize(s.size)
+    if (s.spacing) setSpacing(s.spacing)
+    if (s.orientation) setOrientation(s.orientation)
+    if (typeof s.columnGap === 'string') setColumnGap(s.columnGap)
+  }, [paper?.id])
+
+  async function saveSettingsAndClose() {
+    if (!paper?.id) {
+      setShowSettings(false)
+      return
+    }
+    setSavingSettings(true)
+    try {
+      const { data } = await api.put(`/papers/${paper.id}`, {
+        print_settings: { font, size, spacing, orientation, columnGap },
+      })
+      if (data?.paper) setPaper(data.paper)
+      toast.success('সেটিংস সেভ হয়েছে')
+      setShowSettings(false)
+    } catch (err) {
+      console.error('[PDFPreview] save settings failed:', err)
+      toast.error('সেটিংস সেভ করা যায়নি')
+    } finally {
+      setSavingSettings(false)
+    }
+  }
 
   useEffect(() => {
     if (!id) {
@@ -101,33 +146,72 @@ export default function PDFPreview() {
             useCORS: true,
             backgroundColor: '#ffffff',
             windowWidth: paperRef.current.offsetWidth,
-            // KaTeX renders fractions / radicals using absolutely-positioned
-            // child spans whose `top` values are em-relative to KaTeX's own
-            // line-height (1.2). When the parent paper line-height differs,
-            // html2canvas can compute the line box height differently and
-            // shift the fraction bar onto the numerator (looks like a
-            // strikethrough). The onclone hook below normalizes each .katex
-            // node's font-size and line-height to fixed pixel values right
-            // before capture, so html2canvas measures KaTeX in the same
-            // metric the browser used originally.
+            // NOTE: foreignObjectRendering would let the browser natively
+            // render KaTeX inside an SVG <foreignObject> (which fixes the
+            // fraction-bar drift), but in Chromium the SVG path ignores
+            // @font-face web fonts and the resulting PDF comes out blank
+            // / slow. Stick with the standard canvas pipeline and pin
+            // computed styles below as the next best thing.
+            //
+            // ─── KaTeX geometry pin (onclone) ──────────────────────────
+            // KaTeX builds fractions / radicals / sub-sup by stacking
+            // spans inside a `.vlist` with inline `top: -X.XXem`. The em
+            // is relative to the element's own font-size. html2canvas
+            // clones the DOM into an iframe and re-resolves all sizes,
+            // which can quantize em values differently and shift the
+            // fraction bar onto the numerator (strikethrough look).
+            //
+            // We walk every .katex / .katex-display subtree and copy
+            // layout-affecting computed styles onto the clone, so
+            // html2canvas doesn't have to re-resolve any em. Most
+            // fractions render correctly; a small set of complex ones
+            // may still drift — for pixel-perfect exports, the Print
+            // button → Save as PDF dialog is the reliable fallback.
             onclone: (clonedDoc) => {
               const orig = paperRef.current
               if (!orig) return
-              const origNodes = orig.querySelectorAll('.katex')
-              const cloneNodes = clonedDoc.querySelectorAll('.katex')
-              for (let i = 0; i < cloneNodes.length; i++) {
-                const o = origNodes[i]
-                const c = cloneNodes[i]
-                if (!o || !c) continue
+
+              const LAYOUT_PROPS = [
+                'fontSize', 'lineHeight', 'fontFamily', 'fontStyle', 'fontWeight',
+                'position', 'top', 'bottom', 'left', 'right',
+                'width', 'height', 'minHeight',
+                'display', 'verticalAlign',
+                'paddingTop', 'paddingBottom', 'paddingLeft', 'paddingRight',
+                'marginTop', 'marginBottom', 'marginLeft', 'marginRight',
+                'borderTopWidth', 'borderBottomWidth',
+                'borderTopStyle', 'borderBottomStyle',
+                'borderTopColor', 'borderBottomColor',
+                'transform', 'transformOrigin',
+                'textAlign',
+              ]
+              const pinStyles = (o, c) => {
+                if (!o || !c) return
                 const cs = window.getComputedStyle(o)
-                c.style.fontSize = cs.fontSize
-                c.style.lineHeight = cs.lineHeight
-                c.style.display = 'inline-block'
-                c.style.verticalAlign = 'middle'
+                for (const prop of LAYOUT_PROPS) {
+                  const val = cs[prop]
+                  if (val && val !== 'auto' && val !== 'normal') {
+                    c.style[prop] = val
+                  }
+                }
+              }
+
+              const KATEX_ROOTS = '.katex, .katex-display'
+              const origRoots = orig.querySelectorAll(KATEX_ROOTS)
+              const cloneRoots = clonedDoc.querySelectorAll(KATEX_ROOTS)
+              for (let k = 0; k < cloneRoots.length; k++) {
+                const oRoot = origRoots[k]
+                const cRoot = cloneRoots[k]
+                if (!oRoot || !cRoot) continue
+                pinStyles(oRoot, cRoot)
+                const oDesc = oRoot.querySelectorAll('*')
+                const cDesc = cRoot.querySelectorAll('*')
+                for (let i = 0; i < cDesc.length; i++) {
+                  pinStyles(oDesc[i], cDesc[i])
+                }
               }
             },
           },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+          jsPDF: { unit: 'mm', format: 'a4', orientation },
           pagebreak: { mode: ['css'] },
         })
         .from(paperRef.current)
@@ -140,12 +224,15 @@ export default function PDFPreview() {
     }
   }
 
-  function handlePrint() {
-    if (!paperRef.current) return
-    // Clone the paper into a body-root .print-host wrapper. The print
-    // CSS in index.css then hides everything else and shows just this
-    // wrapper — avoids framer-motion positioning context issues that
-    // were narrowing / shifting the print output.
+  // Core print routine. Clone the paper into a body-root .print-host
+  // wrapper so the print CSS in index.css cleanly hides the rest of the
+  // app; inject an @page rule for the current orientation; call
+  // window.print(); restore everything in `afterprint`. Used by both
+  // the "Print" path and the "Native PDF" path — they only differ in
+  // the user-facing toast hint and the document title used as the
+  // filename when the user picks "Save as PDF".
+  function triggerNativePrint({ titleSuffix = '' } = {}) {
+    if (!paperRef.current) return false
     const clone = paperRef.current.cloneNode(true)
     const host = document.createElement('div')
     host.className = 'print-host'
@@ -153,18 +240,48 @@ export default function PDFPreview() {
     document.body.appendChild(host)
     document.body.classList.add('is-printing')
 
+    const style = document.createElement('style')
+    style.media = 'print'
+    style.textContent = `@page { size: A4 ${orientation}; margin: 14mm 12mm; }`
+    document.head.appendChild(style)
+
     const originalTitle = document.title
-    document.title = `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}`
+    // The browser uses document.title as the default filename when the
+    // user picks "Save as PDF" in the print dialog. Make it descriptive.
+    document.title = `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}${titleSuffix}`
 
     const cleanup = () => {
       document.body.classList.remove('is-printing')
       host.remove()
+      style.remove()
       document.title = originalTitle
       window.removeEventListener('afterprint', cleanup)
     }
     window.addEventListener('afterprint', cleanup, { once: true })
 
     setTimeout(() => window.print(), 50)
+    return true
+  }
+
+  // "Native PDF Download": the browser's own print engine generates a
+  // pixel-perfect PDF (fractions, radicals, sub-sup all correct — no
+  // html2canvas drift). The trade-off is the standard browser print
+  // dialog appears; the user must pick "Save as PDF" as the destination
+  // and click Save. Chrome remembers the destination across clicks, so
+  // after the first time it is effectively one-click.
+  //
+  // We can't suppress the dialog from a web page (browser security), so
+  // a toast tells the user what to pick. Once they do, the standard file
+  // save modal asks only for filename + location.
+  function handleNativePdf() {
+    if (!paper) return
+    const ok = triggerNativePrint()
+    if (ok) {
+      toast('Destination থেকে "Save as PDF" সিলেক্ট করে Save চাপুন', {
+        duration: 6000,
+        icon: '📄',
+      })
+    }
   }
 
   return (
@@ -224,6 +341,7 @@ export default function PDFPreview() {
           <button
             onClick={handleDownload}
             disabled={!paper || downloading}
+            title="দ্রুত PDF (কিছু গণিত সমস্যা থাকতে পারে)"
             className="px-4 h-9 flex items-center gap-1.5 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-40 btn-press shadow-lg shadow-blue-600/25"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -232,15 +350,21 @@ export default function PDFPreview() {
             {downloading ? '...' : 'PDF'}
           </button>
 
+          {/* Native PDF Download — uses the browser's own print engine,
+              which renders fractions / radicals pixel-perfect (the quick
+              PDF on the left can drift on complex math). The browser
+              shows its print dialog; user picks "Save as PDF" once and
+              Chrome remembers it for subsequent clicks. */}
           <button
-            onClick={handlePrint}
+            onClick={handleNativePdf}
             disabled={!paper}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 disabled:opacity-40 hover:bg-gray-200 btn-press"
-            title="প্রিন্ট"
+            title='Print/Save — Destination থেকে "Save as PDF" সিলেক্ট করুন'
+            className="px-4 h-9 flex items-center gap-1.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold disabled:opacity-40 btn-press shadow-lg shadow-emerald-600/25"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m0 0a48.061 48.061 0 0110.5 0m-10.5 0V4.875c0-.621.504-1.125 1.125-1.125h8.25c.621 0 1.125.504 1.125 1.125v3.034" />
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
+            Print/Save
           </button>
         </div>
       </div>
@@ -280,13 +404,14 @@ export default function PDFPreview() {
             }}
           >
             {/*
-              paperRef captures a 210mm-wide wrapper that BAKES IN the 12mm
+              paperRef captures a full-A4-wide wrapper that BAKES IN the 12mm
               horizontal padding. So when html2pdf places the captured image
               into A4 with jsPDF horizontal margin = 0, the visible page
               margin comes from inside the image itself — no chance for
               html2pdf's image scaling to shrink the horizontal margin.
               Vertical margin still comes from jsPDF (so every page after a
               break has consistent top/bottom whitespace).
+              Width switches with orientation: portrait = 210mm, landscape = 297mm.
             */}
             <div
               className="paper-sheet-shadow"
@@ -295,7 +420,7 @@ export default function PDFPreview() {
               <div
                 ref={paperRef}
                 style={{
-                  width: '210mm',
+                  width: isLandscape ? '297mm' : '210mm',
                   padding: '0 12mm',
                   boxSizing: 'border-box',
                   background: '#fff',
@@ -307,6 +432,8 @@ export default function PDFPreview() {
                   font={font}
                   size={size}
                   spacing={spacing}
+                  orientation={orientation}
+                  columnGap={columnGap || undefined}
                 />
               </div>
             </div>
@@ -318,9 +445,14 @@ export default function PDFPreview() {
         {showSettings && (
           <PDFSettingsModal
             onClose={() => setShowSettings(false)}
+            onApply={saveSettingsAndClose}
+            saving={savingSettings}
             font={font} setFont={setFont}
             size={size} setSize={setSize}
             spacing={spacing} setSpacing={setSpacing}
+            orientation={orientation} setOrientation={setOrientation}
+            columnGap={columnGap} setColumnGap={setColumnGap}
+            paperLayout={paper?.layout || '1-column'}
           />
         )}
       </AnimatePresence>
@@ -328,7 +460,9 @@ export default function PDFPreview() {
   )
 }
 
-function PDFSettingsModal({ onClose, font, setFont, size, setSize, spacing, setSpacing }) {
+function PDFSettingsModal({ onClose, onApply, saving = false, font, setFont, size, setSize, spacing, setSpacing, orientation, setOrientation, columnGap, setColumnGap, paperLayout = '1-column' }) {
+  const isMultiColumn = paperLayout === '2-column' || paperLayout === '3-column'
+  const defaultGapLabel = paperLayout === '3-column' ? '৪ মিমি (ডিফল্ট)' : '৫ মিমি (ডিফল্ট)'
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
       <motion.div
@@ -347,6 +481,41 @@ function PDFSettingsModal({ onClose, font, setFont, size, setSize, spacing, setS
         <h3 className="text-xl font-black mb-6">প্রিন্ট সেটিংস</h3>
 
         <div className="space-y-4">
+          <div>
+            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">পেজ লেআউট</label>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { val: 'portrait', label: 'পোর্ট্রেট', sub: 'Portrait' },
+                { val: 'landscape', label: 'ল্যান্ডস্কেপ', sub: 'Landscape' },
+              ].map((opt) => {
+                const active = orientation === opt.val
+                const isPortrait = opt.val === 'portrait'
+                return (
+                  <button
+                    key={opt.val}
+                    type="button"
+                    onClick={() => setOrientation(opt.val)}
+                    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all btn-press ${
+                      active
+                        ? 'border-blue-600 bg-blue-50 text-blue-700'
+                        : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`block border-2 rounded-sm ${active ? 'border-blue-600' : 'border-gray-400'}`}
+                      style={{
+                        width: isPortrait ? 18 : 26,
+                        height: isPortrait ? 26 : 18,
+                      }}
+                    />
+                    <span className="text-[12px] font-bold leading-none">{opt.label}</span>
+                    <span className="text-[9px] uppercase tracking-wider opacity-60 leading-none">{opt.sub}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           <div>
             <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">ফন্ট পরিবার</label>
             <select
@@ -389,12 +558,36 @@ function PDFSettingsModal({ onClose, font, setFont, size, setSize, spacing, setS
             </select>
           </div>
 
+          {isMultiColumn && (
+            <div>
+              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                কলাম গ্যাপ
+              </label>
+              <select
+                value={columnGap || ''}
+                onChange={(e) => setColumnGap(e.target.value)}
+                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold text-sm outline-none"
+              >
+                <option value="">{defaultGapLabel}</option>
+                <option value="3mm">টাইট (৩ মিমি)</option>
+                <option value="5mm">নরমাল (৫ মিমি)</option>
+                <option value="8mm">প্রশস্ত (৮ মিমি)</option>
+                <option value="12mm">আরও প্রশস্ত (১২ মিমি)</option>
+                <option value="16mm">সর্বোচ্চ (১৬ মিমি)</option>
+              </select>
+              <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
+                দুই কলামের মাঝখানের ফাঁকা জায়গা। বড় গ্যাপে অপশন overlap কমে।
+              </p>
+            </div>
+          )}
+
           <div className="pt-4">
             <button
-              onClick={onClose}
-              className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/30 btn-press text-sm"
+              onClick={onApply || onClose}
+              disabled={saving}
+              className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/30 btn-press text-sm disabled:opacity-50"
             >
-              প্রয়োগ করুন
+              {saving ? 'সেভ হচ্ছে...' : 'প্রয়োগ ও সেভ করুন'}
             </button>
           </div>
         </div>

@@ -577,6 +577,13 @@ input, select, textarea {
     width: 186mm !important;
     min-height: 269mm !important;
   }
+  /* Landscape paper override: A4 landscape printable area is 297−24=273mm
+     wide × 210−28=182mm tall (with @page margin 14mm 12mm). The @page
+     `size: A4 landscape` is injected at print time by PDFPreview.handlePrint. */
+  body.is-printing .paper-print.paper-print-landscape {
+    width: 273mm !important;
+    min-height: 182mm !important;
+  }
   /* Routine inline width (landscape 287mm / portrait 186mm) wins; just
      center and strip shadow. */
   body.is-printing .routine-print {

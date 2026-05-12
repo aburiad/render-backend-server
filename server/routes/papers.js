@@ -25,6 +25,7 @@ router.post('/', checkLimit('paper_count'), async (req, res, next) => {
       logo_url,
       section_mode,
       questions,
+      print_settings,
     } = req.body
 
     if (!exam_title || !String(exam_title).trim()) {
@@ -47,6 +48,7 @@ router.post('/', checkLimit('paper_count'), async (req, res, next) => {
       logo_url: req.user.tier !== 'free' ? logo_url || null : null,
       section_mode: !!section_mode,
       questions: questions || [],
+      print_settings: print_settings ?? null,
     })
 
     res.status(201).json({ success: true, paper })
@@ -92,6 +94,7 @@ router.put('/:id', async (req, res, next) => {
       'logo_url',
       'section_mode',
       'questions',
+      'print_settings',
     ]
     const updates = {}
     for (const field of allowedFields) {

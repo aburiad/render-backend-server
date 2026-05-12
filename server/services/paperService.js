@@ -21,6 +21,7 @@ function rowToPaper(row) {
     logo_url: row.logo_url,
     section_mode: row.section_mode ?? false,
     questions: row.questions || [],
+    print_settings: row.print_settings || null,
     deleted: row.deleted,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -46,6 +47,7 @@ const paperService = {
       logo_url: paperData.logo_url ?? null,
       section_mode: paperData.section_mode ?? false,
       questions: paperData.questions || [],
+      print_settings: paperData.print_settings ?? null,
       deleted: false,
     }
     const { data, error } = await supabaseAdmin.from('papers').insert(insert).select().single()
@@ -93,6 +95,7 @@ const paperService = {
       logo_url: 'logo_url',
       section_mode: 'section_mode',
       questions: 'questions',
+      print_settings: 'print_settings',
     }
     for (const [k, col] of Object.entries(map)) {
       if (updates[k] !== undefined) patch[col] = updates[k]

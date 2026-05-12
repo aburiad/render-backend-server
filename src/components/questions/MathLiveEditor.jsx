@@ -37,6 +37,12 @@ export default function MathLiveEditor({ inputRef, onInsert }) {
   const [open, setOpen] = useState(false)
   const [latex, setLatex] = useState('')
   const [isReplacing, setIsReplacing] = useState(false)
+  // When the user enters the modal via the keyboard icon (vs the fx icon),
+  // we explicitly toggle MathLive's virtual keyboard ON instead of waiting
+  // for focus. Some Chromium builds suppress the focus-triggered keyboard
+  // until the user actually taps inside the field — the explicit call
+  // avoids that delay.
+  const [forceKeyboard, setForceKeyboard] = useState(false)
   const mathRef = useRef(null)
   const cursorState = useRef({ start: 0, end: 0, replaceRange: null })
 
@@ -58,6 +64,17 @@ export default function MathLiveEditor({ inputRef, onInsert }) {
     setLatex(existing ? existing.latex : '')
   }, [open, inputRef])
 
+  // When closing the modal, dismiss MathLive's docked virtual keyboard
+  // and reset the forceKeyboard flag so the next "fx" click doesn't
+  // accidentally re-pop the keyboard.
+  useEffect(() => {
+    if (open) return
+    setForceKeyboard(false)
+    if (typeof window !== 'undefined' && window.mathVirtualKeyboard) {
+      try { window.mathVirtualKeyboard.hide() } catch { /* noop */ }
+    }
+  }, [open])
+
   // Push state -> math-field, then focus
   useEffect(() => {
     if (!open) return
@@ -66,9 +83,15 @@ export default function MathLiveEditor({ inputRef, onInsert }) {
       if (!mf) return
       if (mf.value !== latex) mf.value = latex
       try { mf.focus() } catch { /* noop */ }
+      // If the modal was opened via the keyboard icon, explicitly show
+      // MathLive's docked virtual keyboard. (window.mathVirtualKeyboard
+      // is registered by `import 'mathlive'` above.)
+      if (forceKeyboard && typeof window !== 'undefined' && window.mathVirtualKeyboard) {
+        try { window.mathVirtualKeyboard.show() } catch { /* noop */ }
+      }
     })
     return () => cancelAnimationFrame(id)
-  }, [open, latex])
+  }, [open, latex, forceKeyboard])
 
   // math-field input -> state
   useEffect(() => {
@@ -178,11 +201,21 @@ export default function MathLiveEditor({ inputRef, onInsert }) {
             </button>
           </div>
 
-          {/* Math field */}
+          {/* Math field. virtual-keyboard-mode is set per entry mode:
+              - fx button (forceKeyboard=false): "off" → no virtual
+                keyboard at all; user just types LaTeX directly with the
+                real keyboard. The visual math-field still renders the
+                live equation as the user types.
+              - Keyboard button (forceKeyboard=true): "manual" + the
+                useEffect above calls mathVirtualKeyboard.show(), so the
+                docked tap-based math palette appears.
+              This is what actually makes the two entry buttons behave
+              differently — without it both flows ended up showing the
+              same keyboard because the field auto-popped it on focus. */}
           <div style={{ padding: '18px 24px 6px' }}>
             <math-field
               ref={mathRef}
-              virtual-keyboard-mode="onfocus"
+              virtual-keyboard-mode={forceKeyboard ? 'manual' : 'off'}
               smart-mode="on"
               smart-fence="on"
               inline-shortcut-syntax="latex"
@@ -277,26 +310,68 @@ export default function MathLiveEditor({ inputRef, onInsert }) {
     document.body,
   )
 
+  const openModal = (withKeyboard) => {
+    setForceKeyboard(!!withKeyboard)
+    setOpen(true)
+  }
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title="গণিত লিখুন"
-        className="btn-press"
-        style={{
-          width: 30, height: 30, borderRadius: 10,
-          border: '1.5px solid #e2e8f0', background: '#fff', color: '#94a3b8',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          cursor: 'pointer', fontSize: 13, fontWeight: 800,
-          fontStyle: 'italic', fontFamily: 'serif', flexShrink: 0,
-          transition: 'all 0.15s',
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#2563eb'; e.currentTarget.style.borderColor = '#bfdbfe' }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = '#e2e8f0' }}
-      >
-        fx
-      </button>
+      <div style={{ display: 'inline-flex', gap: 4, flexShrink: 0 }}>
+        <button
+          type="button"
+          onClick={() => openModal(false)}
+          title="গণিত লিখুন (LaTeX এডিটর)"
+          className="btn-press"
+          style={{
+            width: 30, height: 30, borderRadius: 10,
+            border: '1.5px solid #e2e8f0', background: '#fff', color: '#94a3b8',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', fontSize: 13, fontWeight: 800,
+            fontStyle: 'italic', fontFamily: 'serif', flexShrink: 0,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#2563eb'; e.currentTarget.style.borderColor = '#bfdbfe' }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = '#e2e8f0' }}
+        >
+          fx
+        </button>
+
+        {/* MathLive virtual keyboard — direct access for users who prefer
+            a tap-based math palette over typing LaTeX. Opens the same
+            modal but immediately shows the docked keyboard.
+            Distinct visual: filled blue background with a math-symbol
+            grid icon, so it's clearly different from the outlined "fx"
+            text button on the left. */}
+        <button
+          type="button"
+          onClick={() => openModal(true)}
+          title="গণিত কীবোর্ড খুলুন"
+          className="btn-press"
+          style={{
+            width: 30, height: 30, borderRadius: 10,
+            border: 'none',
+            background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
+            color: '#ffffff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', flexShrink: 0,
+            transition: 'all 0.15s',
+            boxShadow: '0 2px 6px rgba(37, 99, 235, 0.35)',
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(37, 99, 235, 0.45)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.35)' }}
+        >
+          {/* 2×2 math-symbol grid icon — π, x², √, Σ — reads as
+              "math palette / keyboard" much more obviously than a
+              generic computer-keyboard icon. */}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+            <text x="3" y="11" fontFamily="serif" fontStyle="italic" fontSize="9" fontWeight="700" fill="currentColor">π</text>
+            <text x="13" y="11" fontFamily="serif" fontStyle="italic" fontSize="9" fontWeight="700" fill="currentColor">x²</text>
+            <text x="3" y="21" fontFamily="serif" fontSize="9" fontWeight="700" fill="currentColor">√</text>
+            <text x="13" y="21" fontFamily="serif" fontSize="9" fontWeight="700" fill="currentColor">Σ</text>
+          </svg>
+        </button>
+      </div>
       {modal}
     </>
   )
