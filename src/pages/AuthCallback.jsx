@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import useAuthStore from '@/store/authStore'
 import { useEffect, useRef } from 'react'
+import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
 
 export default function AuthCallback() {
@@ -52,6 +53,7 @@ export default function AuthCallback() {
       } catch (e) {
         if (!cancelled) {
           console.error('AuthCallback:', e)
+          if (e.banned) toast.error(e.message)
           navigate('/login', { replace: true })
         }
       }

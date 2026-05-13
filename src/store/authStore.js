@@ -116,6 +116,13 @@ const useAuthStore = create(
                 return backendUser
               }
             } catch (err) {
+              if (err.response?.status === 403 && err.response?.data?.banned) {
+                set({ user: null, token: null, refreshToken: null, isAuthenticated: false })
+                try { await supabase.auth.signOut() } catch { /* best-effort */ }
+                const banErr = new Error(err.response.data.message || 'আপনার অ্যাকাউন্ট নিষিদ্ধ')
+                banErr.banned = true
+                throw banErr
+              }
               console.warn('[authStore] /auth/me failed:', err.message)
             }
 

@@ -67,6 +67,10 @@ async function requireAuth(req, res, next) {
     ])
     const profile = profileRes.data
 
+    if (profile?.is_banned) {
+      return res.status(403).json({ message: 'আপনার অ্যাকাউন্ট নিষিদ্ধ করা হয়েছে। সহায়তার জন্য যোগাযোগ করুন।', banned: true })
+    }
+
     let tier = 'free'
     let trialEndAt = null
     if (profile) {
