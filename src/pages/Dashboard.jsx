@@ -4,7 +4,7 @@ import { motion } from 'framer-motion'
 import useAuthStore from '@/store/authStore'
 import api from '@/services/api'
 import DashboardSkeleton from '@/components/shared/SkeletonCard'
-import LimitsWidget from '@/components/shared/LimitsWidget'
+import CreditBalance from '@/components/shared/CreditBalance'
 import toast from 'react-hot-toast'
 
 /* ─── Hub config per role ─────────────────────────────────── */
@@ -256,8 +256,8 @@ export default function Dashboard() {
             boxShadow: 'var(--shadow-sm)',
             border: '1px solid #e2e8f0',
           }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: user?.tier === 'pro' ? '#f59e0b' : user?.tier === 'trial' ? '#2563eb' : '#64748b' }}>
-              {user?.tier === 'pro' ? '✦ PRO' : user?.tier === 'trial' ? '✦ TRIAL' : 'FREE'}
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#2563eb' }}>
+              ⚡ {user?.credits?.aiOps ?? 0} AI · {user?.credits?.papersEquivalent ?? 0} পেপার
             </span>
           </div>
         </div>
@@ -272,9 +272,9 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* ── Rate-limit Usage Widget ──────────────────────── */}
+      {/* ── Credit Balance ────────────────────────────────── */}
       <motion.div variants={item}>
-        <LimitsWidget />
+        <CreditBalance compact={false} showTopUp />
       </motion.div>
 
       {/* ── Quick Actions ──────────────────────────────────── */}
@@ -324,8 +324,8 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* ── Premium CTA ───────────────────────────────────── */}
-      {user?.subscription !== 'pro' && (
+      {/* ── Credit Top-up CTA — shown when balance is low ── */}
+      {(user?.credits?.aiOps ?? 0) < (user?.credits?.opsPerPaper || 25) && (
         <motion.div variants={item}>
           <div style={{
             background: 'linear-gradient(135deg, #0f172a, #1e293b)',
@@ -345,9 +345,9 @@ export default function Dashboard() {
               background: 'linear-gradient(135deg, rgba(255,255,255,0.1), transparent)'
             }} />
             <div style={{ position: 'relative', zIndex: 1 }}>
-              <p style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 6px' }}>প্রিমিয়াম ফিচারে আপগ্রেড</p>
+              <p style={{ fontSize: 18, fontWeight: 800, color: '#fff', margin: '0 0 6px' }}>ক্রেডিট কম পড়েছে</p>
               <p style={{ fontSize: 13, color: '#94a3b8', margin: '0 0 18px', lineHeight: 1.5 }}>
-                আনলিমিটেড এআই স্ক্যানিং এবং অটো-কোয়েশ্চেন জেনারেশন সুবিধা পান।
+                মাত্র {user?.credits?.bdtPerPaper || 10} ৳-এ ১ পেপার। টপ-আপ করুন।
               </p>
               <Link
                 to="/pricing"
@@ -363,7 +363,7 @@ export default function Dashboard() {
                   boxShadow: '0 4px 14px 0 rgba(59, 130, 246, 0.4)',
                 }}
               >
-                প্যাক দেখুন
+                ক্রেডিট কিনুন
               </Link>
             </div>
           </div>

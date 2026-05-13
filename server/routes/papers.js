@@ -1,13 +1,14 @@
 const express = require('express')
 const paperService = require('../services/paperService')
 const { AppError } = require('../middleware/errorHandler')
-const { checkLimit } = require('../middleware/subscription')
 const { requireAuth } = require('../middleware/auth')
 
 const router = express.Router()
 router.use(requireAuth)
 
-router.post('/', checkLimit('paper_count'), async (req, res, next) => {
+// Paper creation itself costs nothing — only AI operations (scan/generate)
+// inside the paper consume credits. See `server/middleware/credits.js`.
+router.post('/', async (req, res, next) => {
   try {
     const {
       institution_name,
@@ -43,9 +44,10 @@ router.post('/', checkLimit('paper_count'), async (req, res, next) => {
       total_marks,
       header_alignment,
       layout,
-      watermark: req.user.tier !== 'free' ? watermark ?? null : 'AI Question Hub',
+      // Tier removed — credit system lets every user customise watermark and logo.
+      watermark: watermark ?? null,
       set_variant,
-      logo_url: req.user.tier !== 'free' ? logo_url || null : null,
+      logo_url: logo_url || null,
       section_mode: !!section_mode,
       questions: questions || [],
       print_settings: print_settings ?? null,
@@ -100,10 +102,7 @@ router.put('/:id', async (req, res, next) => {
     for (const field of allowedFields) {
       if (req.body[field] !== undefined) updates[field] = req.body[field]
     }
-    if (req.user.tier === 'free') {
-      updates.watermark = 'AI Question Hub'
-      delete updates.logo_url
-    }
+    // Tier-based watermark/logo gating removed — credit system treats all users equally.
 
     const paper = await paperService.update(req.params.id, req.user.uid, updates)
     if (!paper) throw new AppError('Paper not found', 404)
@@ -122,7 +121,8 @@ router.delete('/:id', async (req, res, next) => {
   }
 })
 
-router.get('/:id/omr', checkLimit('omr'), async (req, res, next) => {
+// OMR rendering uses only existing paper data — no AI call, always free.
+router.get('/:id/omr', async (req, res, next) => {
   try {
     const paper = await paperService.getById(req.params.id, req.user.uid)
     if (!paper) throw new AppError('Paper not found', 404)

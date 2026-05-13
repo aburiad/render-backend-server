@@ -8,10 +8,10 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('settings')
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState(null)
+  // Legacy fields (proPrice / trialDays / isTrialActive) are kept in the
+  // server payload for backwards-compat but the admin UI no longer surfaces
+  // them. Local state only carries what the credit-system UI needs.
   const [config, setConfig] = useState({
-    proPrice: 0,
-    trialDays: 0,
-    isTrialActive: false,
     features: [],
     manualPaymentMethods: [],
     rateLimits: {
@@ -20,6 +20,17 @@ export default function AdminDashboard() {
       userKey: { max: 20, windowMinutes: 60 },
       auth: { max: 10, windowMinutes: 15 },
       global: { max: 200, windowMinutes: 15 },
+    },
+    creditConfig: {
+      bdt_per_paper: 10,
+      ops_per_paper: 25,
+      signup_bonus_ops: 25,
+      referral_bonus_ops: 25,
+      min_topup_bdt: 10,
+      max_topup_bdt: 100000,
+      suggested_topups_bdt: [10, 50, 200, 500, 1000, 5000],
+      byo_unlimited_price_bdt: 999,
+      enable_byo_subscription: false,
     },
   })
   const [pendingPayments, setPendingPayments] = useState([])
@@ -44,7 +55,17 @@ export default function AdminDashboard() {
         api.get('/admin/payments/all')
       ])
       setStats(statsRes.data)
-      setConfig(configRes.data.config)
+      // Merge server config over our local defaults so creditConfig is always
+      // a complete object — protects the form from server returning a partial
+      // shape and the spread-update pattern losing fields.
+      setConfig((prev) => ({
+        ...prev,
+        ...configRes.data.config,
+        creditConfig: {
+          ...prev.creditConfig,
+          ...(configRes.data.config?.creditConfig || {}),
+        },
+      }))
       setPendingPayments(paymentsRes.data.payments)
       if (usersRes.data.users) setUsers(usersRes.data.users)
       if (allPaymentsRes.data.payments) setAllPayments(allPaymentsRes.data.payments)
@@ -59,12 +80,25 @@ export default function AdminDashboard() {
     e.preventDefault()
     setSaving(true)
     try {
-      await api.put('/admin/subscription/config', config)
-      toast.success('কনফিগারেশন সেভ হয়েছে')
+      // Sync local state with the server-normalised response so admin sees
+      // EXACTLY what was persisted (in case backend defaults rewrote anything).
+      const { data } = await api.put('/admin/subscription/config', config)
+      if (data?.config) setConfig(data.config)
+      toast.success('কনফিগারেশন সেভ হয়েছে — পরিবর্তন এখন live')
     } catch (err) {
-      toast.error('সেভ করতে ব্যর্থ হয়েছে')
+      toast.error(err.response?.data?.message || 'সেভ করতে ব্যর্থ হয়েছে')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleApplySignupBonus = async () => {
+    if (!window.confirm('সব existing user-কে current signup bonus retroactively দেওয়া হবে (যাদের credit history নেই)। চালিয়ে যাবেন?')) return
+    try {
+      const { data } = await api.post('/admin/credits/apply-signup-bonus')
+      toast.success(data.message || 'বোনাস apply হয়েছে')
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'ব্যর্থ')
     }
   }
 
@@ -85,7 +119,7 @@ export default function AdminDashboard() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-3xl font-black text-gray-900">অ্যাডমিন ড্যাশবোর্ড</h1>
-          <p className="text-gray-500">সাবস্ক্রিপশন ও পেমেন্ট ম্যানেজমেন্ট</p>
+          <p className="text-gray-500">ক্রেডিট সিস্টেম ও পেমেন্ট ম্যানেজমেন্ট</p>
         </div>
         <div className="flex gap-2 bg-gray-100 p-1 rounded-2xl overflow-x-auto no-scrollbar">
           {['overview', 'users', 'transactions', 'settings', 'payments'].map((tab) => (
@@ -133,8 +167,8 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="bg-gray-50 border-b border-gray-100 text-sm font-bold text-gray-400 uppercase tracking-widest">
                     <th className="p-6 whitespace-nowrap">নাম ও ইমেইল</th>
-                    <th className="p-6 whitespace-nowrap">ভূমিকা (Role)</th>
-                    <th className="p-6 whitespace-nowrap">সাবস্ক্রিপশন</th>
+                    <th className="p-6 whitespace-nowrap">ভূমিকা</th>
+                    <th className="p-6 whitespace-nowrap">ক্রেডিট</th>
                     <th className="p-6 text-right whitespace-nowrap">অ্যাকশন</th>
                   </tr>
                 </thead>
@@ -154,11 +188,37 @@ export default function AdminDashboard() {
                       </td>
                       <td className="p-6 text-sm font-bold text-gray-600 uppercase">{user.role || 'user'}</td>
                       <td className="p-6">
-                        <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest inline-block ${
-                          user.subscription === 'pro' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-600'
-                        }`}>
-                          {user.subscription || 'free'}
-                        </span>
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50">
+                          <span className="text-xs font-black text-blue-700">⚡ {user.aiOpCredits ?? 0}</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const raw = window.prompt(
+                                `${user.name || user.email}-এর ক্রেডিট adjust:\n+10 = যোগ, -5 = বাদ`,
+                              )
+                              const delta = parseInt(raw, 10)
+                              if (!Number.isFinite(delta) || !delta) return
+                              try {
+                                const { data } = await api.post(
+                                  `/admin/users/${user.uid}/credits/adjust`,
+                                  { delta, note: 'Manual admin adjust' },
+                                )
+                                toast.success(data.message)
+                                setUsers((prev) =>
+                                  prev.map((u) =>
+                                    u.uid === user.uid ? { ...u, aiOpCredits: data.balance } : u,
+                                  ),
+                                )
+                              } catch (e) {
+                                toast.error(e.response?.data?.message || 'ব্যর্থ')
+                              }
+                            }}
+                            className="text-[10px] font-bold text-blue-600 hover:text-blue-800"
+                            title="ক্রেডিট adjust"
+                          >
+                            ±
+                          </button>
+                        </div>
                       </td>
                       <td className="p-6 text-right">
                         <button
@@ -247,49 +307,28 @@ export default function AdminDashboard() {
             exit={{ opacity: 0, y: -10 }}
             className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm max-w-2xl"
           >
-            <h2 className="text-xl font-bold mb-6">সাবস্ক্রিপশন কনফিগারেশন</h2>
+            <h2 className="text-xl font-bold mb-2">ক্রেডিট সিস্টেম কনফিগারেশন</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              পেপার দাম, AI ops, top-up amount — সব এখান থেকে নিয়ন্ত্রিত। কোনো hard-coded value নেই।
+            </p>
             <form onSubmit={handleUpdateConfig} className="space-y-6">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">প্রো প্ল্যান প্রাইস (৳)</label>
-                  <input
-                    type="number"
-                    value={config.proPrice}
-                    onChange={(e) => setConfig({ ...config, proPrice: parseInt(e.target.value) })}
-                    className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase mb-2">ফ্রি ট্রায়াল দিন</label>
-                  <input
-                    type="number"
-                    value={config.trialDays}
-                    onChange={(e) => setConfig({ ...config, trialDays: parseInt(e.target.value) })}
-                    className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-2xl border border-blue-100">
-                <div>
-                  <h4 className="font-bold text-blue-900">গ্লোবাল ফ্রি ট্রায়াল রিলিজ</h4>
-                  <p className="text-xs text-blue-700 opacity-80">এটি অন থাকলে সব ইউজার নির্দিষ্ট দিন পর্যন্ত প্রো ফিচার ব্যবহার করতে পারবে</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setConfig({ ...config, isTrialActive: !config.isTrialActive })}
-                  className={`w-14 h-8 rounded-full p-1 transition-colors ${config.isTrialActive ? 'bg-blue-600' : 'bg-gray-300'}`}
-                >
-                  <div className={`w-6 h-6 bg-white rounded-full transition-transform ${config.isTrialActive ? 'translate-x-6' : ''}`} />
-                </button>
-              </div>
-
               <div>
-                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">ফিচার লিস্ট (কমা দিয়ে আলাদা করুন)</label>
+                <label className="block text-xs font-bold text-gray-400 uppercase mb-2">
+                  Pricing Page Features
+                </label>
+                <p className="text-[11px] text-gray-400 mb-2">
+                  এই list-টি public pricing page-এ "কী কী পাবেন" সেকশনে দেখাবে। কমা দিয়ে আলাদা করুন।
+                </p>
                 <textarea
-                  value={config.features.join(', ')}
-                  onChange={(e) => setConfig({ ...config, features: e.target.value.split(',').map(f => f.trim()) })}
-                  className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-blue-600 text-sm h-32 leading-relaxed"
+                  value={(config.features || []).join(', ')}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      features: e.target.value.split(',').map((f) => f.trim()).filter(Boolean),
+                    })
+                  }
+                  className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl focus:ring-2 focus:ring-blue-600 text-sm h-28 leading-relaxed"
+                  placeholder="প্রতি পেপার মাত্র ১০ ৳, ১ পেপার = ২৫টি AI prompt"
                 />
               </div>
 
@@ -501,6 +540,244 @@ export default function AdminDashboard() {
                     </div>
                   )
                 })}
+              </div>
+
+              {/* ── Credit System Config — pricing + bonuses + suggested top-ups ── */}
+              <div className="space-y-4 p-5 bg-gradient-to-br from-emerald-50 to-blue-50 rounded-2xl border border-emerald-100">
+                <div>
+                  <h3 className="text-sm font-black text-emerald-900 uppercase tracking-widest">
+                    Credit System
+                  </h3>
+                  <p className="text-[11px] text-emerald-800 mt-1">
+                    1 পেপার = X ৳ → Y AI প্রম্পট। সব value এখান থেকে edit করা যাবে — কোনো hard-code নেই।
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                      পেপার দাম (৳)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={config.creditConfig?.bdt_per_paper ?? 10}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          creditConfig: {
+                            ...config.creditConfig,
+                            bdt_per_paper: parseInt(e.target.value, 10) || 1,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                      প্রতি পেপার AI ops
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={config.creditConfig?.ops_per_paper ?? 25}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          creditConfig: {
+                            ...config.creditConfig,
+                            ops_per_paper: parseInt(e.target.value, 10) || 1,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                      সাইনআপ বোনাস (ops)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={config.creditConfig?.signup_bonus_ops ?? 25}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          creditConfig: {
+                            ...config.creditConfig,
+                            signup_bonus_ops: parseInt(e.target.value, 10) || 0,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                      Referral বোনাস (ops)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={config.creditConfig?.referral_bonus_ops ?? 25}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          creditConfig: {
+                            ...config.creditConfig,
+                            referral_bonus_ops: parseInt(e.target.value, 10) || 0,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                      Min top-up (৳)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={config.creditConfig?.min_topup_bdt ?? 10}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          creditConfig: {
+                            ...config.creditConfig,
+                            min_topup_bdt: parseInt(e.target.value, 10) || 1,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                      Max top-up (৳)
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={config.creditConfig?.max_topup_bdt ?? 100000}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          creditConfig: {
+                            ...config.creditConfig,
+                            max_topup_bdt: parseInt(e.target.value, 10) || 1,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                      BYO Unlimited (৳/মাস)
+                    </label>
+                    <input
+                      type="number"
+                      min={0}
+                      value={config.creditConfig?.byo_unlimited_price_bdt ?? 999}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          creditConfig: {
+                            ...config.creditConfig,
+                            byo_unlimited_price_bdt: parseInt(e.target.value, 10) || 0,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                    Suggested top-ups (কমা দিয়ে আলাদা ৳ amount)
+                  </label>
+                  <input
+                    type="text"
+                    value={(config.creditConfig?.suggested_topups_bdt || []).join(', ')}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        creditConfig: {
+                          ...config.creditConfig,
+                          suggested_topups_bdt: e.target.value
+                            .split(',')
+                            .map((v) => parseInt(v.trim(), 10))
+                            .filter((v) => Number.isFinite(v) && v > 0),
+                        },
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-emerald-500 text-sm"
+                  />
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    Example: 10, 50, 200, 500, 1000, 5000
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-emerald-100">
+                  <div>
+                    <h4 className="font-bold text-emerald-900 text-sm">BYO Unlimited Subscription</h4>
+                    <p className="text-[10px] text-emerald-700">
+                      ON করলে pricing page-এ side offer card দেখাবে
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setConfig({
+                        ...config,
+                        creditConfig: {
+                          ...config.creditConfig,
+                          enable_byo_subscription: !config.creditConfig?.enable_byo_subscription,
+                        },
+                      })
+                    }
+                    className={`w-12 h-7 rounded-full p-1 transition-colors ${
+                      config.creditConfig?.enable_byo_subscription ? 'bg-emerald-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <div
+                      className={`w-5 h-5 bg-white rounded-full transition-transform ${
+                        config.creditConfig?.enable_byo_subscription ? 'translate-x-5' : ''
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Retroactive signup bonus action */}
+                <div className="flex items-center justify-between p-3 bg-white rounded-xl border border-emerald-100">
+                  <div className="flex-1 pr-3">
+                    <h4 className="font-bold text-emerald-900 text-sm">
+                      Existing user-দের signup bonus দিন
+                    </h4>
+                    <p className="text-[10px] text-emerald-700">
+                      যাদের credit history নেই তাদের current signup_bonus_ops retroactively grant করুন (safe to re-run)
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleApplySignupBonus}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-colors whitespace-nowrap"
+                  >
+                    Apply Now
+                  </button>
+                </div>
+
+                {/* Live snapshot — what's actually in DB after most recent save */}
+                <div className="p-3 bg-white rounded-xl border border-emerald-100">
+                  <h4 className="font-bold text-emerald-900 text-xs mb-2 uppercase tracking-widest">
+                    Live Saved Values (verify after each save)
+                  </h4>
+                  <pre className="text-[10px] text-gray-700 bg-gray-50 p-2 rounded overflow-x-auto">{JSON.stringify(config.creditConfig, null, 2)}</pre>
+                </div>
               </div>
 
               <button

@@ -3,6 +3,7 @@ const { AppError } = require('../middleware/errorHandler')
 const bookService = require('../services/bookService')
 const { generateFromBook } = require('../services/aiService')
 const { requireAuth } = require('../middleware/auth')
+const { checkAiCredit, withChargedCredit } = require('../middleware/credits')
 
 const router = express.Router()
 // All book endpoints (subjects/chapters listing + AI generation) require auth.
@@ -120,9 +121,12 @@ router.post('/existing-questions', async (req, res, next) => {
  *   count: 5
  * }
  */
-router.post('/generate', async (req, res, next) => {
+router.post(
+  '/generate',
+  checkAiCredit((req) => Math.min(Math.max(1, Number(req.body?.count) || 5), 15)),
+  async (req, res, next) => {
   try {
-    const { classNum, subject, chapters, selections, questionTypes, count } = req.body
+    const { classNum, subject, chapters, selections, questionTypes, count, paperId } = req.body
 
     if (!classNum || !subject) {
       throw new AppError('ক্লাস ও বিষয় সিলেক্ট করুন', 400)
@@ -196,11 +200,23 @@ router.post('/generate', async (req, res, next) => {
       throw new AppError('চ্যাপ্টার বা সাবচ্যাপ্টার সিলেক্ট করুন', 400)
     }
 
-    // Generate questions — pass userId so user's BYO API keys are tried first.
-    const result = await generateFromBook(
-      combinedContext,
-      { subject, classNum, questionTypes, count: requestedCount },
+    // Race-safe credit flow: pre-charge `requestedCount` credits BEFORE
+    // calling the provider. If AI fails, refund. If AI returns fewer than
+    // requested, the extra pre-charge stays (cost-protective for us — the
+    // user got what they asked for capacity-wise).
+    const result = await withChargedCredit(
       req.user.uid,
+      paperId || null,
+      requestedCount,
+      () =>
+        generateFromBook(
+          combinedContext,
+          { subject, classNum, questionTypes, count: requestedCount },
+          req.user.uid,
+        ),
+      // If the model returned MORE questions than asked (rare — extra batches),
+      // charge the surplus too.
+      (out) => Math.max(0, (out.questions?.length || 0) - requestedCount),
     )
 
     res.json({
@@ -210,11 +226,13 @@ router.post('/generate', async (req, res, next) => {
       provider: result.provider,
       keySource: result.source,
       sourceChapters: chapterData.map((ch) => ch.title),
+      creditsCharged: result.creditsCharged,
     })
   } catch (err) {
     console.error('Book Generate Error:', err)
     next(err)
   }
-})
+  },
+)
 
 module.exports = router

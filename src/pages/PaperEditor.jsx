@@ -27,6 +27,7 @@ import ImportFromBankModal from '@/components/questions/ImportFromBankModal'
 import ExamPublishModal from '@/components/paper/ExamPublishModal'
 import QuestionWrapper from '@/components/questions/QuestionWrapper'
 import Modal from '@/components/shared/Modal'
+import CreditBalance from '@/components/shared/CreditBalance'
 
 import McqEditor from '@/components/questions/McqEditor'
 import CqEditor from '@/components/questions/CqEditor'
@@ -347,7 +348,8 @@ export default function PaperEditor() {
             {isDirty ? (saving ? '• সেভ হচ্ছে' : '• পরিবর্তন আছে') : '• সব সেভ আছে'}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <CreditBalance compact showTopUp />
           <button onClick={handleManualSave} disabled={!isDirty || saving} className="btn-press" style={{
             padding: '8px 12px', background: isDirty ? '#2563eb' : '#f1f5f9', color: isDirty ? '#fff' : '#cbd5e1',
             borderRadius: 12, fontSize: 11, fontWeight: 900, border: 'none', boxShadow: isDirty ? '0 4px 12px rgba(37,99,235,0.2)' : 'none'
@@ -376,7 +378,8 @@ export default function PaperEditor() {
             {isDirty ? (saving ? '• সেভ হচ্ছে' : '• পরিবর্তন আছে') : '• সব সেভ আছে'}
           </span>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <CreditBalance compact showTopUp />
           <button onClick={handleManualSave} disabled={!isDirty || saving} className="btn-press" style={{
             padding: '8px 12px', background: isDirty ? '#2563eb' : '#f1f5f9', color: isDirty ? '#fff' : '#cbd5e1',
             borderRadius: 12, fontSize: 11, fontWeight: 900, border: 'none', boxShadow: isDirty ? '0 4px 12px rgba(37,99,235,0.2)' : 'none'

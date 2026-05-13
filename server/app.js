@@ -27,6 +27,18 @@ const routineRoutes = require('./routes/routine')
 const limitsRoutes = require('./routes/limits')
 
 const app = express()
+// trust proxy: 1 = trust EXACTLY the last hop (Vercel's edge proxy).
+//
+// Threat model assumption: requests reach the function with at most 1
+// intermediate proxy that we control. The leftmost X-Forwarded-For IP
+// is the client; Vercel appends its own IP as the trailing proxy.
+//
+// If you put Cloudflare / another CDN IN FRONT of Vercel, this number
+// MUST be raised to 2 (or `true` with caution) — otherwise the IP-based
+// rate limiter trusts the wrong field and attackers can spoof their IP
+// by forging X-Forwarded-For. The rate limiter primarily keys on
+// req.user.uid for authenticated routes (safe regardless), so the
+// blast radius of mis-trust is only the unauthenticated paths.
 app.set('trust proxy', 1)
 
 // CORS — explicit allowlist, no wildcard *.vercel.app blanket.

@@ -1,4 +1,5 @@
 import AppShell from '@/components/shared/AppShell'
+import OutOfCreditModal from '@/components/shared/OutOfCreditModal'
 import AdminDashboard from '@/pages/AdminDashboard'
 import AuthCallback from '@/pages/AuthCallback'
 import Dashboard from '@/pages/Dashboard'
@@ -64,6 +65,8 @@ export default function App() {
   const location = useLocation()
 
   return (
+    <>
+      <OutOfCreditModal />
     <AnimatePresence mode="wait">
       <Routes location={location} key={location.pathname}>
         {/* Public routes — no shell */}
@@ -111,5 +114,6 @@ export default function App() {
         </Route>
       </Routes>
     </AnimatePresence>
+    </>
   )
 }

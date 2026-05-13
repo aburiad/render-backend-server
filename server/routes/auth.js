@@ -2,7 +2,7 @@ const express = require('express')
 const { supabaseAdmin } = require('../config/supabase')
 const { requireAuth, computeTier } = require('../middleware/auth')
 const configService = require('../services/configService')
-const { FREE_LIMITS } = require('../middleware/subscription')
+const creditService = require('../services/creditService')
 const { AppError } = require('../middleware/errorHandler')
 
 const router = express.Router()
@@ -13,28 +13,17 @@ function currentMonth() {
   return new Date().toISOString().slice(0, 7)
 }
 
-async function buildUserPayload(profile, trialDays) {
+async function buildUserPayload(profile, config) {
   if (!profile) return null
-  const { tier, trialEndAt } = computeTier(profile, trialDays || 0)
+  const trialDays = config?.trialDays || 0
+  const { tier, trialEndAt } = computeTier(profile, trialDays)
 
   const month = currentMonth()
   const aiScanCount = profile.ai_scan_month === month ? profile.ai_scan_count || 0 : 0
 
-  // Counts only matter for free tier UI; cheap to compute.
-  let papersCount = 0
-  let questionBankCount = 0
-  if (tier === 'free' || tier === 'trial') {
-    const [{ count: pCount }, { count: qCount }] = await Promise.all([
-      supabaseAdmin
-        .from('papers')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', profile.id)
-        .eq('deleted', false),
-      supabaseAdmin.from('question_bank').select('*', { count: 'exact', head: true }).eq('user_id', profile.id),
-    ])
-    papersCount = pCount || 0
-    questionBankCount = qCount || 0
-  }
+  const opsPerPaper = config?.creditConfig?.ops_per_paper || 25
+  const bdtPerPaper = config?.creditConfig?.bdt_per_paper || 10
+  const balance = profile.ai_op_credits ?? 0
 
   return {
     uid: profile.id,
@@ -47,40 +36,123 @@ async function buildUserPayload(profile, trialDays) {
     createdAt: profile.created_at,
     tier,
     trialEndAt,
+    credits: {
+      aiOps: balance,
+      papersEquivalent: Math.floor(balance / opsPerPaper),
+      opsPerPaper,
+      bdtPerPaper,
+    },
     usage: {
       aiScan: aiScanCount,
-      aiScanLimit: FREE_LIMITS.ai_scan,
-      papers: papersCount,
-      papersLimit: FREE_LIMITS.papers,
-      questionBank: questionBankCount,
-      questionBankLimit: FREE_LIMITS.question_bank,
+      papers: 0,         // counts removed — kept fields for backwards-compat with frontend
+      questionBank: 0,
     },
   }
 }
 
 /**
  * GET /api/auth/me
- * Returns the authenticated user's profile + computed tier and usage.
- * Auto-creates the profile row on first hit.
+ * Returns the authenticated user's profile + credit balance.
+ * Auto-creates the profile row on first hit and grants signup bonus ops.
  */
 router.get('/me', requireAuth, async (req, res, next) => {
   try {
     let profile = req.profile
+    const config = await configService.getConfig().catch(() => null)
+    const signupBonus = config?.creditConfig?.signup_bonus_ops || 25
+
     if (!profile) {
+      // Fresh signup — apply admin-configured bonus on profile create.
       const insert = {
         id: req.user.uid,
         email: req.user.email,
         display_name: req.user.name,
         role: req.user.role || null,
         subscription: 'free',
+        ai_op_credits: signupBonus,
       }
-      const { data, error } = await supabaseAdmin.from('profiles').insert(insert).select().single()
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .insert(insert)
+        .select()
+        .single()
       if (error) throw error
       profile = data
+
+      try {
+        await supabaseAdmin.from('credit_purchases').insert({
+          user_id: profile.id,
+          amount_bdt: 0,
+          ai_ops_added: signupBonus,
+          source: 'signup',
+          note: 'Welcome bonus on signup',
+        })
+      } catch (e) {
+        console.warn('[auth/me] signup bonus history insert failed:', e.message)
+      }
+    } else {
+      // Existing profile — retroactively apply current signup_bonus_ops if
+      // this user has NEVER received any credit grant (no row in
+      // credit_purchases). Covers two cases:
+      //   1. Users created BEFORE the credit migration (got DB default 25 via backfill)
+      //   2. Users created via a Supabase trigger that bypasses our /me path
+      try {
+        const { count, error: histErr } = await supabaseAdmin
+          .from('credit_purchases')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', profile.id)
+        if (!histErr && (count || 0) === 0 && signupBonus > 0) {
+          // No prior history → grant current admin-configured signup bonus.
+          // We OVERWRITE existing ai_op_credits with signupBonus instead of
+          // adding, so admins can re-run with different value safely.
+          const { error: upErr } = await supabaseAdmin
+            .from('profiles')
+            .update({
+              ai_op_credits: signupBonus,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', profile.id)
+          if (!upErr) {
+            await supabaseAdmin.from('credit_purchases').insert({
+              user_id: profile.id,
+              amount_bdt: 0,
+              ai_ops_added: signupBonus,
+              source: 'signup',
+              note: 'Retroactive welcome bonus',
+            })
+            profile = { ...profile, ai_op_credits: signupBonus }
+          }
+        }
+      } catch (e) {
+        console.warn('[auth/me] retroactive signup bonus check failed:', e.message)
+      }
     }
-    const config = await configService.getConfig().catch(() => ({ trialDays: 0 }))
-    const user = await buildUserPayload(profile, config.trialDays || 0)
+    const user = await buildUserPayload(profile, config)
     res.json({ success: true, user })
+  } catch (err) {
+    next(err)
+  }
+})
+
+/**
+ * GET /api/auth/credits — quick balance + history endpoint for the dashboard widget.
+ */
+router.get('/credits', requireAuth, async (req, res, next) => {
+  try {
+    const [config, history] = await Promise.all([
+      configService.getConfig().catch(() => null),
+      creditService.getPurchaseHistory(req.user.uid, 20),
+    ])
+    const opsPerPaper = config?.creditConfig?.ops_per_paper || 25
+    const balance = req.profile?.ai_op_credits ?? 0
+    res.json({
+      success: true,
+      balance,
+      papersEquivalent: Math.floor(balance / opsPerPaper),
+      opsPerPaper,
+      bdtPerPaper: config?.creditConfig?.bdt_per_paper || 10,
+      history,
+    })
   } catch (err) {
     next(err)
   }
@@ -106,11 +178,15 @@ router.put('/set-role', requireAuth, async (req, res, next) => {
       updated_at: new Date().toISOString(),
     }
 
-    const { data, error } = await supabaseAdmin.from('profiles').upsert(upsert, { onConflict: 'id' }).select().single()
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .upsert(upsert, { onConflict: 'id' })
+      .select()
+      .single()
     if (error) throw error
 
-    const config = await configService.getConfig().catch(() => ({ trialDays: 0 }))
-    const user = await buildUserPayload(data, config.trialDays || 0)
+    const config = await configService.getConfig().catch(() => null)
+    const user = await buildUserPayload(data, config)
     res.json({ success: true, user })
   } catch (err) {
     next(err)

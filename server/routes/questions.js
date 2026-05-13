@@ -1,7 +1,6 @@
 const express = require('express')
 const questionService = require('../services/questionService')
 const { AppError } = require('../middleware/errorHandler')
-const { checkLimit } = require('../middleware/subscription')
 const { requireAuth } = require('../middleware/auth')
 
 const router = express.Router()
@@ -9,9 +8,9 @@ router.use(requireAuth)
 
 /**
  * POST /api/questions
- * Save a question to the bank.
+ * Save a question to the bank. No AI involved → no credit charge.
  */
-router.post('/', checkLimit('question_bank'), async (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const { type, data, subject, chapter, difficulty, tags } = req.body
     

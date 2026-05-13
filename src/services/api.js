@@ -37,6 +37,10 @@ api.interceptors.response.use(
         response.config.url,
       )
     }
+    // If the response carries a credit charge, signal widgets to refetch balance.
+    if (response.data?.creditsCharged && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('credits-changed'))
+    }
     return response
   },
   (error) => {
@@ -45,6 +49,21 @@ api.interceptors.response.use(
     // Just surface the error to the caller; the user can manually log out if their session truly expired.
     if (error.response?.status === 401) {
       console.warn('[api] 401 from', error.config?.url, '— check backend logs')
+    }
+    // 402 Payment Required + topUpRequired = AI credit pool exhausted.
+    // Dispatch a global event so the <OutOfCreditModal/> in App.jsx surfaces
+    // a friendly top-up flow instead of each calling component handling it.
+    if (error.response?.status === 402 && error.response?.data?.topUpRequired) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('out-of-credit', { detail: error.response.data }),
+        )
+      }
+    }
+    // After any successful AI op, the backend response carries `creditsCharged`.
+    // Trigger a balance refetch so widgets update without polling.
+    if (error.response?.data?.creditsCharged && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('credits-changed'))
     }
     return Promise.reject(error)
   },
