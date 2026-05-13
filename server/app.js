@@ -143,8 +143,55 @@ if (process.env.NODE_ENV === 'production') {
   app.use('/api', globalLimiter)
 }
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() })
+// Health endpoint — hit by external uptime monitors (e.g. UptimeRobot) every
+// 5 minutes. Purpose is twofold:
+//   1. Touch Supabase via a trivial SELECT so the free-tier project never
+//      hits its 7-day-inactivity auto-pause.
+//   2. Keep the Vercel serverless function warm to avoid cold-start latency
+//      on the next real user request.
+//
+// We swallow Supabase errors here — the monitor should treat the HTTP 200
+// itself as "alive". If Supabase is truly down we still return 200 so
+// monitors don't page us when nothing useful can be done at 3am; deeper
+// status is exposed via /api/health/deep.
+app.get('/api/health', async (_req, res) => {
+  let supabaseOk = false
+  try {
+    const { supabaseAdmin } = require('./config/supabase')
+    if (supabaseAdmin) {
+      // Cheapest possible touch — head-only count on a tiny table.
+      const { error } = await supabaseAdmin
+        .from('subscription_config')
+        .select('id', { count: 'exact', head: true })
+      supabaseOk = !error
+    }
+  } catch { /* swallow */ }
+  res.json({
+    status: 'ok',
+    supabase: supabaseOk ? 'reachable' : 'unreachable',
+    timestamp: new Date().toISOString(),
+  })
+})
+
+// Deep health check — returns non-200 if any critical dep is down. Wire
+// this into PagerDuty-style alerting later if you need it. Not used by
+// the basic uptime monitor.
+app.get('/api/health/deep', async (_req, res) => {
+  try {
+    const { supabaseAdmin } = require('./config/supabase')
+    if (!supabaseAdmin) {
+      return res.status(503).json({ status: 'degraded', reason: 'supabase_not_configured' })
+    }
+    const { error } = await supabaseAdmin
+      .from('subscription_config')
+      .select('id', { count: 'exact', head: true })
+    if (error) {
+      return res.status(503).json({ status: 'degraded', reason: error.message })
+    }
+    res.json({ status: 'ok', timestamp: new Date().toISOString() })
+  } catch (err) {
+    res.status(503).json({ status: 'degraded', reason: err.message })
+  }
 })
 
 // Rate-limited routes.

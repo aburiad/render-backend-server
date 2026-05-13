@@ -4,6 +4,7 @@ import api from '@/services/api'
 import usePaperStore from '@/store/paperStore'
 import { toast } from 'react-hot-toast'
 import { MathText } from '@/utils/mathRender'
+import { compressImageToDataUrl, approximateDataUrlBytes } from '@/utils/imageCompress'
 
 export default function MagicScanModal({ onClose }) {
   const [step, setStep] = useState('upload') // upload, processing, review
@@ -33,10 +34,22 @@ export default function MagicScanModal({ onClose }) {
   
   const addQuestion = usePaperStore(s => s.addQuestion)
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0]
-    if (file) {
-      setImageFile(file)
+    if (!file) return
+    setImageFile(file)
+    try {
+      // Compress to ≤1600px JPEG @ 0.85q — keeps Gemini OCR quality high
+      // while staying well under Vercel's 4.5MB request body cap.
+      const compressed = await compressImageToDataUrl(file)
+      const sizeKB = Math.round(approximateDataUrlBytes(compressed) / 1024)
+      if (sizeKB > 3500) {
+        toast.error('ছবি অনেক বড় (3.5MB+) — অন্য ছবি ব্যবহার করুন')
+        return
+      }
+      setImagePreview(compressed)
+    } catch (err) {
+      console.warn('[scan] image compression failed, using raw:', err.message)
       const reader = new FileReader()
       reader.onloadend = () => setImagePreview(reader.result)
       reader.readAsDataURL(file)
