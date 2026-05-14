@@ -241,22 +241,81 @@ export default function OmrTemplate({ paper, settings }) {
       </div>
 
       <style dangerouslySetInnerHTML={{ __html: `
+        /* Mobile preview-only zoom. Unlike CSS transform, \`zoom\` reflows
+           layout — the 210mm OMR collapses to a viewport-fitting size,
+           overflow goes away, and no transform-origin / width-compensation
+           dance is needed. Print CSS below resets it to 1 so the printed
+           output is always full A4. */
+        @media screen and (max-width: 767px) {
+          .omr-scale-wrap {
+            zoom: 0.42;
+          }
+        }
+        @media screen and (min-width: 768px) and (max-width: 1023px) {
+          .omr-scale-wrap {
+            zoom: 0.7;
+          }
+        }
         @media print {
+          /* OMR print isolation:
+             1. @page sets A4 with zero margin → printable area = 210×297mm
+             2. Hide every direct body child EXCEPT the OMR container's
+                ancestor chain so parent flex/padding can't shift content.
+                We don't know exact parent classes here, so instead we
+                pin the container itself absolutely to (0,0). This makes
+                its position independent of any wrapper layout. */
+          @page {
+            size: A4 portrait;
+            margin: 0;
+          }
           html, body {
             margin: 0 !important;
             padding: 0 !important;
-            overflow: hidden !important;
+            background: #fff !important;
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
           }
-          .omr-container {
+          body {
+            position: relative !important;
             width: 210mm !important;
+            min-width: 210mm !important;
+            max-width: 210mm !important;
+            height: 297mm !important;
+            overflow: hidden !important;
+          }
+          .omr-container {
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 210mm !important;
+            min-width: 210mm !important;
+            max-width: 210mm !important;
             height: 297mm !important;
             padding: 0 !important;
             margin: 0 !important;
+            box-sizing: border-box !important;
             box-shadow: none !important;
             border: none !important;
+            overflow: hidden !important;
+            transform: none !important;
             page-break-after: always !important;
+          }
+          /* Defensive: kill any parent transforms / centering that could
+             nudge an absolutely-positioned child off origin. Targets only
+             ancestors of .omr-container, not the OMR's own contents. */
+          .omr-container, .omr-container * {
+            box-sizing: border-box !important;
+          }
+          /* OmrPreview.jsx wraps the template in .omr-scale-wrap which
+             gets \`zoom\` on mobile preview. Print must always render at
+             true A4 — reset zoom and any scroll/overflow. */
+          .omr-scale-wrap {
+            zoom: 1 !important;
+            width: auto !important;
+            max-width: none !important;
+            overflow: visible !important;
+            -webkit-overflow-scrolling: auto !important;
+            touch-action: auto !important;
           }
         }
       `}} />

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import toast from 'react-hot-toast'
 import api from '@/services/api'
@@ -32,13 +32,17 @@ function formatDate(timestamp) {
 }
 
 /* ─── Paper Item row ─────────────────────────────────────── */
-function PaperItem({ paper, onLongPress, onDelete, onDuplicate, deleting, duplicating }) {
+function PaperItem({ paper, onLongPress, onDelete, onDuplicate, deleting, duplicating, omrPickerMode = false }) {
   const qCount = getQuestionCount(paper)
   const marks = getMarksTotal(paper)
   const initial = (paper.exam_title || paper.institution_name || 'প')?.charAt(0)
   const [menuOpen, setMenuOpen] = useState(false)
 
   const navigate = useNavigate()
+  // When the list was opened via "OMR শিট" quick action, the primary tap
+  // target jumps straight to the OMR sheet for that paper instead of the
+  // editor — that's what the user just selected the paper for.
+  const primaryHref = omrPickerMode ? `/papers/${paper.id}/omr` : `/papers/${paper.id}`
 
   return (
     <>
@@ -60,7 +64,7 @@ function PaperItem({ paper, onLongPress, onDelete, onDuplicate, deleting, duplic
         >
           {/* Left clickable area (avatar + text) — navigates to paper */}
           <div
-            onClick={() => navigate(`/papers/${paper.id}`)}
+            onClick={() => navigate(primaryHref)}
             className="btn-press"
             style={{
               display: 'flex', alignItems: 'center', gap: 12,
@@ -164,6 +168,11 @@ function PaperItem({ paper, onLongPress, onDelete, onDuplicate, deleting, duplic
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>}
         />
         <BottomSheetItem
+          onClick={() => { setMenuOpen(false); navigate(`/papers/${paper.id}/omr`) }}
+          label="OMR শিট"
+          icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m-7-8h8a2 2 0 012 2v10a2 2 0 01-2 2H7a2 2 0 01-2-2V6a2 2 0 012-2zm0 0V3m8 1V3" /></svg>}
+        />
+        <BottomSheetItem
           onClick={() => { setMenuOpen(false); onDuplicate(paper) }}
           label={duplicating === paper.id ? 'কপি হচ্ছে...' : 'ডুপ্লিকেট করুন'}
           icon={<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>}
@@ -223,6 +232,11 @@ export default function PapersList() {
   const [duplicating, setDuplicating] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Dashboard-এর "OMR শিট" quick action `/papers?omr=1` দিয়ে আসে। সেক্ষেত্রে
+  // banner দেখাই এবং paper-card click সরাসরি OMR route-এ পাঠাই, যাতে user
+  // বুঝতে পারে কেন এই page-এ এলো।
+  const omrPickerMode = searchParams.get('omr') === '1'
   const clearPaper = usePaperStore((s) => s.clearPaper)
 
   useEffect(() => { fetchPapers() }, [])
@@ -298,6 +312,21 @@ export default function PapersList() {
       animate={{ opacity: 1 }}
       style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
     >
+      {/* OMR-picker mode banner: shown when arrived via /papers?omr=1 */}
+      {omrPickerMode && (
+        <div className="flex items-center gap-2 sm:gap-3 px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-rose-50 border border-rose-100">
+          <span className="text-base sm:text-lg flex-shrink-0">📋</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs sm:text-sm font-bold text-rose-900 m-0">
+              OMR-এর জন্য একটি প্রশ্নপত্র বাছাই করুন
+            </p>
+            <p className="text-[10px] sm:text-[11px] text-rose-600 m-0 mt-0.5 truncate">
+              যে paper-এ click করবেন, তার OMR sheet দেখা যাবে
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Page header (desktop only, mobile uses MobileHeader) */}
       <div className="hidden lg:flex" style={{ alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
         <div>
@@ -366,6 +395,7 @@ export default function PapersList() {
                 onDuplicate={handleDuplicate}
                 deleting={deleting}
                 duplicating={duplicating}
+                omrPickerMode={omrPickerMode}
               />
             ))}
           </AnimatePresence>

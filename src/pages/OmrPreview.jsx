@@ -43,47 +43,63 @@ export default function OmrPreview() {
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-4 print:p-0 print:bg-white overflow-y-auto no-scrollbar">
       {/* Control Bar */}
-      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-3 bg-white/80 backdrop-blur-md px-6 py-3 rounded-2xl shadow-xl border border-white print:hidden">
+      <div className="fixed top-3 sm:top-6 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-1.5 sm:gap-3 bg-white/85 backdrop-blur-md px-3 sm:px-6 py-1.5 sm:py-3 rounded-xl sm:rounded-2xl shadow-xl border border-white print:hidden max-w-[calc(100vw-16px)]">
         <button
           onClick={() => navigate(`/papers/${id}`)}
-          className="p-2 text-gray-500 hover:text-gray-900 transition-colors"
+          className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-900 transition-colors flex-shrink-0"
           title="ফিরে যান"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7 7-7m8 14l-7-7 7-7" />
           </svg>
         </button>
-        <div className="h-6 w-px bg-gray-200 mx-1" />
+        <div className="h-5 sm:h-6 w-px bg-gray-200" />
         <button
           onClick={() => setIsModalOpen(true)}
-          className="p-2 text-gray-500 hover:text-gray-900 transition-colors"
+          className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-900 transition-colors flex-shrink-0"
           title="সেটিংস পরিবর্তন করুন"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </button>
-        <span className="text-sm font-bold text-gray-700">OMR প্রিভিউ</span>
+        <span className="hidden sm:inline text-sm font-bold text-gray-700">OMR প্রিভিউ</span>
         <button
           onClick={() => window.print()}
           disabled={!omrSettings}
-          className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all ${
-            !omrSettings 
-              ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-              : 'bg-blue-600 text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0'
+          className={`flex items-center gap-1 sm:gap-2 px-2.5 py-1.5 sm:px-5 sm:py-2.5 rounded-lg sm:rounded-xl font-bold text-[11px] sm:text-sm transition-all flex-shrink-0 ${
+            !omrSettings
+              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 text-white shadow-md sm:shadow-lg shadow-blue-500/20 hover:bg-blue-700'
           }`}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
           </svg>
-          প্রিন্ট করুন
+          প্রিন্ট
         </button>
       </div>
 
       <div className="animate-in fade-in zoom-in duration-500 pb-20">
         {omrSettings ? (
-          <OmrTemplate paper={paper} settings={omrSettings} />
+          /* OMR preview wrapper. Horizontal scroll on mobile (drag to
+             see the whole sheet); on desktop the OMR fits naturally so
+             scroll never appears. Print CSS in OmrTemplate cancels this
+             wrapper, so PDF/print output is always full A4. */
+          <div
+            className="omr-scale-wrap no-scrollbar"
+            style={{
+              width: '100%',
+              maxWidth: '100%',
+              overflowX: 'auto',
+              overflowY: 'hidden',
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-x pan-y',
+            }}
+          >
+            <OmrTemplate paper={paper} settings={omrSettings} />
+          </div>
         ) : (
           <div className="flex flex-col items-center justify-center min-h-[70vh] text-gray-400 gap-4">
             <svg className="w-20 h-20 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
