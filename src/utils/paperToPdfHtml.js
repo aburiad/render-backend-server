@@ -116,7 +116,12 @@ export function buildPaperHtmlForServerPdf({ paperNode, paper, settings = {} }) 
   const lang = document.documentElement.lang || 'bn'
 
   // Page-size CSS — `preferCSSPageSize: true` on the server picks this up.
-  const pageSizeCss = `@page { size: ${pageFormat} ${isLandscape ? 'landscape' : 'portrait'}; margin: 0; }`
+  // Vertical margin 14mm matches the legacy html2pdf path (`margin: [14, 0, 14, 0]`)
+  // so every page after page 1 gets the same top/bottom whitespace. Horizontal
+  // padding (12mm) is baked into the paperRef wrapper inline-style, so we keep
+  // horizontal margin = 0 to avoid double padding.
+  const marginCss = settings.marginCss || '14mm 0'
+  const pageSizeCss = `@page { size: ${pageFormat} ${isLandscape ? 'landscape' : 'portrait'}; margin: ${marginCss}; }`
 
   const html = `<!doctype html>
 <html lang="${lang}">
