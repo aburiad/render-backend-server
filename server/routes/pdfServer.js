@@ -5,7 +5,6 @@ const { AppError } = require('../middleware/errorHandler')
 const { requireAuth } = require('../middleware/auth')
 
 const router = express.Router()
-router.use(requireAuth)
 
 function safeFilename(name, fallback = 'paper') {
   const cleaned = String(name || fallback)
@@ -15,11 +14,16 @@ function safeFilename(name, fallback = 'paper') {
   return (cleaned || fallback) + '.pdf'
 }
 
-// GET /api/pdf-server/status — lightweight probe so the frontend can
-// disable the button when the external server isn't configured yet.
+// GET /api/pdf-server/status — public probe (no auth) so the frontend
+// can detect whether the external Puppeteer service is configured, and
+// so admins can verify env wiring directly from a browser.
 router.get('/status', (_req, res) => {
   res.json({ success: true, configured: pdfServerClient.isConfigured() })
 })
+
+// Auth gate for everything after this — the actual PDF render needs
+// a logged-in user (paper ownership check).
+router.use(requireAuth)
 
 /**
  * POST /api/pdf-server/papers/:id
