@@ -1,6 +1,7 @@
 import PaperTemplate from '@/components/paper/PaperTemplate'
 import api from '@/services/api'
 import Loader from '@/components/shared/Loader'
+import { buildPaperHtmlForServerPdf } from '@/utils/paperToPdfHtml'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -17,6 +18,9 @@ export default function PDFPreview() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [downloading, setDownloading] = useState(false)
+  // Independent flag for the server-side (Puppeteer) PDF path so the
+  // two download buttons can show their own loading states.
+  const [downloadingServer, setDownloadingServer] = useState(false)
   const [previewScale, setPreviewScale] = useState(1)
   const [previewBox, setPreviewBox] = useState({ width: 0, height: 0 })
 
@@ -285,6 +289,63 @@ export default function PDFPreview() {
     }
   }
 
+  // Server-side PDF render via the Puppeteer microservice. Higher
+  // fidelity than html2pdf for complex math + Bengali typography, but
+  // requires the PDF server to be deployed and PDF_SERVER_URL +
+  // PDF_SERVER_API_KEY to be set on the main app. On Render's free
+  // tier the first request may take 30–60s while the dyno wakes up.
+  async function handleServerDownload() {
+    if (!paperRef.current || downloadingServer) return
+    setDownloadingServer(true)
+    const toastId = toast.loading('সার্ভারে PDF তৈরি হচ্ছে (প্রথমবার ৩০-৬০ সেকেন্ড লাগতে পারে)…')
+    try {
+      try { await document.fonts.ready } catch { /* swallow */ }
+
+      const { html, filename } = buildPaperHtmlForServerPdf({
+        paperNode: paperRef.current,
+        paper,
+        settings: { font, size, spacing, orientation, columnGap },
+      })
+
+      const res = await api.post(
+        `/pdf-server/papers/${paper.id}`,
+        { html, filename: `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}` },
+        { responseType: 'blob', timeout: 120000 },
+      )
+
+      const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+      toast.success('সার্ভার PDF ডাউনলোড সম্পন্ন', { id: toastId })
+    } catch (err) {
+      console.error('[PDFPreview] server download failed:', err)
+      // axios + blob responseType still gives us err.response.data as a Blob;
+      // try to extract the JSON error message for the toast.
+      let msg = 'সার্ভার PDF তৈরি করা যায়নি'
+      const blob = err?.response?.data
+      if (blob instanceof Blob && blob.type.includes('json')) {
+        try {
+          const text = await blob.text()
+          const json = JSON.parse(text)
+          if (json?.error || json?.message) msg = json.error || json.message
+        } catch { /* swallow */ }
+      } else if (err?.response?.status === 503) {
+        msg = 'PDF সার্ভার এখনও কনফিগার হয়নি'
+      } else if (err?.code === 'ECONNABORTED') {
+        msg = 'সার্ভার সাড়া দিচ্ছে না — পরে আবার চেষ্টা করুন'
+      }
+      toast.error(msg, { id: toastId })
+    } finally {
+      setDownloadingServer(false)
+    }
+  }
+
   // Core print routine. Clone the paper into a body-root .print-host
   // wrapper so the print CSS in index.css cleanly hides the rest of the
   // app; inject an @page rule for the current orientation; call
@@ -410,6 +471,27 @@ export default function PDFPreview() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
             {downloading ? '...' : 'PDF'}
+          </button>
+
+          {/* Server-side PDF — routes through the external Puppeteer
+              microservice. Highest fidelity (real Chromium print engine
+              on the server, no client RAM pressure). First request on
+              Render free tier can take 30-60s while the dyno wakes up. */}
+          <button
+            onClick={handleServerDownload}
+            disabled={!paper || downloadingServer}
+            title="সার্ভার সাইড PDF (উচ্চ গুণমান, প্রথমবার একটু সময় নিতে পারে)"
+            className="px-2.5 sm:px-4 h-8 sm:h-9 flex items-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-xl bg-violet-600 text-white text-[11px] sm:text-sm font-semibold disabled:opacity-40 btn-press shadow-md sm:shadow-lg shadow-violet-600/25 flex-shrink-0"
+          >
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
+            </svg>
+            {downloadingServer ? '...' : (
+              <>
+                <span className="sm:hidden">Server</span>
+                <span className="hidden sm:inline">Server PDF</span>
+              </>
+            )}
           </button>
 
           {/* Native PDF Download — uses the browser's own print engine,
