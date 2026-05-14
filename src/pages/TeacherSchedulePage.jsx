@@ -5,6 +5,7 @@ import toast from 'react-hot-toast'
 import api from '@/services/api'
 import { buildTeacherSchedule } from '@/utils/teacherSchedule'
 import TeacherScheduleTemplate from '@/components/routine/TeacherScheduleTemplate'
+import Loader from '@/components/shared/Loader'
 
 export default function TeacherSchedulePage() {
   const { name } = useParams()
@@ -197,10 +198,7 @@ export default function TeacherSchedulePage() {
         }}
       >
         {loading ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-            <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-500">লোড হচ্ছে...</p>
-          </div>
+          <Loader message="শিডিউল লোড হচ্ছে..." />
         ) : schedule?.totalSlots === 0 ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3 px-6 text-center">
             <div style={{ fontSize: 48 }}>👨‍🏫</div>

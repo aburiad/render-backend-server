@@ -1,7 +1,8 @@
 import PaperTemplate from '@/components/paper/PaperTemplate'
 import api from '@/services/api'
+import Loader from '@/components/shared/Loader'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 
@@ -9,11 +10,15 @@ export default function PDFPreview() {
   const { id } = useParams()
   const navigate = useNavigate()
   const paperRef = useRef(null)
+  const previewWrapRef = useRef(null)
+  const paperSheetRef = useRef(null)
 
   const [paper, setPaper] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [downloading, setDownloading] = useState(false)
+  const [previewScale, setPreviewScale] = useState(1)
+  const [previewBox, setPreviewBox] = useState({ width: 0, height: 0 })
 
   const [variant, setVariant] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -103,6 +108,62 @@ export default function PDFPreview() {
     }
     return arr
   }, [paper?.questions, variant])
+
+  // Auto-scale the A4 sheet down so it fits the preview container's width.
+  // Uses transform: scale() which does NOT affect the captured element's
+  // layout dimensions, so PDF generation (which reads paperRef.offsetWidth)
+  // stays at full A4 size. ResizeObserver re-fires on window resize,
+  // orientation change, and font/spacing/content changes.
+  // useLayoutEffect so the scale is applied BEFORE first paint (no flash
+  // of overflowing unscaled paper).
+  useLayoutEffect(() => {
+    const wrap = previewWrapRef.current
+    const sheet = paperSheetRef.current
+    if (!wrap || !sheet) return
+    let raf = 0
+    const compute = () => {
+      const availW = wrap.clientWidth
+      const paperEl = paperRef.current
+      // Use the maximum of every "could-overflow" width — the outer sheet,
+      // the inner paperRef's content extent, and any children pushing past
+      // the column (long Bengali words, wide images, KaTeX math). Without
+      // this the page mostly fits but a stray overflow still bleeds past
+      // the viewport on mobile.
+      const sheetW = Math.max(
+        sheet.offsetWidth,
+        sheet.scrollWidth,
+        paperEl?.scrollWidth || 0,
+      )
+      const sheetH = Math.max(sheet.offsetHeight, sheet.scrollHeight)
+      if (!sheetW || !availW) {
+        raf = requestAnimationFrame(compute)
+        return
+      }
+      // 8px buffer prevents sub-pixel overshoot at narrow widths.
+      const s = Math.min(1, (availW - 8) / sheetW)
+      setPreviewScale(s)
+      // Math.ceil so sub-pixel rounding never clips the bottom row of
+      // rendered content. Width must stay <= availW so we use floor with
+      // a tiny pad.
+      setPreviewBox({
+        width: Math.min(availW, Math.ceil(sheetW * s)),
+        height: Math.ceil(sheetH * s) + 8,
+      })
+    }
+    compute()
+    const ro = new ResizeObserver(compute)
+    ro.observe(wrap)
+    ro.observe(sheet)
+    const onResize = () => compute()
+    window.addEventListener('resize', onResize)
+    window.addEventListener('orientationchange', onResize)
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+      window.removeEventListener('resize', onResize)
+      window.removeEventListener('orientationchange', onResize)
+    }
+  }, [isLandscape, paper?.id, renderedQuestions.length, font, size, spacing, columnGap, variant, loading])
 
   async function handleDownload() {
     if (!paperRef.current || downloading) return
@@ -291,48 +352,49 @@ export default function PDFPreview() {
       className="max-w-4xl mx-auto"
     >
       {/* Top bar — hidden on print */}
-      <div className="flex items-center justify-between mb-4 no-print">
-        <div className="flex items-center gap-3">
+      <div className="flex items-center justify-between gap-2 mb-4 no-print">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Link
             to={`/papers/${id}`}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg sm:rounded-xl bg-gray-100 hover:bg-gray-200 transition-colors flex-shrink-0"
           >
-            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
             </svg>
           </Link>
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">PDF প্রিভিউ</h1>
-            <p className="text-[11px] text-gray-400">
+          <div className="min-w-0">
+            <h1 className="text-sm sm:text-lg font-bold text-gray-900 truncate">PDF প্রিভিউ</h1>
+            <p className="text-[10px] sm:text-[11px] text-gray-400 truncate">
               {loading ? 'লোড হচ্ছে...' : error ? 'ত্রুটি' : downloading ? 'PDF তৈরি হচ্ছে...' : 'প্রস্তুত'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="flex bg-gray-100 rounded-xl p-0.5 text-xs">
+        <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+          <div className="flex bg-gray-100 rounded-lg sm:rounded-xl p-0.5">
             {[
-              { val: null, label: 'সেট A' },
-              { val: 'B', label: 'সেট B' },
+              { val: null, label: 'A' },
+              { val: 'B', label: 'B' },
             ].map((opt) => (
               <button
                 key={opt.label}
                 onClick={() => setVariant(opt.val)}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                className={`px-2 sm:px-3 py-1 sm:py-1.5 rounded-md sm:rounded-lg font-medium transition-colors text-[10px] sm:text-xs ${
                   variant === opt.val ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
-                {opt.label}
+                <span className="sm:hidden">{opt.label}</span>
+                <span className="hidden sm:inline">সেট {opt.label}</span>
               </button>
             ))}
           </div>
 
           <button
             onClick={() => setShowSettings(true)}
-            className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 btn-press"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg sm:rounded-xl bg-gray-100 text-gray-600 hover:bg-gray-200 btn-press flex-shrink-0"
             title="সেটিংস"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+            <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
@@ -342,9 +404,9 @@ export default function PDFPreview() {
             onClick={handleDownload}
             disabled={!paper || downloading}
             title="দ্রুত PDF (কিছু গণিত সমস্যা থাকতে পারে)"
-            className="px-4 h-9 flex items-center gap-1.5 rounded-xl bg-blue-600 text-white text-sm font-semibold disabled:opacity-40 btn-press shadow-lg shadow-blue-600/25"
+            className="px-2.5 sm:px-4 h-8 sm:h-9 flex items-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-xl bg-blue-600 text-white text-[11px] sm:text-sm font-semibold disabled:opacity-40 btn-press shadow-md sm:shadow-lg shadow-blue-600/25 flex-shrink-0"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
             {downloading ? '...' : 'PDF'}
@@ -359,82 +421,100 @@ export default function PDFPreview() {
             onClick={handleNativePdf}
             disabled={!paper}
             title='Print/Save — Destination থেকে "Save as PDF" সিলেক্ট করুন'
-            className="px-4 h-9 flex items-center gap-1.5 rounded-xl bg-emerald-600 text-white text-sm font-semibold disabled:opacity-40 btn-press shadow-lg shadow-emerald-600/25"
+            className="px-2.5 sm:px-4 h-8 sm:h-9 flex items-center gap-1 sm:gap-1.5 rounded-lg sm:rounded-xl bg-emerald-600 text-white text-[11px] sm:text-sm font-semibold disabled:opacity-40 btn-press shadow-md sm:shadow-lg shadow-emerald-600/25 flex-shrink-0"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            Print/Save
+            <span className="sm:hidden">Print</span>
+            <span className="hidden sm:inline">Print/Save</span>
           </button>
         </div>
       </div>
 
       {/* Preview area — neutral desk-like backdrop, equal gap on all 4 sides */}
       <div
-        className="rounded-2xl no-print-bg"
+        className="rounded-2xl no-print-bg p-0 lg:px-3 lg:py-8"
         style={{
           background: '#e5e7eb',
-          padding: '24px',
           minHeight: '60vh',
-          overflow: 'auto',
+          overflow: 'hidden',
         }}
       >
         {loading ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-            <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-500">লোড হচ্ছে...</p>
-          </div>
+          <Loader message="PDF প্রিভিউ লোড হচ্ছে..." />
         ) : error ? (
           <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
             <p className="text-sm text-gray-600">{error}</p>
           </div>
         ) : paper ? (
           /*
-           * Centering trick for content that may be wider than its parent:
-           *   - inner uses display:flex + justifyContent:center
-           *   - inner has min-width: max-content so it grows to fit the paper
-           *   - parent has overflow:auto so it scrolls when needed
-           * Result: paper is always centered when there's room, scrollable when not.
+           * Auto-scale wrapper:
+           *   - previewWrapRef measures the available width
+           *   - paperSheetRef is the unscaled A4 sheet (offsetWidth = 210mm/297mm)
+           *   - We apply transform:scale(s) so the sheet visually shrinks to fit
+           *   - The outer "scale-box" div is sized to the SCALED dimensions so
+           *     the surrounding layout doesn't reserve full A4 space
+           *   - PDF capture reads paperRef.offsetWidth which is unaffected by
+           *     CSS transforms, so the generated PDF is still full A4
            */
           <div
+            ref={previewWrapRef}
             style={{
+              width: '100%',
               display: 'flex',
               justifyContent: 'center',
-              minWidth: 'max-content',
+              alignItems: 'flex-start',
+              overflow: 'hidden',
             }}
           >
-            {/*
-              paperRef captures a full-A4-wide wrapper that BAKES IN the 12mm
-              horizontal padding. So when html2pdf places the captured image
-              into A4 with jsPDF horizontal margin = 0, the visible page
-              margin comes from inside the image itself — no chance for
-              html2pdf's image scaling to shrink the horizontal margin.
-              Vertical margin still comes from jsPDF (so every page after a
-              break has consistent top/bottom whitespace).
-              Width switches with orientation: portrait = 210mm, landscape = 297mm.
-            */}
             <div
-              className="paper-sheet-shadow"
-              style={{ flexShrink: 0, padding: '14mm 0' }}
+              style={{
+                width: previewBox.width ? `${previewBox.width}px` : '100%',
+                height: previewBox.height ? `${previewBox.height}px` : 'auto',
+                maxWidth: '100%',
+                overflow: 'visible',
+              }}
             >
+              {/*
+                paperRef captures a full-A4-wide wrapper that BAKES IN the 12mm
+                horizontal padding. So when html2pdf places the captured image
+                into A4 with jsPDF horizontal margin = 0, the visible page
+                margin comes from inside the image itself — no chance for
+                html2pdf's image scaling to shrink the horizontal margin.
+                Vertical margin still comes from jsPDF (so every page after a
+                break has consistent top/bottom whitespace).
+                Width switches with orientation: portrait = 210mm, landscape = 297mm.
+              */}
               <div
-                ref={paperRef}
+                ref={paperSheetRef}
+                className="paper-sheet-shadow"
                 style={{
-                  width: isLandscape ? '297mm' : '210mm',
-                  padding: '0 12mm',
-                  boxSizing: 'border-box',
-                  background: '#fff',
+                  flexShrink: 0,
+                  padding: previewScale < 1 ? '0 0 14mm 0' : '14mm 0',
+                  transform: `scale(${previewScale})`,
+                  transformOrigin: 'top left',
                 }}
               >
-                <PaperTemplate
-                  paper={{ ...paper, set_variant: variant || paper.set_variant }}
-                  questions={renderedQuestions}
-                  font={font}
-                  size={size}
-                  spacing={spacing}
-                  orientation={orientation}
-                  columnGap={columnGap || undefined}
-                />
+                <div
+                  ref={paperRef}
+                  style={{
+                    width: isLandscape ? '297mm' : '210mm',
+                    padding: '12px 12mm',
+                    boxSizing: 'border-box',
+                    background: '#fff',
+                  }}
+                >
+                  <PaperTemplate
+                    paper={{ ...paper, set_variant: variant || paper.set_variant }}
+                    questions={renderedQuestions}
+                    font={font}
+                    size={size}
+                    spacing={spacing}
+                    orientation={orientation}
+                    columnGap={columnGap || undefined}
+                  />
+                </div>
               </div>
             </div>
           </div>

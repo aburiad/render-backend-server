@@ -4,6 +4,37 @@ import { motion, AnimatePresence } from 'framer-motion'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
 import { MathText } from '@/utils/mathRender'
+import Loader from '@/components/shared/Loader'
+import Spinner from '@/components/shared/Spinner'
+import MathLiveEditor from '@/components/questions/MathLiveEditor'
+
+/**
+ * Textarea + math-keyboard button group for student exam answers.
+ *
+ * MathLiveEditor needs a stable `inputRef` per textarea. Since the exam
+ * portal renders textareas inside a `.map()` (one per sub-question), we
+ * extract this into a self-contained component so each instance owns its
+ * own ref. `onChange(newValue)` is called both when the user types and
+ * when MathLive inserts/replaces a LaTeX block at the cursor.
+ */
+function AnswerTextarea({ value, onChange, placeholder, minH = '50px' }) {
+  const ref = useRef(null)
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-2">
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="flex-1 min-w-0 p-2 sm:p-3 bg-gray-50 border border-gray-100 rounded-lg sm:rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none"
+        style={{ minHeight: minH }}
+      />
+      <div className="flex justify-end sm:block flex-shrink-0">
+        <MathLiveEditor inputRef={ref} onInsert={onChange} />
+      </div>
+    </div>
+  )
+}
 
 export default function ExamPortal() {
   const { examId } = useParams()
@@ -102,7 +133,7 @@ export default function ExamPortal() {
   if (step === 'loading') {
     return (
       <div className="h-full flex items-center justify-center bg-gray-50">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <Loader message="পরীক্ষা লোড হচ্ছে..." />
       </div>
     )
   }
@@ -187,14 +218,14 @@ export default function ExamPortal() {
             className="pb-32"
           >
             {/* Header / Timer */}
-            <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm px-4 py-3">
-              <div className="max-w-3xl mx-auto flex items-center justify-between">
-                <div>
-                  <h2 className="font-bold text-gray-900 truncate max-w-[200px] sm:max-w-md">{exam.title}</h2>
-                  <p className="text-[10px] text-gray-500">{studentInfo.name}</p>
+            <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 shadow-sm px-3 sm:px-4 py-2 sm:py-3">
+              <div className="max-w-3xl mx-auto flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="text-sm sm:text-base font-bold text-gray-900 truncate">{exam.title}</h2>
+                  <p className="text-[9px] sm:text-[10px] text-gray-500 truncate">{studentInfo.name}</p>
                 </div>
-                <div className={`px-4 py-2 rounded-xl flex items-center gap-2 font-mono font-bold text-lg ${timeLeft < 300 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-gray-900 text-white'}`}>
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className={`px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg sm:rounded-xl flex items-center gap-1.5 sm:gap-2 font-mono font-bold text-sm sm:text-lg flex-shrink-0 ${timeLeft < 300 ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-gray-900 text-white'}`}>
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   {formatTime(timeLeft)}
@@ -202,27 +233,27 @@ export default function ExamPortal() {
               </div>
             </div>
 
-            <div className="max-w-3xl mx-auto px-4 pt-8 space-y-6">
+            <div className="max-w-3xl mx-auto px-3 sm:px-4 pt-4 sm:pt-8 space-y-3 sm:space-y-6">
               {exam.questions.map((q, i) => (
-                <div key={q.id} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-4">
-                  <div className="flex items-start gap-3">
-                    <span className="w-6 h-6 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center font-bold text-xs flex-shrink-0 mt-0.5">
+                <div key={q.id} className="bg-white p-3 sm:p-6 rounded-2xl sm:rounded-[2rem] border border-gray-100 shadow-sm space-y-3 sm:space-y-4">
+                  <div className="flex items-start gap-2 sm:gap-3">
+                    <span className="w-5 h-5 sm:w-6 sm:h-6 bg-blue-50 text-blue-600 rounded-md sm:rounded-lg flex items-center justify-center font-bold text-[10px] sm:text-xs flex-shrink-0 mt-0.5">
                       {i + 1}
                     </span>
-                    <div className="flex-1">
-                      <div className="text-gray-900 font-medium leading-relaxed">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm sm:text-base text-gray-900 font-medium leading-relaxed break-words">
                         <MathText text={q.question || q.stimulus || q.sentence || ''} />
                       </div>
                       {q.sub_questions && (
-                         <div className="mt-4 space-y-3 pl-4 border-l-2 border-gray-50">
+                         <div className="mt-3 sm:mt-4 space-y-2 sm:space-y-3 pl-2 sm:pl-4 border-l-2 border-gray-50">
                             {q.sub_questions.map((sq) => (
-                              <div key={sq.label} className="space-y-2">
-                                <div className="text-sm text-gray-700"><span className="font-bold mr-1">{sq.label}.</span> <MathText text={sq.text || ''} /></div>
-                                <textarea
-                                  placeholder="উত্তর লিখুন..."
+                              <div key={sq.label} className="space-y-1.5 sm:space-y-2">
+                                <div className="text-xs sm:text-sm text-gray-700 break-words"><span className="font-bold mr-1">{sq.label}.</span> <MathText text={sq.text || ''} /></div>
+                                <AnswerTextarea
                                   value={answers[`${q.id}_${sq.label}`] || ''}
-                                  onChange={(e) => handleAnswerChange(`${q.id}_${sq.label}`, e.target.value)}
-                                  className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 transition-all min-h-[60px] outline-none"
+                                  onChange={(val) => handleAnswerChange(`${q.id}_${sq.label}`, val)}
+                                  placeholder="উত্তর লিখুন..."
+                                  minH="50px"
                                 />
                               </div>
                             ))}
@@ -232,7 +263,7 @@ export default function ExamPortal() {
                   </div>
 
                   {q.type === 'MCQ' && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 mt-3 sm:mt-4">
                       {['a', 'b', 'c', 'd'].map((opt, oi) => {
                         const optVal = q[`option_${opt}`]
                         if (!optVal) return null
@@ -241,18 +272,18 @@ export default function ExamPortal() {
                           <button
                             key={opt}
                             onClick={() => handleAnswerChange(q.id, opt)}
-                            className={`flex items-center gap-3 p-4 rounded-2xl border text-left transition-all ${
+                            className={`flex items-center gap-2 sm:gap-3 p-2.5 sm:p-4 rounded-xl sm:rounded-2xl border text-left transition-all ${
                               isSelected
                                 ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-600/20'
                                 : 'bg-gray-50 border-gray-50 text-gray-700 hover:border-gray-200'
                             }`}
                           >
-                            <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-bold border ${
+                            <span className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg flex items-center justify-center text-[10px] sm:text-xs font-bold border flex-shrink-0 ${
                               isSelected ? 'bg-white/20 border-white/40' : 'bg-white border-gray-200'
                             }`}>
                               {['ক', 'খ', 'গ', 'ঘ'][oi]}
                             </span>
-                            <span className="text-sm font-medium"><MathText text={String(optVal)} /></span>
+                            <span className="text-xs sm:text-sm font-medium break-words min-w-0"><MathText text={String(optVal)} /></span>
                           </button>
                         )
                       })}
@@ -260,11 +291,11 @@ export default function ExamPortal() {
                   )}
 
                   {(q.type === 'short' || q.type === 'broad' || q.type === 'translation') && (
-                    <textarea
-                      placeholder="এখানে উত্তর লিখুন..."
+                    <AnswerTextarea
                       value={answers[q.id] || ''}
-                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                      className="w-full p-4 bg-gray-50 border border-gray-100 rounded-2xl text-sm focus:ring-2 focus:ring-blue-500 transition-all min-h-[100px] outline-none"
+                      onChange={(val) => handleAnswerChange(q.id, val)}
+                      placeholder="এখানে উত্তর লিখুন..."
+                      minH="80px"
                     />
                   )}
                 </div>
@@ -272,15 +303,15 @@ export default function ExamPortal() {
             </div>
 
             {/* Bottom bar */}
-            <div className="fixed bottom-0 left-0 right-0 p-6 bg-white/80 backdrop-blur-md border-t border-gray-100 z-40">
+            <div className="fixed bottom-0 left-0 right-0 p-3 sm:p-6 bg-white/80 backdrop-blur-md border-t border-gray-100 z-40">
               <div className="max-w-3xl mx-auto">
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="w-full py-4 bg-green-600 text-white rounded-2xl font-bold shadow-lg shadow-green-600/20 btn-press flex items-center justify-center gap-2"
+                  className="w-full py-3 sm:py-4 bg-green-600 text-white rounded-xl sm:rounded-2xl font-bold text-sm sm:text-base shadow-lg shadow-green-600/20 btn-press flex items-center justify-center gap-2"
                 >
                   {submitting ? (
-                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <Spinner size={20} color="#fff" />
                   ) : (
                     <>
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

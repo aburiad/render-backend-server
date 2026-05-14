@@ -1,20 +1,25 @@
 const creditService = require('../services/creditService')
+const userApiKeyService = require('../services/userApiKeyService')
 
 /**
  * Credit middleware. Must run AFTER `requireAuth` so `req.user` and
  * `req.profile` are populated.
  *
+ * BYO bypass: users who have AT LEAST ONE verified own API key are paying
+ * the provider directly — we MUST NOT bill them credits on top. Both
+ * `checkAiCredit` and `withChargedCredit` short-circuit when
+ * `userApiKeyService.userHasOwnKeys(uid)` is true.
+ *
  * Usage:
  *   router.post('/scan',
  *     requireAuth,
- *     checkAiCredit(1),           // ensures balance >= 1
+ *     checkAiCredit(1),           // ensures balance >= 1 (or BYO bypass)
  *     async (req, res, next) => {
  *       const result = await withChargedCredit(
  *         req.user.uid,
  *         req.body.paperId,
- *         1,                        // optimistic charge upfront
+ *         1,
  *         async () => aiService.scan(...),
- *         (out) => Math.max(0, (out.count || 1) - 1),  // extra credits if multi-question
  *       )
  *       res.json(result)
  *     }
@@ -43,6 +48,19 @@ function checkAiCredit(requiredOpsOrFn = 1) {
           : Number(req.body?.expectedOps) || requiredOpsOrFn
 
       const need = Number.isFinite(required) && required > 0 ? Math.floor(required) : 1
+
+      // BYO short-circuit: if the user has ANY stored API key of their
+      // own (verified or not), the AI cost is paid directly to the
+      // provider — they are not billed system credits. We deliberately
+      // don't require `is_verified` here because the post-save verify
+      // ping sometimes fails transiently, leaving a working key flagged
+      // unverified — which would otherwise charge credits despite the
+      // user having paid for their own provider access.
+      if (await userApiKeyService.userHasAnyOwnKey(req.user?.uid)) {
+        req.byoActive = true
+        req.creditCheck = { need: 0, balance: 'BYO', byo: true }
+        return next()
+      }
 
       // Use profile snapshot from requireAuth — saves an extra DB round-trip.
       // The actual decrement (after AI success) is atomic via RPC so this
@@ -106,6 +124,17 @@ async function chargeAiCredit(userId, paperId, count = 1) {
  * @param {Function} [extraChargeFn] — (result) => number — additional ops
  */
 async function withChargedCredit(userId, paperId, initialCharge, work, extraChargeFn) {
+  // BYO short-circuit: user pays the provider directly, no system credit.
+  // Matches the middleware: ANY stored key (verified or not) qualifies.
+  if (await userApiKeyService.userHasAnyOwnKey(userId)) {
+    const result = await work()
+    if (result && typeof result === 'object') {
+      result.creditsCharged = 0
+      result.byo = true
+    }
+    return result
+  }
+
   // Step 1: atomic pre-charge — race-safe via Postgres RPC.
   await creditService.decrementCredits(userId, initialCharge)
 

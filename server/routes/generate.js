@@ -16,12 +16,12 @@ router.post('/generate-question', checkAiCredit(1), async (req, res, next) => {
     const { image, paperId } = req.body
     if (!image) throw new AppError('Image is required', 400)
 
+    // Flat 1 credit per scan, regardless of how many questions are detected.
     const result = await withChargedCredit(
       req.user.uid,
       paperId || null,
       1,
       () => scanImage(image, 'image/jpeg', req.user.uid),
-      (out) => Math.max(0, (Number(out?.count) || 1) - 1),
     )
 
     res.json({

@@ -135,11 +135,6 @@ export default function MobileHeader({ className = '' }) {
               {title}
             </motion.h1>
           </AnimatePresence>
-          {isDashboard && (
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0 }}>
-              {user?.tier === 'pro' ? '✦ Pro' : user?.tier === 'trial' ? '✦ Trial' : 'Free'}
-            </p>
-          )}
         </div>
 
         {/* Right — user avatar + action menu */}

@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import api from '@/services/api'
 import NoticeTemplate from '@/components/notice/NoticeTemplate'
+import Loader from '@/components/shared/Loader'
 
 export default function NoticePreview() {
   const { id } = useParams()
@@ -171,10 +172,7 @@ export default function NoticePreview() {
         }}
       >
         {loading || !notice ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-            <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-500">লোড হচ্ছে...</p>
-          </div>
+          <Loader message="নোটিশ লোড হচ্ছে..." />
         ) : (
           <div style={{ display: 'flex', justifyContent: 'center', minWidth: 'max-content' }}>
             <div className="paper-sheet-shadow" style={{ flexShrink: 0, padding: '14mm 0' }}>

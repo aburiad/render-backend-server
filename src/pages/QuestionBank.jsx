@@ -136,6 +136,7 @@ function FilterChip({ label, active, onClick }) {
       onClick={onClick}
       className="btn-press"
       style={{
+        flexShrink: 0,
         padding: '8px 16px',
         borderRadius: 100,
         fontSize: 12,
@@ -254,15 +255,24 @@ export default function QuestionBank() {
             </div>
           </motion.div>
 
-          {/* ── Filter Chips ────────────────────────────────── */}
-          <motion.div variants={item}>
-            <div className="no-scrollbar" style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 4, margin: '0 -4px', paddingLeft: 4 }}>
-              <FilterChip label="সব ধরণের" active={filterType === 'all'} onClick={() => setFilterType('all')} />
-              {Object.entries(TYPE_LABELS).map(([val, label]) => (
-                <FilterChip key={val} label={label} active={filterType === val} onClick={() => setFilterType(val)} />
-              ))}
-            </div>
-          </motion.div>
+          {/* ── Filter Chips ──────────────────────────────────
+              Horizontal scroll was unreliable on mobile (AppShell's vertical
+              scroll context kept winning the gesture). Falling back to wrap:
+              chips just flow onto multiple rows — every chip is visible
+              without scroll, which is the more important UX. */}
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8,
+              paddingBottom: 4,
+            }}
+          >
+            <FilterChip label="সব ধরণের" active={filterType === 'all'} onClick={() => setFilterType('all')} />
+            {Object.entries(TYPE_LABELS).map(([val, label]) => (
+              <FilterChip key={val} label={label} active={filterType === val} onClick={() => setFilterType(val)} />
+            ))}
+          </div>
 
           {/* ── Questions List ──────────────────────────────── */}
           {filteredQuestions.length === 0 ? (

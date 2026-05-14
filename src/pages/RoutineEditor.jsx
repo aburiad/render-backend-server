@@ -10,6 +10,7 @@ import useRoutineStore, {
 import StimulusImage from '@/components/shared/StimulusImage'
 import SubjectPalette from '@/components/routine/SubjectPalette'
 import RoutineGrid from '@/components/routine/RoutineGrid'
+import Loader from '@/components/shared/Loader'
 
 export default function RoutineEditor() {
   const { id } = useParams()
@@ -91,11 +92,7 @@ export default function RoutineEditor() {
   }
 
   if (loading || !routine) {
-    return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    return <Loader message="রুটিন লোড হচ্ছে..." />
   }
 
   const set = (fields) => updateRoutine(fields)

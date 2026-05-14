@@ -15,11 +15,7 @@ export default function Modal({ isOpen, onClose, title, children, className = ''
   return (
     <AnimatePresence>
       {isOpen && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 100,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 20
-        }}>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -39,33 +35,25 @@ export default function Modal({ isOpen, onClose, title, children, className = ''
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`premium-modal ${className}`}
+            className={`premium-modal p-4 sm:p-6 rounded-2xl sm:rounded-[28px] ${className}`}
             style={{
               width: '100%', maxWidth: 400,
-              background: '#fff', borderRadius: 28,
+              background: '#fff',
               boxShadow: '0 20px 50px rgba(0,0,0,0.15)',
-              padding: '24px 20px', position: 'relative',
+              position: 'relative',
               zIndex: 101, overflow: 'hidden'
             }}
           >
             {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <h3 style={{ 
-                fontSize: 18, fontWeight: 800, color: '#0f172a', 
-                margin: 0, fontFamily: 'var(--font-bengali)' 
-              }}>
+            <div className="flex items-center justify-between mb-3 sm:mb-5">
+              <h3 className="text-base sm:text-lg font-extrabold text-slate-900 m-0" style={{ fontFamily: 'var(--font-bengali)' }}>
                 {title}
               </h3>
               <button
                 onClick={onClose}
-                className="btn-press"
-                style={{
-                  width: 32, height: 32, borderRadius: '50%',
-                  background: '#f1f5f9', border: 'none', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}
+                className="btn-press w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-100 border-0 cursor-pointer flex items-center justify-center flex-shrink-0"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth={2.5}>
+                <svg className="w-4 h-4 sm:w-[18px] sm:h-[18px]" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>

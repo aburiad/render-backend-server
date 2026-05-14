@@ -55,95 +55,79 @@ export default function QuestionWrapper({ question, index, displayNumber, childr
   }
 
   return (
-    <div style={{
-      background: '#fff', borderRadius: 24, border: '1px solid #f1f5f9',
-      boxShadow: 'var(--shadow-card)', overflow: 'hidden', position: 'relative'
-    }}>
+    <div
+      className="rounded-2xl sm:rounded-3xl border border-slate-100 overflow-hidden relative bg-white"
+      style={{ boxShadow: 'var(--shadow-card)' }}
+    >
       {/* Card Header & Controls */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '12px 14px 10px', background: '#fcfcfd',
-        borderBottom: '1px solid #f1f5f9'
-      }}>
+      <div
+        className="flex items-center gap-1.5 sm:gap-2.5 px-2 py-2 sm:px-3.5 sm:py-3 border-b border-slate-100"
+        style={{ background: '#fcfcfd' }}
+      >
         {/* Drag Handle */}
         <button
           {...dragHandleProps}
-          className="btn-press"
-          style={{
-            padding: 8, background: '#fff', borderRadius: 10,
-            border: '1px solid #e2e8f0', color: '#94a3b8',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'grab'
-          }}
+          className="btn-press p-1 sm:p-2 rounded-lg sm:rounded-xl flex items-center justify-center bg-white border border-slate-200 text-slate-400"
+          style={{ cursor: 'grab' }}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+          <svg className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M8 12h8" />
              <path strokeLinecap="round" strokeLinejoin="round" d="M12 5V4M12 20v-1M8 12H7M17 12h-1" />
           </svg>
         </button>
 
-        <span style={{ fontSize: 13, fontWeight: 900, color: '#94a3b8', minWidth: 20 }}>{(displayNumber != null ? displayNumber : index + 1)}.</span>
+        <span className="text-[11px] sm:text-[13px] font-black text-slate-400 min-w-[18px] sm:min-w-[20px]">
+          {(displayNumber != null ? displayNumber : index + 1)}.
+        </span>
 
-        <span style={{
-          fontSize: 10, fontWeight: 800, padding: '4px 10px',
-          borderRadius: 8, border: `1px solid ${colors.border}`,
-          background: colors.bg, color: colors.text,
-          textTransform: 'uppercase', letterSpacing: '0.02em'
-        }}>
+        <span
+          className="text-[9px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-md sm:rounded-lg uppercase truncate"
+          style={{
+            border: `1px solid ${colors.border}`,
+            background: colors.bg,
+            color: colors.text,
+            letterSpacing: '0.02em',
+          }}
+        >
           {TYPE_LABELS[question.type] || question.type}
         </span>
 
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
 
         {/* Action Group */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="flex items-center gap-1 sm:gap-1.5">
           <button
             onClick={handleSaveToBank}
             disabled={saving}
-            className="btn-press"
-            style={{
-              padding: 8, background: '#fff', borderRadius: 10,
-              border: '1px solid #e2e8f0', color: '#2563eb',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}
+            className="btn-press p-1 sm:p-2 rounded-lg sm:rounded-xl flex items-center justify-center bg-white border border-slate-200 text-blue-600"
             title="ব্যাংকে সেভ"
           >
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+             <svg className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
              </svg>
           </button>
           <button
             onClick={() => duplicateQuestion(question.id)}
-            className="btn-press"
-            style={{
-              padding: 8, background: '#fff', borderRadius: 10,
-              border: '1px solid #e2e8f0', color: '#f59e0b',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}
+            className="btn-press p-1 sm:p-2 rounded-lg sm:rounded-xl flex items-center justify-center bg-white border border-slate-200 text-amber-500"
             title="ডুপ্লিকেট"
           >
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+             <svg className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2" />
              </svg>
           </button>
           <button
             onClick={() => removeQuestion(question.id)}
-            className="btn-press"
-            style={{
-              padding: 8, background: '#fee2e2', borderRadius: 10,
-              border: '1px solid #fecaca', color: '#ef4444',
-              display: 'flex', alignItems: 'center', justifyContent: 'center'
-            }}
+            className="btn-press p-1 sm:p-2 rounded-lg sm:rounded-xl flex items-center justify-center bg-red-100 border border-red-200 text-red-500"
             title="ডিলিট"
           >
-             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
+             <svg className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.244 2.244 0 01-2.244 2.077H8.084a2.244 2.244 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
              </svg>
           </button>
         </div>
       </div>
 
-      <div style={{ padding: '20px 16px' }}>
+      <div className="px-3 py-3 sm:px-4 sm:py-5">
         {children}
       </div>
     </div>

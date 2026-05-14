@@ -7,12 +7,11 @@ import { useState } from 'react'
 // InputGroup defined outside component to prevent recreation on each render
 function InputGroup({ label, children, required }) {
   return (
-    <div style={{ marginBottom: 14 }}>
-      <label style={{ 
-        display: 'block', fontSize: 11, fontWeight: 700, 
-        color: '#64748b', marginBottom: 6, paddingLeft: 4,
-        textTransform: 'uppercase', letterSpacing: '0.02em'
-      }}>
+    <div className="mb-2.5 sm:mb-3.5">
+      <label
+        className="block text-[10px] sm:text-[11px] font-bold text-slate-500 mb-1 sm:mb-1.5 pl-1 uppercase"
+        style={{ letterSpacing: '0.02em' }}
+      >
         {label} {required && <span style={{ color: '#ef4444' }}>*</span>}
       </label>
       {children}
@@ -20,12 +19,20 @@ function InputGroup({ label, children, required }) {
   )
 }
 
+// Used for raw inline `style={textInputStyle}` legacy spots. New JSX should
+// prefer the responsive `text-input` className below for proper mobile sizing.
 const textInputStyle = {
   width: '100%', padding: '12px 14px', background: '#f8fafc',
   borderRadius: 14, border: '1px solid #e2e8f0', fontSize: 14,
   color: '#1e293b', outline: 'none', transition: 'all 0.2s',
   fontWeight: 500
 }
+
+// Responsive Tailwind variant that matches textInputStyle but scales down
+// on mobile (smaller padding, tighter radius, 13px text).
+const TEXT_INPUT_CN =
+  'w-full bg-slate-50 border border-slate-200 text-slate-800 outline-none transition-all font-medium ' +
+  'px-3 py-2 sm:px-3.5 sm:py-3 text-[13px] sm:text-sm rounded-xl sm:rounded-2xl'
 
 export default function PaperSetupForm() {
   const paper = usePaperStore((s) => s.currentPaper)
@@ -39,38 +46,37 @@ export default function PaperSetupForm() {
   }
 
   return (
-    <div style={{ 
-      background: '#fff', borderRadius: 24, border: '1px solid #f1f5f9',
-      boxShadow: 'var(--shadow-sm)', overflow: 'hidden'
-    }}>
+    <div
+      className="rounded-2xl sm:rounded-3xl border border-slate-100 overflow-hidden bg-white"
+      style={{ boxShadow: 'var(--shadow-sm)' }}
+    >
       {/* Header - always visible */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="btn-press"
-        style={{
-          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 20px', textAlign: 'left', background: '#fff', border: 'none'
-        }}
+        className="btn-press w-full flex items-center justify-between text-left bg-white border-0 px-3 py-2.5 sm:px-5 sm:py-4"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 14,
-            background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-            color: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+          <div
+            className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl flex items-center justify-center flex-shrink-0"
+            style={{
+              background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+              color: '#2563eb',
+            }}
+          >
+            <svg className="w-[18px] h-[18px] sm:w-[22px] sm:h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
             </svg>
           </div>
-          <div>
-            <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0 }}>পেপার সেটআপ</h3>
-            <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, margin: '2px 0 0' }}>
+          <div className="min-w-0">
+            <h3 className="text-[13px] sm:text-[15px] font-extrabold text-slate-900 m-0">পেপার সেটআপ</h3>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 font-semibold mt-0.5 m-0 truncate">
               {paper?.exam_title || 'প্রশ্নপত্রের প্রাথমিক তথ্য দিন'}
             </p>
           </div>
         </div>
         <svg
-          width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth={2.5}
+          className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0"
+          viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth={2.5}
           style={{ transition: 'transform 0.3s', transform: expanded ? 'rotate(180deg)' : 'none' }}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -84,9 +90,10 @@ export default function PaperSetupForm() {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
-            style={{ overflow: 'hidden', padding: '0 20px 24px', borderTop: '1px solid #f8fafc' }}
+            className="overflow-hidden px-3 sm:px-5 pb-3 sm:pb-6"
+            style={{ borderTop: '1px solid #f8fafc' }}
           >
-            <div style={{ height: 20 }} />
+            <div className="h-3 sm:h-5" />
             
             <InputGroup label="প্রতিষ্ঠানের নাম">
               <input
@@ -94,7 +101,7 @@ export default function PaperSetupForm() {
                 value={paper?.institution_name || ''}
                 onChange={(e) => handleChange('institution_name', e.target.value)}
                 placeholder="যেমন: ঢাকা কলেজিয়েট স্কুল"
-                style={textInputStyle}
+                className={TEXT_INPUT_CN}
                 key={paper?.id || 'new'}
               />
             </InputGroup>
@@ -105,18 +112,18 @@ export default function PaperSetupForm() {
                 value={paper?.exam_title || ''}
                 onChange={(e) => handleChange('exam_title', e.target.value)}
                 placeholder="যেমন: বার্ষিক পরীক্ষা — ২০২৬"
-                style={textInputStyle}
+                className={TEXT_INPUT_CN}
               />
             </InputGroup>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               <InputGroup label="শ্রেণি">
                 <input
                   type="text"
                   value={paper?.class_name || ''}
                   onChange={(e) => handleChange('class_name', e.target.value)}
                   placeholder="যেমন: ৯ম"
-                  style={textInputStyle}
+                  className={TEXT_INPUT_CN}
                 />
               </InputGroup>
               <InputGroup label="বিষয়">
@@ -125,7 +132,7 @@ export default function PaperSetupForm() {
                   value={paper?.subject || ''}
                   onChange={(e) => handleChange('subject', e.target.value)}
                   placeholder="যেমন: পদার্থবিজ্ঞান"
-                  style={textInputStyle}
+                  className={TEXT_INPUT_CN}
                 />
               </InputGroup>
             </div>
@@ -136,11 +143,11 @@ export default function PaperSetupForm() {
                 value={paper?.session_year || ''}
                 onChange={(e) => handleChange('session_year', e.target.value)}
                 placeholder="২০২৬"
-                style={textInputStyle}
+                className={TEXT_INPUT_CN}
               />
             </InputGroup>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               <InputGroup label="সময় (মিনিট)">
                 <input
                   type="number"
@@ -148,7 +155,7 @@ export default function PaperSetupForm() {
                   onChange={(e) => handleChange('time_minutes', Number(e.target.value))}
                   placeholder="60"
                   min={1}
-                  style={textInputStyle}
+                  className={TEXT_INPUT_CN}
                 />
               </InputGroup>
               <InputGroup label="পূর্ণমান">
@@ -158,7 +165,7 @@ export default function PaperSetupForm() {
                   onChange={(e) => handleChange('total_marks', Number(e.target.value))}
                   placeholder="100"
                   min={0}
-                  style={textInputStyle}
+                  className={TEXT_INPUT_CN}
                 />
               </InputGroup>
             </div>
@@ -169,16 +176,17 @@ export default function PaperSetupForm() {
                 onChange={(e) => handleChange('instructions', e.target.value)}
                 placeholder="যেমন: ডান পাশের সংখ্যাগুলো প্রশ্নের পূর্ণমান নির্দেশ করে। প্রতিটি বিভাগ থেকে নির্দিষ্ট সংখ্যক প্রশ্নের উত্তর দিতে হবে।"
                 rows={3}
-                style={{ ...textInputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+                className={`${TEXT_INPUT_CN} resize-y`}
+                style={{ fontFamily: 'inherit' }}
               />
             </InputGroup>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               <InputGroup label="লেআউট">
                 <select
                   value={paper?.layout || '1-column'}
                   onChange={(e) => handleChange('layout', e.target.value)}
-                  style={textInputStyle}
+                  className={TEXT_INPUT_CN}
                 >
                   <option value="1-column">১ কলাম</option>
                   <option value="2-column">২ কলাম</option>
@@ -189,7 +197,7 @@ export default function PaperSetupForm() {
                 <select
                   value={paper?.header_alignment || 'center'}
                   onChange={(e) => handleChange('header_alignment', e.target.value)}
-                  style={textInputStyle}
+                  className={TEXT_INPUT_CN}
                 >
                   <option value="left">বামে</option>
                   <option value="center">মাঝে</option>
@@ -199,7 +207,7 @@ export default function PaperSetupForm() {
             </div>
 
             <InputGroup label="সেট ভ্যারিয়েন্ট">
-              <div style={{ display: 'flex', gap: 10 }}>
+              <div className="flex gap-1.5 sm:gap-2.5">
                 {[
                   { value: null, label: 'কোনোটি নয়' },
                   { value: 'A', label: 'সেট A' },
@@ -211,9 +219,9 @@ export default function PaperSetupForm() {
                       key={opt.label}
                       type="button"
                       onClick={() => handleChange('set_variant', opt.value)}
+                      className="flex-1 py-2 px-1.5 sm:py-2.5 sm:px-3 text-[11px] sm:text-xs font-bold rounded-lg sm:rounded-xl transition-all"
                       style={{
-                        flex: 1, padding: '10px', fontSize: 12, fontWeight: 700,
-                        borderRadius: 12, transition: 'all 0.2s', border: '1px solid',
+                        border: '1px solid',
                         background: active ? '#eff6ff' : '#fff',
                         color: active ? '#2563eb' : '#64748b',
                         borderColor: active ? '#3b82f6' : '#e2e8f0',
@@ -229,12 +237,14 @@ export default function PaperSetupForm() {
 
             <ProGate feature="logo_upload">
               <InputGroup label="প্রতিষ্ঠানের লোগো">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                  <div style={{
-                    width: 60, height: 60, borderRadius: 16, border: '2px dashed #e2e8f0',
-                    background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    position: 'relative', overflow: 'visible'
-                  }}>
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <div
+                    className="w-12 h-12 sm:w-[60px] sm:h-[60px] rounded-xl sm:rounded-2xl flex items-center justify-center relative flex-shrink-0"
+                    style={{
+                      border: '2px dashed #e2e8f0',
+                      background: '#f8fafc',
+                    }}
+                  >
                     {paper?.logo_url ? (
                       <>
                         <img 
@@ -258,7 +268,7 @@ export default function PaperSetupForm() {
                       </svg>
                     )}
                   </div>
-                  <p style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, lineHeight: 1.4, maxWidth: 160 }}>
+                  <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium leading-snug max-w-[160px]">
                     প্রফেশনাল লুকের জন্য লোগো আপলোড করুন (সর্বোচ্চ 80x80px)
                   </p>
                 </div>
@@ -272,10 +282,10 @@ export default function PaperSetupForm() {
                   value={paper?.watermark || ''}
                   onChange={(e) => handleChange('watermark', e.target.value || null)}
                   placeholder="কাস্টম ওয়াটারমার্ক (খালি রাখলে থাকবে না)"
-                  style={textInputStyle}
+                  className={TEXT_INPUT_CN}
                 />
               ) : (
-                <div style={{ ...textInputStyle, color: '#94a3b8', fontStyle: 'italic', background: '#f1f5f9' }}>
+                <div className={`${TEXT_INPUT_CN} italic text-slate-400`} style={{ background: '#f1f5f9' }}>
                    AI Question Hub (Pro দরকার)
                 </div>
               )}

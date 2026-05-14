@@ -71,7 +71,7 @@ describe('ExamPortal', () => {
     it('should show loading spinner initially', () => {
       api.get.mockReturnValue(new Promise(() => {}))
       renderExamPortal()
-      expect(document.querySelector('.animate-spin')).toBeTruthy()
+      expect(document.querySelector('[role="status"]')).toBeTruthy()
     })
   })
 

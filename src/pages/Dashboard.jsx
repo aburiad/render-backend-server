@@ -81,25 +81,24 @@ const item = {
 /* ─── Sub-Components ─────────────────────────────────────── */
 function StatCard({ label, value, color }) {
   return (
-    <div style={{
-      background: '#fff',
-      padding: '16px 8px',
-      borderRadius: 16,
-      textAlign: 'center',
-      boxShadow: 'var(--shadow-card)',
-      border: '1px solid #f1f5f9',
-    }}>
-      <p style={{
-        fontSize: 24,
-        fontWeight: 800,
-        color: color,
-        margin: '0 0 2px',
-        lineHeight: 1,
-        fontFamily: 'var(--font-english)',
-      }}>
+    <div
+      className="bg-white text-center rounded-xl sm:rounded-2xl px-1.5 py-2.5 sm:px-2 sm:py-4 border border-slate-100"
+      style={{ boxShadow: 'var(--shadow-card)' }}
+    >
+      <p
+        className="text-[18px] sm:text-2xl font-extrabold mb-0.5"
+        style={{
+          color: color,
+          lineHeight: 1,
+          fontFamily: 'var(--font-english)',
+        }}
+      >
         {value}
       </p>
-      <p style={{ fontSize: 10, color: '#94a3b8', margin: 0, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+      <p
+        className="text-[9px] sm:text-[10px] font-bold uppercase m-0 leading-tight"
+        style={{ color: '#94a3b8', letterSpacing: '0.02em' }}
+      >
         {label}
       </p>
     </div>
@@ -110,40 +109,34 @@ function QuickActionCard({ action }) {
   return (
     <Link
       to={action.path}
-      className="btn-press"
-      style={{
-        borderRadius: 'var(--radius-lg)',
-        background: '#fff',
-        boxShadow: 'var(--shadow-card)',
-        padding: '12px 10px',
-        textDecoration: 'none',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 8,
-        textAlign: 'center',
-        border: '1px solid #f1f5f9',
-      }}
+      className="btn-press flex flex-col items-stretch text-center bg-white no-underline p-2 sm:p-3 gap-1.5 sm:gap-2 border border-slate-100 rounded-xl sm:rounded-2xl"
+      style={{ boxShadow: 'var(--shadow-card)' }}
     >
-      <div style={{
-        width: 36,
-        height: 36,
-        borderRadius: 'var(--radius-sm)',
-        background: action.gradient,
-        boxShadow: `0 3px 8px ${action.glow}`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        margin: '0 auto',
-      }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2}>
+      <div
+        className="w-7 h-7 sm:w-9 sm:h-9 rounded-md sm:rounded-lg flex items-center justify-center mx-auto"
+        style={{
+          background: action.gradient,
+          boxShadow: `0 3px 8px ${action.glow}`,
+        }}
+      >
+        <svg
+          className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]"
+          viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2}
+        >
           <path strokeLinecap="round" strokeLinejoin="round" d={action.icon} />
         </svg>
       </div>
       <div>
-        <p style={{ fontSize: 12, fontWeights: 700, color: 'var(--text-primary)', margin: '0 0 2px', lineHeight: 1.2 }}>
+        <p
+          className="text-[11px] sm:text-xs font-semibold m-0 leading-tight"
+          style={{ color: 'var(--text-primary)' }}
+        >
           {action.label}
         </p>
-        <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: 0, lineHeight: 1.3 }}>
+        <p
+          className="text-[9px] sm:text-[10px] m-0 mt-0.5 leading-tight"
+          style={{ color: 'var(--text-muted)' }}
+        >
           {action.description}
         </p>
       </div>
@@ -156,40 +149,32 @@ function PaperRow({ paper }) {
   return (
     <Link
       to={`/papers/${paper.id}`}
-      className="btn-press"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: '14px 16px',
-        textDecoration: 'none',
-        borderBottom: '1px solid #f8fafc',
-      }}
+      className="btn-press flex items-center gap-2 sm:gap-3 px-2.5 py-2 sm:px-4 sm:py-3.5 no-underline border-b border-slate-50"
     >
-      <div style={{
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        background: '#f1f5f9',
-        color: '#64748b',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontWeight: 700,
-        fontSize: 15,
-        flexShrink: 0,
-      }}>
+      <div
+        className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center font-bold text-[12px] sm:text-[15px] flex-shrink-0"
+        style={{ background: '#f1f5f9', color: '#64748b' }}
+      >
         {initial}
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-[12px] sm:text-sm font-semibold m-0 truncate"
+          style={{ color: '#1e293b' }}
+        >
           {paper.exam_title || 'শিরোনামবিহীন'}
         </p>
-        <p style={{ fontSize: 11, color: '#94a3b8', margin: '2px 0 0' }}>
+        <p
+          className="text-[10px] sm:text-[11px] m-0 mt-0.5"
+          style={{ color: '#94a3b8' }}
+        >
           {paper.questions?.length || 0} টি প্রশ্ন
         </p>
       </div>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth={2.5}>
+      <svg
+        className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0"
+        viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth={2.5}
+      >
         <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
       </svg>
     </Link>
@@ -236,16 +221,22 @@ export default function Dashboard() {
       variants={container}
       initial="hidden"
       animate="show"
-      style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 24 }}
+      className="flex flex-col gap-3 sm:gap-6 pb-6"
     >
       {/* ── Welcome Area ───────────────────────────────────── */}
       <motion.div variants={item}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}>
+            <span
+              className="text-[14px] sm:text-xs"
+              style={{ fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}
+            >
               {hub.title}
             </span>
-            <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', margin: '2px 0 0' }}>
+            <h1
+              className="text-[18px] sm:text-[26px]"
+              style={{ fontWeight: 800, color: '#0f172a', margin: '2px 0 0' }}
+            >
               হ্যালো, {firstName}! 👋
             </h1>
           </div>
@@ -265,7 +256,7 @@ export default function Dashboard() {
 
       {/* ── Stats ─────────────────────────────────────────── */}
       <motion.div variants={item}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <StatCard label="মোট পেপার" value={totalPapers} color="var(--primary)" />
           <StatCard label="এই মাসে" value={thisMonthPapers} color="#10b981" />
           <StatCard label="মোট প্রশ্ন" value={totalQuestions} color="#8b5cf6" />
@@ -282,11 +273,7 @@ export default function Dashboard() {
         <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 12px', paddingLeft: 4 }}>
           দ্রুত কাজ
         </p>
-        <div className="no-scrollbar" style={{
-          display: 'grid',
-          gap: 10,
-          gridTemplateColumns: 'repeat(3, 1fr)'
-        }}>
+        <div className="no-scrollbar grid grid-cols-3 gap-1.5 sm:gap-2.5">
           {hub.quickActions.map((action, i) => (
             <QuickActionCard key={i} action={action} />
           ))}

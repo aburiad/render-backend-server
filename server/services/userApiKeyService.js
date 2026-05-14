@@ -210,11 +210,55 @@ async function userHasOwnKeys(userId) {
   }
 }
 
-// Replace setKey + removeKey wrappers to also bust the cache.
+/**
+ * Looser variant: returns true if the user has ANY stored key, verified or
+ * not. Used by the credit middleware so that a user who saved a key but
+ * whose post-save verification ping failed (transient network blip,
+ * provider rate-limit, etc.) still gets the BYO-bypass treatment they
+ * expect. The downside — a bad key bypasses credits but the AI call then
+ * fails — is acceptable because the failure surfaces immediately and the
+ * user knows their key is wrong; the alternative (silent credit charge)
+ * is more confusing.
+ *
+ * Separate from `userHasOwnKeys` (which the rate limiter still uses with
+ * `is_verified=true`) so we don't relax abuse-prevention along with the
+ * billing fix.
+ */
+const HAS_ANY_KEY_CACHE_MS = 5 * 60 * 1000
+const hasAnyKeyCache = new Map()
+
+function invalidateHasAnyKey(userId) {
+  if (userId) hasAnyKeyCache.delete(userId)
+}
+
+async function userHasAnyOwnKey(userId) {
+  if (!userId) return false
+  const cached = hasAnyKeyCache.get(userId)
+  const now = Date.now()
+  if (cached && now - cached.fetchedAt < HAS_ANY_KEY_CACHE_MS) return cached.has
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from(TABLE)
+      .select('provider', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .limit(1)
+    if (error) throw error
+    const has = (data?.length ?? 0) > 0 || false
+    hasAnyKeyCache.set(userId, { has, fetchedAt: now })
+    return has
+  } catch (err) {
+    console.warn('[userApiKeyService.userHasAnyOwnKey]', err.message)
+    return cached?.has ?? false
+  }
+}
+
+// Replace setKey + removeKey wrappers to also bust both caches.
 const _setKey = setKey
 async function setKeyAndInvalidate(userId, provider, plaintextKey, opts) {
   const result = await _setKey(userId, provider, plaintextKey, opts)
   invalidateHasKey(userId)
+  invalidateHasAnyKey(userId)
   return result
 }
 
@@ -222,6 +266,7 @@ const _removeKey = removeKey
 async function removeKeyAndInvalidate(userId, provider) {
   const result = await _removeKey(userId, provider)
   invalidateHasKey(userId)
+  invalidateHasAnyKey(userId)
   return result
 }
 
@@ -241,5 +286,7 @@ module.exports = {
   markVerified: markVerifiedAndInvalidate,
   loadAllForUser,
   userHasOwnKeys,
+  userHasAnyOwnKey,
   invalidateHasKey,
+  invalidateHasAnyKey,
 }

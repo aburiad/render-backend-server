@@ -5,6 +5,7 @@ import api from '@/services/api'
 import useNoticeStore, { EMPTY_NOTICE, DEMO_NOTICE } from '@/store/noticeStore'
 import StimulusImage from '@/components/shared/StimulusImage'
 import BlockEditor from '@/components/notice/BlockEditor'
+import Loader from '@/components/shared/Loader'
 
 const SECTION_LABEL = {
   header: 'হেডার',
@@ -102,11 +103,7 @@ export default function NoticeEditor() {
   }
 
   if (loading || !notice) {
-    return (
-      <div className="flex items-center justify-center h-[60vh]">
-        <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    return <Loader message="নোটিশ লোড হচ্ছে..." />
   }
 
   const set = (fields) => updateNotice(fields)

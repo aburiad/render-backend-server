@@ -4,6 +4,7 @@ import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import api from '@/services/api'
 import RoutineTemplate from '@/components/routine/RoutineTemplate'
+import Loader from '@/components/shared/Loader'
 
 export default function RoutinePreview() {
   const { id } = useParams()
@@ -193,10 +194,7 @@ export default function RoutinePreview() {
         }}
       >
         {loading || !routine ? (
-          <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
-            <div className="w-10 h-10 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-gray-500">লোড হচ্ছে...</p>
-          </div>
+          <Loader message="রুটিন লোড হচ্ছে..." />
         ) : (
           <div
             style={{

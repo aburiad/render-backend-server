@@ -5,6 +5,7 @@ import usePaperStore from '@/store/paperStore'
 import { toast } from 'react-hot-toast'
 import { MathText } from '@/utils/mathRender'
 import { compressImageToDataUrl, approximateDataUrlBytes } from '@/utils/imageCompress'
+import Spinner from '@/components/shared/Spinner'
 
 export default function MagicScanModal({ onClose }) {
   const [step, setStep] = useState('upload') // upload, processing, review
@@ -229,7 +230,7 @@ export default function MagicScanModal({ onClose }) {
                   টেক্সট পড়া শেষ
                 </motion.div>
                 <div className="flex items-center gap-2 text-xs text-gray-400">
-                  <div className="w-4 h-4 rounded-full border-2 border-gray-100 border-t-blue-400 animate-spin" />
+                  <Spinner size={16} color="#60a5fa" />
                   প্রশ্ন সাজানো হচ্ছে
                 </div>
               </div>
@@ -308,7 +309,7 @@ export default function MagicScanModal({ onClose }) {
                                 title="ব্যাংক-এ সেভ করুন"
                               >
                                 {savingBankIdx === i ? (
-                                  <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                                  <Spinner size={14} color="#60a5fa" />
                                 ) : (
                                   <>
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

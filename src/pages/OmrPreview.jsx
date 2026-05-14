@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import OmrTemplate from '@/components/paper/OmrTemplate'
 import OmrSettingsModal from '@/components/paper/OmrSettingsModal'
 import api from '@/services/api'
+import Loader from '@/components/shared/Loader'
 import toast from 'react-hot-toast'
 
 export default function OmrPreview() {
@@ -32,7 +33,7 @@ export default function OmrPreview() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+        <Loader message="OMR প্রিভিউ লোড হচ্ছে..." />
       </div>
     )
   }

@@ -358,33 +358,27 @@ export default function PaperEditor() {
       </div>
 
       {/* ── Top Bar (Mobile Only) ─────────────────────────────────────────── */}
-      <div className="flex lg:hidden items-center justify-between mb-5">
-        <div>
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{ background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth={3}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>ড্যাশবোর্ড</span>
-          </button>
-        </div>
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>
-            {id ? 'সম্পাদনা' : 'নতুন পেপার'}
-          </h1>
-          <span style={{ fontSize: 10, fontWeight: 700, color: isDirty ? '#3b82f6' : '#10b981' }}>
-            {isDirty ? (saving ? '• সেভ হচ্ছে' : '• পরিবর্তন আছে') : '• সব সেভ আছে'}
-          </span>
-        </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="flex lg:hidden items-center justify-between gap-2 mb-2">
+        <button
+          onClick={() => navigate('/dashboard')}
+          style={{ background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', flexShrink: 0 }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>ড্যাশবোর্ড</span>
+        </button>
+        <div style={{ flexShrink: 0 }}>
           <CreditBalance compact showTopUp />
-          <button onClick={handleManualSave} disabled={!isDirty || saving} className="btn-press" style={{
-            padding: '8px 12px', background: isDirty ? '#2563eb' : '#f1f5f9', color: isDirty ? '#fff' : '#cbd5e1',
-            borderRadius: 12, fontSize: 11, fontWeight: 900, border: 'none', boxShadow: isDirty ? '0 4px 12px rgba(37,99,235,0.2)' : 'none'
-          }}>সেভ</button>
         </div>
+      </div>
+      <div className="flex lg:hidden items-baseline gap-2 mb-4" style={{ paddingLeft: 2 }}>
+        <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>
+          {id ? 'সম্পাদনা' : 'নতুন পেপার'}
+        </h1>
+        <span style={{ fontSize: 10, fontWeight: 700, color: isDirty ? '#3b82f6' : '#10b981' }}>
+          {isDirty ? (saving ? '• সেভ হচ্ছে' : '• পরিবর্তন আছে') : '• সব সেভ আছে'}
+        </span>
       </div>
 
       {/* ── Main Content ────────────────────────────────────── */}
@@ -394,7 +388,6 @@ export default function PaperEditor() {
         {/* Floating/Fixed Summary Bar */}
         {(questions.length > 0 || currentPaper?.id) && (
           <div style={{
-            position: 'sticky', top: 10, zIndex: 30,
             background: '#fff', padding: '8px 16px', borderRadius: 100,
             border: '1px solid #f1f5f9', boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
             display: 'flex', alignItems: 'center', justifyContent: 'space-between'
@@ -530,77 +523,105 @@ export default function PaperEditor() {
           onClick={() => setShowAddMenu(true)}
           className="btn-press"
           style={{
-            width: 56, height: 56, borderRadius: 18, background: '#2563eb',
+            width: 46, height: 46, borderRadius: 14, background: '#2563eb',
             color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 8px 16px rgba(37,99,235,0.3)', border: 'none'
+            boxShadow: '0 6px 14px rgba(37,99,235,0.3)', border: 'none'
           }}
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
         </button>
       </div>
 
+      {/* ── Save FAB (Mobile Only) ─────────────────────────── */}
+      <button
+        onClick={handleManualSave}
+        disabled={!isDirty || saving}
+        className="btn-press lg:hidden"
+        style={{
+          position: 'fixed', bottom: 156, right: 20, zIndex: 45,
+          padding: '8px 16px', borderRadius: 999,
+          background: saving ? '#94a3b8' : (isDirty ? '#10b981' : '#cbd5e1'),
+          color: '#fff', border: 'none', fontSize: 12, fontWeight: 800,
+          boxShadow: isDirty ? '0 6px 14px rgba(16,185,129,0.3)' : '0 3px 8px rgba(0,0,0,0.08)',
+          transition: 'background 0.2s, box-shadow 0.2s',
+        }}
+      >
+        {saving ? 'সেভ হচ্ছে…' : 'সেভ'}
+      </button>
+
       <Modal isOpen={showAddMenu} onClose={() => setShowAddMenu(false)} title="প্রশ্ন যোগ করুন">
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: 10, padding: '10px 0' }}>
-          <button onClick={() => { setShowAddMenu(false); setShowMagicScan(true); }} className="btn-press" style={{
-            width: '100%', display: 'flex', alignItems: 'center', gap: 14, padding: '14px', borderRadius: 16,
-            background: 'linear-gradient(135deg, #eff6ff, #dbeafe)', border: '1px solid #bfdbfe', textAlign: 'left'
-          }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: '#2563eb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.5}>
+        <div className="grid grid-cols-1 gap-2 sm:gap-2.5 py-1.5 sm:py-2.5">
+          <button
+            onClick={() => { setShowAddMenu(false); setShowMagicScan(true); }}
+            className="btn-press w-full flex items-center gap-2.5 sm:gap-3.5 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl text-left"
+            style={{
+              background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
+              border: '1px solid #bfdbfe',
+            }}
+          >
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
               </svg>
             </div>
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 800, color: '#1e3a8a', margin: 0 }}>AI ম্যাজিক স্ক্যান</p>
-              <p style={{ fontSize: 11, color: '#60a5fa', margin: 0 }}>ছবি থেকে অটো প্রশ্ন তৈরি</p>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-extrabold text-blue-900 m-0">AI ম্যাজিক স্ক্যান</p>
+              <p className="text-[10px] sm:text-[11px] text-blue-400 m-0 truncate">ছবি থেকে অটো প্রশ্ন তৈরি</p>
             </div>
           </button>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
-            <button onClick={() => { setShowAddMenu(false); setShowBankImport(true); }} className="btn-press" style={{
-              display: 'flex', flexDirection: 'column', gap: 8, padding: '14px', borderRadius: 16,
-              background: '#f5f3ff', border: '1px solid #ddd6fe', textAlign: 'center'
-            }}>
-              <span style={{ fontSize: 20 }}>🏦</span>
-              <p style={{ fontSize: 11, fontWeight: 800, color: '#5b21b6', margin: 0 }}>প্রশ্ন ব্যাংক</p>
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
+            <button
+              onClick={() => { setShowAddMenu(false); setShowBankImport(true); }}
+              className="btn-press flex flex-col items-center gap-1 sm:gap-2 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl text-center"
+              style={{ background: '#f5f3ff', border: '1px solid #ddd6fe' }}
+            >
+              <span className="text-base sm:text-xl">🏦</span>
+              <p className="text-[10px] sm:text-[11px] font-extrabold m-0" style={{ color: '#5b21b6' }}>প্রশ্ন ব্যাংক</p>
             </button>
-            <button onClick={() => { setShowAddMenu(false); setShowBookGenerate(true); }} className="btn-press" style={{
-              display: 'flex', flexDirection: 'column', gap: 8, padding: '14px', borderRadius: 16,
-              background: '#ecfdf5', border: '1px solid #a7f3d0', textAlign: 'center'
-            }}>
-              <span style={{ fontSize: 20 }}>📚</span>
-              <p style={{ fontSize: 11, fontWeight: 800, color: '#065f46', margin: 0 }}>বই থেকে</p>
+            <button
+              onClick={() => { setShowAddMenu(false); setShowBookGenerate(true); }}
+              className="btn-press flex flex-col items-center gap-1 sm:gap-2 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl text-center"
+              style={{ background: '#ecfdf5', border: '1px solid #a7f3d0' }}
+            >
+              <span className="text-base sm:text-xl">📚</span>
+              <p className="text-[10px] sm:text-[11px] font-extrabold m-0" style={{ color: '#065f46' }}>বই থেকে</p>
             </button>
           </div>
 
-          <div style={{ height: 1, background: '#f1f5f9', margin: '4px 0' }} />
+          <div className="h-px bg-slate-100 my-0.5 sm:my-1" />
 
-          <p style={{ fontSize: 10, fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', paddingLeft: 4 }}>ম্যানুয়ালি যোগ করুন</p>
-          <div className="no-scrollbar" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 10 }}>
+          <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase pl-1">ম্যানুয়ালি যোগ করুন</p>
+          <div className="no-scrollbar flex flex-wrap gap-1 sm:gap-2 pb-2">
             {currentPaper?.section_mode && (
               <button
                 onClick={() => handleAddQuestion('section')}
-                className="btn-press"
+                className="btn-press flex-shrink-0 flex flex-col items-center justify-center sm:justify-start w-[54px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
                 style={{
-                  flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                  width: 80, padding: '12px 6px', borderRadius: 14,
                   background: 'linear-gradient(135deg, #1e293b, #334155)',
-                  border: '1px solid #334155', color: '#fff',
+                  border: '1px solid #334155',
+                  color: '#fff',
                 }}
               >
-                <span style={{ fontSize: 18 }}>📑</span>
-                <span style={{ fontSize: 9, fontWeight: 700, color: '#fbbf24' }}>বিভাগ</span>
+                <span className="text-[13px] sm:text-lg leading-none">📑</span>
+                <span className="text-[8px] sm:text-[9px] font-bold leading-tight" style={{ color: '#fbbf24' }}>বিভাগ</span>
               </button>
             )}
             {QUESTION_TYPES.map(qt => (
-              <button key={qt.type} onClick={() => handleAddQuestion(qt.type)} className="btn-press" style={{
-                flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                width: 80, padding: '12px 6px', borderRadius: 14, background: '#fff', border: '1px solid #f1f5f9'
-              }}>
-                <span style={{ fontSize: 18 }}>{qt.icon}</span>
-                <span style={{ fontSize: 9, fontWeight: 700, color: '#64748b' }}>{qt.label}</span>
+              <button
+                key={qt.type}
+                onClick={() => handleAddQuestion(qt.type)}
+                className="btn-press flex-shrink-0 flex flex-col items-center justify-center sm:justify-start w-[54px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
+                style={{
+                  border: '1px solid #f1f5f9',
+                }}
+              >
+                <span className="text-[13px] sm:text-lg leading-none">{qt.icon}</span>
+                <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 leading-tight text-center">
+                  {qt.label}
+                </span>
               </button>
             ))}
           </div>

@@ -4,6 +4,7 @@ import api from '@/services/api'
 import usePaperStore from '@/store/paperStore'
 import { toast } from 'react-hot-toast'
 import { MathText } from '@/utils/mathRender'
+import Spinner from '@/components/shared/Spinner'
 
 const CLASSES = [
   { value: 6, label: 'ক্লাস ৬' },
@@ -25,8 +26,10 @@ export default function BookGenerateModal({ onClose }) {
   const [step, setStep] = useState('select') // select, configure, review
   const [classNum, setClassNum] = useState(null)
   const [subjects, setSubjects] = useState([])
+  const [subjectsLoading, setSubjectsLoading] = useState(false)
   const [selectedSubject, setSelectedSubject] = useState(null)
   const [chapters, setChapters] = useState([])
+  const [chaptersLoading, setChaptersLoading] = useState(false)
 
   // Selections: { chapterId: { subchapterIds: Set, count: number } }
   // Use 'all' marker in subchapterIds Set to mean "whole chapter"
@@ -52,6 +55,7 @@ export default function BookGenerateModal({ onClose }) {
     setSelections({})
     setSubchapterCache({})
     setExpanded({})
+    setSubjectsLoading(true)
 
     api
       .get(`/book/subjects/${classNum}`)
@@ -59,6 +63,7 @@ export default function BookGenerateModal({ onClose }) {
         setSubjects(data.subjects || [])
       })
       .catch(() => toast.error('বিষয় লোড করতে ব্যর্থ'))
+      .finally(() => setSubjectsLoading(false))
   }, [classNum])
 
   // Fetch chapters when subject changes
@@ -68,6 +73,7 @@ export default function BookGenerateModal({ onClose }) {
     setSelections({})
     setSubchapterCache({})
     setExpanded({})
+    setChaptersLoading(true)
 
     api
       .get(`/book/chapters/${classNum}/${selectedSubject}`)
@@ -75,6 +81,7 @@ export default function BookGenerateModal({ onClose }) {
         setChapters(data.chapters || [])
       })
       .catch(() => toast.error('চ্যাপ্টার লোড করতে ব্যর্থ'))
+      .finally(() => setChaptersLoading(false))
   }, [classNum, selectedSubject])
 
   // --- Selection helpers ---
@@ -174,12 +181,15 @@ export default function BookGenerateModal({ onClose }) {
         const { data } = await api.post('/book/existing-questions', {
           classNum,
           subject: selectedSubject,
-          selections: apiSelections.map(({ chapterId, subchapterIds }) => ({
+          selections: apiSelections.map(({ chapterId, subchapterIds, count }) => ({
             chapterId,
             subchapterIds,
+            count,
           })),
           filters: { types: questionTypes.map((t) => t.toLowerCase()) },
         })
+        // Refresh credit balance widgets across the app.
+        window.dispatchEvent(new CustomEvent('credits-changed'))
         // Normalize existing question shape to match generated shape
         const normalized = (data.questions || []).map((q) => {
           const d = q.data || {}
@@ -226,7 +236,14 @@ export default function BookGenerateModal({ onClose }) {
         )
         setResultMeta({ source: 'book', count: data.count })
         if (normalized.length === 0) {
-          toast('সিলেক্ট করা অংশে কোনো প্রশ্ন পাওয়া যায়নি', { icon: 'ℹ️' })
+          toast('সিলেক্ট করা অংশে কোনো প্রশ্ন পাওয়া যায়নি — credit ফেরত', {
+            icon: 'ℹ️',
+          })
+        } else if (data.requestedCount && data.count < data.requestedCount) {
+          toast(
+            `${data.requestedCount}টির মধ্যে ${data.count}টি প্রশ্ন পাওয়া গেছে`,
+            { icon: 'ℹ️', duration: 3500 },
+          )
         }
       } else {
         // AI mode
@@ -248,6 +265,7 @@ export default function BookGenerateModal({ onClose }) {
             provider: data.provider,
             keySource: data.keySource,
           })
+          window.dispatchEvent(new CustomEvent('credits-changed'))
         }
       }
     } catch (err) {
@@ -273,7 +291,7 @@ export default function BookGenerateModal({ onClose }) {
   const canProceed = classNum && selectedSubject && totalSelected > 0
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg:p-8">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 lg:p-8">
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -286,17 +304,17 @@ export default function BookGenerateModal({ onClose }) {
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="relative w-full max-w-2xl bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] sm:max-h-[90vh]"
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center text-lg">
+        <div className="px-3 sm:px-6 py-3 sm:py-4 border-b border-gray-100 flex items-center justify-between bg-white z-10">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-emerald-50 text-emerald-600 rounded-lg sm:rounded-xl flex items-center justify-center text-base sm:text-lg flex-shrink-0">
               📚
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">বই থেকে প্রশ্ন</h2>
-              <p className="text-xs text-gray-500">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-lg font-bold text-gray-900 truncate">বই থেকে প্রশ্ন</h2>
+              <p className="text-[10px] sm:text-xs text-gray-500 truncate">
                 {step === 'select'
                   ? 'ক্লাস, বিষয় ও অধ্যায় বেছে নিন'
                   : step === 'configure'
@@ -307,10 +325,10 @@ export default function BookGenerateModal({ onClose }) {
           </div>
           <button
             onClick={onClose}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-xl transition-colors"
+            className="p-1.5 sm:p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg sm:rounded-xl transition-colors flex-shrink-0"
           >
             <svg
-              className="w-5 h-5"
+              className="w-4 h-4 sm:w-5 sm:h-5"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -322,7 +340,7 @@ export default function BookGenerateModal({ onClose }) {
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 bg-gray-50">
           <AnimatePresence mode="wait">
             {/* Step 1: Select */}
             {step === 'select' && (
@@ -331,7 +349,7 @@ export default function BookGenerateModal({ onClose }) {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                className="space-y-5"
+                className="space-y-3 sm:space-y-5"
               >
                 {/* Class */}
                 <div>
@@ -343,7 +361,7 @@ export default function BookGenerateModal({ onClose }) {
                       <button
                         key={c.value}
                         onClick={() => setClassNum(c.value)}
-                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                        className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all ${
                           classNum === c.value
                             ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
                             : 'bg-white text-gray-600 border border-gray-200 hover:border-emerald-300'
@@ -361,7 +379,12 @@ export default function BookGenerateModal({ onClose }) {
                     <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
                       বিষয়
                     </label>
-                    {subjects.length === 0 ? (
+                    {subjectsLoading ? (
+                      <div className="flex items-center justify-center gap-2 py-4 bg-white rounded-xl border border-dashed border-gray-200">
+                        <Spinner size={16} color="#10b981" />
+                        <p className="text-xs text-gray-500 font-medium">বিষয় লোড হচ্ছে...</p>
+                      </div>
+                    ) : subjects.length === 0 ? (
                       <p className="text-sm text-gray-400 py-4 text-center bg-white rounded-xl border border-dashed border-gray-200">
                         এই ক্লাসে এখনো কোনো বিষয় যোগ করা হয়নি
                       </p>
@@ -371,7 +394,7 @@ export default function BookGenerateModal({ onClose }) {
                           <button
                             key={s.id}
                             onClick={() => setSelectedSubject(s.id)}
-                            className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                            className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all ${
                               selectedSubject === s.id
                                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
                                 : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'
@@ -396,7 +419,12 @@ export default function BookGenerateModal({ onClose }) {
                         </span>
                       </label>
                     </div>
-                    {chapters.length === 0 ? (
+                    {chaptersLoading ? (
+                      <div className="flex items-center justify-center gap-2 py-4 bg-white rounded-xl border border-dashed border-gray-200">
+                        <Spinner size={16} color="#10b981" />
+                        <p className="text-xs text-gray-500 font-medium">অধ্যায় লোড হচ্ছে...</p>
+                      </div>
+                    ) : chapters.length === 0 ? (
                       <p className="text-sm text-gray-400 py-4 text-center bg-white rounded-xl border border-dashed border-gray-200">
                         এই বিষয়ে এখনো কোনো চ্যাপ্টার যোগ করা হয়নি
                       </p>
@@ -406,6 +434,12 @@ export default function BookGenerateModal({ onClose }) {
                           const isSel = isChapterSelected(ch.id)
                           const isAll = isAllSelected(ch.id)
                           const isExp = expanded[ch.id]
+                          // `undefined` means we haven't fetched yet (loading).
+                          // `[]` means fetched-and-empty (no subchapters exist).
+                          const subsFetched = Object.prototype.hasOwnProperty.call(
+                            subchapterCache,
+                            ch.id,
+                          )
                           const subs = subchapterCache[ch.id] || []
                           const selSubCount = isSel
                             ? [...selections[ch.id].subchapterIds].filter(
@@ -424,10 +458,10 @@ export default function BookGenerateModal({ onClose }) {
                               {/* Chapter row */}
                               <button
                                 onClick={() => toggleChapterAll(ch.id)}
-                                className="flex items-center gap-3 p-3 text-left w-full"
+                                className="flex items-center gap-2 sm:gap-3 p-2 sm:p-3 text-left w-full"
                               >
                                 <div
-                                  className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0 ${
+                                  className={`w-4 h-4 sm:w-5 sm:h-5 rounded-md border-2 flex items-center justify-center transition-all flex-shrink-0 ${
                                     isAll
                                       ? 'bg-emerald-600 border-emerald-600'
                                       : isSel
@@ -455,10 +489,10 @@ export default function BookGenerateModal({ onClose }) {
                                   )}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold text-gray-900 truncate">
+                                  <p className="text-xs sm:text-sm font-bold text-gray-900 truncate">
                                     {ch.title}
                                   </p>
-                                  <p className="text-[10px] text-gray-400 mt-0.5">
+                                  <p className="text-[9px] sm:text-[10px] text-gray-400 mt-0.5 truncate">
                                     {isSel && !isAll
                                       ? `${selSubCount}টি সাবচ্যাপ্টার সিলেক্টেড`
                                       : isAll
@@ -469,9 +503,9 @@ export default function BookGenerateModal({ onClose }) {
                                 {isSel && (
                                   <div
                                     onClick={(e) => e.stopPropagation()}
-                                    className="flex items-center gap-1.5 text-xs"
+                                    className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs flex-shrink-0"
                                   >
-                                    <span className="text-gray-500">কয়টি:</span>
+                                    <span className="text-gray-500 hidden sm:inline">কয়টি:</span>
                                     <input
                                       type="number"
                                       min="1"
@@ -485,7 +519,7 @@ export default function BookGenerateModal({ onClose }) {
                                       }
                                       onClick={(e) => e.stopPropagation()}
                                       onMouseDown={(e) => e.stopPropagation()}
-                                      className="w-12 rounded-lg border border-emerald-300 px-1.5 py-1 text-center font-bold text-emerald-700 bg-white"
+                                      className="w-10 sm:w-12 rounded-md sm:rounded-lg border border-emerald-300 px-1 py-0.5 sm:px-1.5 sm:py-1 text-center text-xs sm:text-sm font-bold text-emerald-700 bg-white"
                                     />
                                   </div>
                                 )}
@@ -519,9 +553,16 @@ export default function BookGenerateModal({ onClose }) {
                                         className="overflow-hidden"
                                       >
                                         <div className="mt-2 ml-4 border-l-2 border-emerald-300 pl-3 space-y-0.5">
-                                          {subs.length === 0 ? (
-                                            <p className="py-2 text-[11px] text-gray-500">
-                                              লোড হচ্ছে...
+                                          {!subsFetched ? (
+                                            <div className="flex items-center gap-2 py-2">
+                                              <Spinner size={12} color="#10b981" />
+                                              <p className="text-[11px] text-gray-500">
+                                                সাবচ্যাপ্টার লোড হচ্ছে...
+                                              </p>
+                                            </div>
+                                          ) : subs.length === 0 ? (
+                                            <p className="py-2 text-[11px] text-gray-400 italic">
+                                              এই অধ্যায়ে কোনো সাবচ্যাপ্টার নেই
                                             </p>
                                           ) : (
                                             subs.map((sub) => {
@@ -620,7 +661,7 @@ export default function BookGenerateModal({ onClose }) {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 20 }}
-                className="space-y-5"
+                className="space-y-3 sm:space-y-5"
               >
                 {/* Mode Toggle */}
                 <div>
@@ -630,29 +671,29 @@ export default function BookGenerateModal({ onClose }) {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setMode('existing')}
-                      className={`p-4 rounded-2xl text-left transition-all ${
+                      className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl text-left transition-all ${
                         mode === 'existing'
                           ? 'bg-emerald-50 border-2 border-emerald-500 shadow-sm'
                           : 'bg-white border border-gray-200 hover:border-emerald-300'
                       }`}
                     >
-                      <div className="text-2xl mb-1">📚</div>
-                      <p className="text-sm font-bold text-gray-900">শুধু বই থেকে</p>
-                      <p className="text-[10px] text-gray-500 mt-1">
-                        অনুশীলনী + নমুনা প্রশ্ন থেকে existing দাও
+                      <div className="text-lg sm:text-2xl mb-0.5 sm:mb-1">📚</div>
+                      <p className="text-xs sm:text-sm font-bold text-gray-900">শুধু বই থেকে</p>
+                      <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5 sm:mt-1 leading-tight">
+                        অনুশীলনী + নমুনা প্রশ্ন
                       </p>
                     </button>
                     <button
                       onClick={() => setMode('ai')}
-                      className={`p-4 rounded-2xl text-left transition-all ${
+                      className={`p-2.5 sm:p-4 rounded-xl sm:rounded-2xl text-left transition-all ${
                         mode === 'ai'
                           ? 'bg-purple-50 border-2 border-purple-500 shadow-sm'
                           : 'bg-white border border-gray-200 hover:border-purple-300'
                       }`}
                     >
-                      <div className="text-2xl mb-1">🤖</div>
-                      <p className="text-sm font-bold text-gray-900">AI বানাবে</p>
-                      <p className="text-[10px] text-gray-500 mt-1">
+                      <div className="text-lg sm:text-2xl mb-0.5 sm:mb-1">🤖</div>
+                      <p className="text-xs sm:text-sm font-bold text-gray-900">AI বানাবে</p>
+                      <p className="text-[9px] sm:text-[10px] text-gray-500 mt-0.5 sm:mt-1 leading-tight">
                         বইয়ের content থেকে নতুন প্রশ্ন
                       </p>
                     </button>
@@ -664,18 +705,18 @@ export default function BookGenerateModal({ onClose }) {
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
                     প্রশ্নের ধরন (একাধিক বেছে নিন)
                   </label>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5 sm:gap-2">
                     {QUESTION_TYPE_OPTIONS.map((opt) => (
                       <button
                         key={opt.type}
                         onClick={() => toggleType(opt.type)}
-                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                        className={`flex items-center gap-1.5 sm:gap-2 px-2.5 py-1.5 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-sm font-bold transition-all ${
                           questionTypes.includes(opt.type)
                             ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/25'
                             : 'bg-white text-gray-600 border border-gray-200 hover:border-blue-300'
                         }`}
                       >
-                        <span className="text-xs opacity-70">{opt.icon}</span>
+                        <span className="text-[10px] sm:text-xs opacity-70">{opt.icon}</span>
                         {opt.label}
                       </button>
                     ))}
@@ -684,24 +725,31 @@ export default function BookGenerateModal({ onClose }) {
 
                 {/* Summary */}
                 <div
-                  className={`p-4 rounded-2xl border ${
+                  className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl border ${
                     mode === 'existing'
                       ? 'bg-emerald-50 border-emerald-100'
                       : 'bg-purple-50 border-purple-100'
                   }`}
                 >
                   <p
-                    className={`text-xs font-medium ${
+                    className={`text-[11px] sm:text-xs font-medium leading-snug ${
                       mode === 'existing' ? 'text-emerald-800' : 'text-purple-800'
                     }`}
                   >
-                    {mode === 'existing' ? '📖' : '🤖'} {totalSelected} টি অধ্যায়/সাবচ্যাপ্টার থেকে{' '}
+                    {mode === 'existing' ? '📖' : '🤖'} {totalSelected} টি অধ্যায় থেকে{' '}
                     {mode === 'existing'
-                      ? 'বইয়ের existing প্রশ্ন আনা হবে'
-                      : `${Math.min(totalCount, 15)} টি নতুন প্রশ্ন তৈরি হবে`}
+                      ? `সর্বোচ্চ ${Math.min(totalCount, 50)} টি প্রশ্ন`
+                      : `${Math.min(totalCount, 15)} টি নতুন প্রশ্ন`}
+                  </p>
+                  <p
+                    className={`text-[10px] font-bold mt-1 sm:mt-1.5 leading-snug ${
+                      mode === 'existing' ? 'text-emerald-700' : 'text-purple-700'
+                    }`}
+                  >
+                    ⚡ ১ credit লাগবে · ব্যর্থ হলে ফেরত
                   </p>
                   {mode === 'existing' && (
-                    <p className="text-[10px] text-emerald-700 mt-1.5">
+                    <p className="text-[10px] text-emerald-700 mt-0.5 sm:mt-1 leading-snug">
                       💡 শুধু অনুশীলনী + নমুনা প্রশ্ন থেকে আসবে।
                     </p>
                   )}
@@ -718,28 +766,28 @@ export default function BookGenerateModal({ onClose }) {
                 exit={{ opacity: 0, x: 20 }}
               >
                 {loading ? (
-                  <div className="flex flex-col items-center justify-center py-20">
-                    <div className="relative w-20 h-20 mb-6">
-                      <div className="absolute inset-0 border-4 border-emerald-100 rounded-full" />
+                  <div className="flex flex-col items-center justify-center py-12 sm:py-20 px-4 text-center">
+                    <div className="relative w-14 h-14 sm:w-20 sm:h-20 mb-4 sm:mb-6">
+                      <div className="absolute inset-0 border-[3px] sm:border-4 border-emerald-100 rounded-full" />
                       <motion.div
-                        className="absolute inset-0 border-4 border-emerald-600 rounded-full border-t-transparent"
+                        className="absolute inset-0 border-[3px] sm:border-4 border-emerald-600 rounded-full border-t-transparent"
                         animate={{ rotate: 360 }}
                         transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                       />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    <h3 className="text-base sm:text-xl font-bold text-gray-900 mb-1 sm:mb-2">
                       {mode === 'existing' ? 'বই থেকে আনছি...' : 'AI বই পড়ছে...'}
                     </h3>
-                    <p className="text-sm text-gray-500">
+                    <p className="text-xs sm:text-sm text-gray-500">
                       {mode === 'existing'
                         ? 'সিলেক্ট করা অংশ থেকে প্রশ্ন বের করা হচ্ছে'
                         : 'চ্যাপ্টারের তথ্য থেকে প্রশ্ন তৈরি হচ্ছে'}
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-2 sm:space-y-3">
                     {sourceChapters.length > 0 && (
-                      <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-100 inline-block mb-2">
+                      <p className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full border border-emerald-100 inline-block mb-1 sm:mb-2">
                         📖 সোর্স: {sourceChapters.join(', ')}
                         {resultMeta?.source === 'ai' && resultMeta?.provider && (
                           <span className="ml-2 text-purple-600">
@@ -751,30 +799,30 @@ export default function BookGenerateModal({ onClose }) {
                     {generatedQuestions.map((q, i) => (
                       <div
                         key={i}
-                        className="p-4 bg-white rounded-2xl border border-gray-100 shadow-sm group"
+                        className="p-3 sm:p-4 bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm group"
                       >
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="flex items-center gap-2">
+                        <div className="flex items-start justify-between gap-2 mb-1.5 sm:mb-2">
+                          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
                             <span className="text-[10px] font-black text-gray-300">
                               #{i + 1}
                             </span>
-                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                            <span className="text-[9px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
                               {q.type}
                             </span>
                             {q._source && (
-                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                              <span className="text-[9px] font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
                                 {q._source}
                               </span>
                             )}
                           </div>
                           <button
                             onClick={() => handleAddSingle(q, i)}
-                            className="px-3 py-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-600 hover:text-white transition-all opacity-0 group-hover:opacity-100"
+                            className="px-2 py-0.5 sm:px-3 sm:py-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 rounded-md sm:rounded-lg hover:bg-emerald-600 hover:text-white transition-all opacity-100 sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0"
                           >
-                            + পেপারে যোগ
+                            + যোগ
                           </button>
                         </div>
-                        <div className="text-sm text-gray-800 font-medium leading-relaxed">
+                        <div className="text-xs sm:text-sm text-gray-800 font-medium leading-relaxed break-words">
                           <MathText
                             text={
                               q.question ||
@@ -785,9 +833,9 @@ export default function BookGenerateModal({ onClose }) {
                           />
                         </div>
                         {q.sub_questions && q.sub_questions.length > 0 && (
-                          <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-100">
+                          <div className="mt-1.5 sm:mt-2 space-y-1 pl-3 sm:pl-4 border-l-2 border-gray-100">
                             {q.sub_questions.map((sq, si) => (
-                              <div key={si} className="text-[11px] text-gray-500">
+                              <div key={si} className="text-[10px] sm:text-[11px] text-gray-500">
                                 <span className="font-bold mr-1">{sq.label}.</span>{' '}
                                 <MathText text={sq.text} />
                               </div>
@@ -795,7 +843,7 @@ export default function BookGenerateModal({ onClose }) {
                           </div>
                         )}
                         {q.option_a && (
-                          <div className="grid grid-cols-2 gap-1 mt-2 pl-4 text-[11px] text-gray-500">
+                          <div className="grid grid-cols-2 gap-1 mt-1.5 sm:mt-2 pl-3 sm:pl-4 text-[10px] sm:text-[11px] text-gray-500">
                             <span>
                               ক) <MathText text={String(q.option_a)} />
                             </span>
@@ -826,14 +874,14 @@ export default function BookGenerateModal({ onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 bg-white border-t border-gray-100 flex items-center justify-between">
+        <div className="px-3 sm:px-6 py-2.5 sm:py-4 bg-white border-t border-gray-100 flex items-center justify-between gap-2">
           {step === 'select' && (
             <>
               <div />
               <button
                 onClick={() => setStep('configure')}
                 disabled={!canProceed}
-                className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold shadow-lg shadow-emerald-600/25 btn-press disabled:opacity-40 disabled:shadow-none transition-all text-sm"
+                className="px-4 py-2 sm:px-6 sm:py-3 bg-emerald-600 text-white rounded-lg sm:rounded-xl font-bold shadow-lg shadow-emerald-600/25 btn-press disabled:opacity-40 disabled:shadow-none transition-all text-xs sm:text-sm"
               >
                 পরবর্তী →
               </button>
@@ -844,20 +892,20 @@ export default function BookGenerateModal({ onClose }) {
             <>
               <button
                 onClick={() => setStep('select')}
-                className="px-4 py-2.5 text-gray-600 bg-gray-100 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm"
+                className="px-3 py-2 sm:px-4 sm:py-2.5 text-gray-600 bg-gray-100 rounded-lg sm:rounded-xl font-bold hover:bg-gray-200 transition-colors text-xs sm:text-sm"
               >
                 ← পেছনে
               </button>
               <button
                 onClick={handleGenerate}
                 disabled={mode === 'ai' && questionTypes.length === 0}
-                className={`px-6 py-3 text-white rounded-xl font-bold shadow-lg btn-press disabled:opacity-40 text-sm ${
+                className={`px-4 py-2 sm:px-6 sm:py-3 text-white rounded-lg sm:rounded-xl font-bold shadow-lg btn-press disabled:opacity-40 text-xs sm:text-sm ${
                   mode === 'existing'
                     ? 'bg-emerald-600 shadow-emerald-600/25'
                     : 'bg-purple-600 shadow-purple-600/25'
                 }`}
               >
-                {mode === 'existing' ? '📚 প্রশ্ন আনো' : '🤖 প্রশ্ন তৈরি করুন'}
+                {mode === 'existing' ? '📚 প্রশ্ন আনো' : '🤖 প্রশ্ন তৈরি'}
               </button>
             </>
           )}
@@ -870,16 +918,16 @@ export default function BookGenerateModal({ onClose }) {
                   setGeneratedQuestions([])
                 }}
                 disabled={loading}
-                className="px-4 py-2.5 text-gray-600 bg-gray-100 rounded-xl font-bold hover:bg-gray-200 transition-colors text-sm disabled:opacity-40"
+                className="px-3 py-2 sm:px-4 sm:py-2.5 text-gray-600 bg-gray-100 rounded-lg sm:rounded-xl font-bold hover:bg-gray-200 transition-colors text-xs sm:text-sm disabled:opacity-40"
               >
-                ← আবার চেষ্টা
+                ← আবার
               </button>
               <button
                 onClick={handleAddAllToPaper}
                 disabled={loading || generatedQuestions.length === 0}
-                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold shadow-lg shadow-blue-600/25 btn-press disabled:opacity-40 text-sm"
+                className="px-4 py-2 sm:px-6 sm:py-3 bg-blue-600 text-white rounded-lg sm:rounded-xl font-bold shadow-lg shadow-blue-600/25 btn-press disabled:opacity-40 text-xs sm:text-sm"
               >
-                সবগুলো পেপারে যোগ করুন
+                সব যোগ করুন
               </button>
             </>
           )}

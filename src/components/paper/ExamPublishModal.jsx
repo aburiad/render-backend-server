@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import api from '@/services/api'
 import toast from 'react-hot-toast'
+import Spinner from '@/components/shared/Spinner'
 
 export default function ExamPublishModal({ paperId, onClose }) {
   const [publishing, setPublishing] = useState(false)
@@ -96,7 +97,7 @@ export default function ExamPublishModal({ paperId, onClose }) {
                 className="flex-1 py-3.5 bg-purple-600 text-white rounded-2xl font-bold text-sm shadow-lg shadow-purple-600/25 btn-press flex items-center justify-center"
               >
                 {publishing ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <Spinner size={20} color="#fff" />
                 ) : (
                   'ইন্সট্যান্ট পাবলিশ'
                 )}

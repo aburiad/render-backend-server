@@ -150,7 +150,7 @@ export default function CqEditor({ question }) {
                     value={sub.marks || ''}
                     onChange={(e) => handleSubChange(i, 'marks', Number(e.target.value))}
                     min={0}
-                    className="w-12 px-1.5 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs text-center focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent flex-shrink-0"
+                    className="w-9 sm:w-12 px-1 py-1.5 sm:px-1.5 sm:py-2 bg-gray-50 border border-gray-200 rounded-md sm:rounded-lg text-[10px] sm:text-xs text-center focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent flex-shrink-0"
                     placeholder="মার্ক"
                   />
                   {subQuestions.length > 1 && (

@@ -508,9 +508,22 @@ input, select, textarea {
 .paper-sheet-shadow {
   background: #fff;
   box-shadow:
+    0 -2px 4px rgba(0, 0, 0, 0.04),
     0 1px 1px rgba(0, 0, 0, 0.08),
     0 4px 6px rgba(0, 0, 0, 0.06),
     0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* On mobile, the 14mm vertical padding inside .paper-sheet-shadow was
+   showing as a strip of white above/below the actual page content, which
+   read as "cut" extra whitespace. Drop the background so only the inner
+   paperRef (the real page) is visible white; the padding blends into the
+   grey desk backdrop. Desktop keeps the framed-sheet look. */
+@media (max-width: 1023px) {
+  .paper-sheet-shadow {
+    background: transparent;
+    box-shadow: none;
+  }
 }
 
 /* ─── Routine preview scroll — force-visible thin scrollbar so mobile

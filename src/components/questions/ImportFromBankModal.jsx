@@ -3,6 +3,7 @@ import api from '@/services/api'
 import toast from 'react-hot-toast'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TYPE_LABELS, TYPE_COLORS } from '@/components/questions/QuestionWrapper'
+import Loader from '@/components/shared/Loader'
 
 export default function ImportFromBankModal({ onClose, onImport }) {
   const [questions, setQuestions] = useState([])
@@ -92,9 +93,7 @@ export default function ImportFromBankModal({ onClose, onImport }) {
         {/* List */}
         <div className="flex-1 overflow-y-auto p-6 space-y-3">
           {loading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="w-8 h-8 border-3 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <Loader size="sm" message="প্রশ্ন আনা হচ্ছে..." />
           ) : filtered.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-gray-400 text-sm">কোনো প্রশ্ন পাওয়া যায়নি</p>
