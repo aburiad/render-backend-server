@@ -25,6 +25,7 @@ const userRoutes = require('./routes/user')
 const noticeRoutes = require('./routes/notice')
 const routineRoutes = require('./routes/routine')
 const limitsRoutes = require('./routes/limits')
+const pdfServerRoutes = require('./routes/pdfServer')
 
 const app = express()
 // trust proxy: 1 = trust EXACTLY the last hop (Vercel's edge proxy).
@@ -117,6 +118,7 @@ if (process.env.NODE_ENV !== 'test') {
 //   12MB:         AI scan (full-page image upload)
 //   8MB:          notice + routine (logo + signature image base64)
 //   8MB:          papers (multiple stimulus images can be base64-embedded)
+//   12MB:         pdf-server (serialized paper HTML, max 11 MB in route)
 //   2MB:          book generate (chapter context text)
 const jsonDefault = express.json({ limit: '1mb' })
 const urlEncodedDefault = express.urlencoded({ extended: true, limit: '1mb' })
@@ -132,6 +134,7 @@ app.use('/api/papers', jsonImage)
 app.use('/api/notices', jsonImage)
 app.use('/api/routines', jsonImage)
 app.use('/api/book', jsonBook)
+app.use('/api/pdf-server', jsonAi)
 app.use(jsonDefault)
 app.use(urlEncodedDefault)
 
@@ -226,6 +229,8 @@ app.use('/api/routines', routineRoutes)
 // Status read endpoint — read-only, no rate limiter applied so the
 // dashboard can poll it without affecting the user's actual quota.
 app.use('/api/limits', limitsRoutes)
+// Mount before the catch-all `/api` + requireAuth stack so GET /status stays public.
+app.use('/api/pdf-server', pdfServerRoutes)
 app.use('/api', requireAuth, isProd ? aiLimiter : noop, generateRoutes)
 
 app.use(errorHandler)
