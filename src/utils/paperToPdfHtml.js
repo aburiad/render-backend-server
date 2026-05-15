@@ -111,17 +111,27 @@ export function buildPaperHtmlForServerPdf({ paperNode, paper, settings = {} }) 
   // Mark as ready so the PDF server's waitForSelector resolves immediately.
   clone.setAttribute('data-paper-ready', 'true')
 
+  // Strip vertical padding from the clone. The on-screen wrapper in
+  // PDFPreview.jsx uses `padding: 12px 12mm` for visual spacing, but for
+  // the server PDF path the vertical margin is handled by Puppeteer's
+  // pdf() `margin` option (via mapPrintSettings on the backend).
+  // Keeping the 12px shifts pre-paginated multi-column page wrappers
+  // (each exactly 269mm tall) out of alignment with Puppeteer's page
+  // boundaries, breaking 2-col and 3-col layouts.
+  clone.style.paddingTop = '0'
+  clone.style.paddingBottom = '0'
+
   const isLandscape = settings.orientation === 'landscape'
   const pageFormat = String(settings.pageFormat || 'A4').toUpperCase()
   const lang = document.documentElement.lang || 'bn'
 
   // Page-size CSS — `preferCSSPageSize: true` on the server picks this up.
-  // Vertical margin 14mm matches the legacy html2pdf path (`margin: [14, 0, 14, 0]`)
-  // so every page after page 1 gets the same top/bottom whitespace. Horizontal
-  // padding (12mm) is baked into the paperRef wrapper inline-style, so we keep
-  // horizontal margin = 0 to avoid double padding.
-  const marginCss = settings.marginCss || '14mm 0'
-  const pageSizeCss = `@page { size: ${pageFormat} ${isLandscape ? 'landscape' : 'portrait'}; margin: ${marginCss}; }`
+  // Margin is set to 0 here because the Puppeteer pdf() `margin` option
+  // (via mapPrintSettings → pdfServerClient.js) already provides the
+  // 14mm vertical margin. Including margin in BOTH @page CSS and the
+  // Puppeteer option causes double-margin and shifts pre-paginated
+  // multi-column page wrappers out of alignment with page boundaries.
+  const pageSizeCss = `@page { size: ${pageFormat} ${isLandscape ? 'landscape' : 'portrait'}; margin: 0; }`
 
   const html = `<!doctype html>
 <html lang="${lang}">

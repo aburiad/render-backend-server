@@ -25,7 +25,6 @@ const userRoutes = require('./routes/user')
 const noticeRoutes = require('./routes/notice')
 const routineRoutes = require('./routes/routine')
 const limitsRoutes = require('./routes/limits')
-const pdfServerRoutes = require('./routes/pdfServer')
 
 const app = express()
 // trust proxy: 1 = trust EXACTLY the last hop (Vercel's edge proxy).
@@ -133,11 +132,6 @@ app.use('/api/papers', jsonImage)
 app.use('/api/notices', jsonImage)
 app.use('/api/routines', jsonImage)
 app.use('/api/book', jsonBook)
-// Server-side PDF render forwards a full HTML document (paper template
-// + collected stylesheets) to the external Puppeteer service. The body
-// can be large for long papers with embedded fonts/CSS, so reuse the AI
-// 12MB limit.
-app.use('/api/pdf-server', jsonAi)
 app.use(jsonDefault)
 app.use(urlEncodedDefault)
 
@@ -232,10 +226,6 @@ app.use('/api/routines', routineRoutes)
 // Status read endpoint — read-only, no rate limiter applied so the
 // dashboard can poll it without affecting the user's actual quota.
 app.use('/api/limits', limitsRoutes)
-// External Puppeteer PDF service proxy. Requires PDF_SERVER_URL +
-// PDF_SERVER_API_KEY env vars; the route returns 503 if either is
-// missing so the editor can hide / disable the button gracefully.
-app.use('/api/pdf-server', pdfServerRoutes)
 app.use('/api', requireAuth, isProd ? aiLimiter : noop, generateRoutes)
 
 app.use(errorHandler)

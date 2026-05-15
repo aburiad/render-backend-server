@@ -1,8 +1,6 @@
 const express = require('express')
 const { AppError } = require('../middleware/errorHandler')
 const bookService = require('../services/bookService')
-const creditService = require('../services/creditService')
-const userApiKeyService = require('../services/userApiKeyService')
 const { generateFromBook } = require('../services/aiService')
 const { requireAuth } = require('../middleware/auth')
 const { checkAiCredit, withChargedCredit } = require('../middleware/credits')
@@ -75,121 +73,36 @@ router.get('/subchapters/:classNum/:subject/:chapterId', async (req, res, next) 
  * POST /api/book/existing-questions
  * Get existing book questions (অনুশীলনী + নমুনা প্রশ্ন) — no AI call.
  *
- * Pricing: FLAT 1 credit per call, regardless of how many questions are
- * returned. The intent (per owner): "যত প্রশ্নই আসুক, ১ credit-ই কাটবে।"
- *
- *   - balance == 0 → 402, top-up required
- *   - balance >= 1 → charge exactly 1 credit, return whatever the
- *     selection yielded (sliced to selections[].count cap so a single
- *     credit can't be used to siphon the entire chapter dump)
- *   - 0 questions returned → refund the 1 credit (no value delivered)
- *   - fetch error → refund the 1 credit
- *
  * Body: {
  *   classNum: 8,
  *   subject: 'math',
  *   selections: [
- *     { chapterId: 'ch-1', subchapterIds: ['1.1', '1.3'], count: 5 },
- *     { chapterId: 'ch-3', subchapterIds: ['all'], count: 3 }
+ *     { chapterId: 'ch-1', subchapterIds: ['1.1', '1.3'] },
+ *     { chapterId: 'ch-3', subchapterIds: ['all'] }
  *   ],
- *   filters: { types: ['mcq', 'cq', 'saq'] },  // optional
- *   paperId: 'uuid'                            // optional, for analytics
+ *   filters: { types: ['mcq', 'cq', 'saq'] }  // optional
  * }
  */
-function sumExistingCount(req) {
-  const sels = Array.isArray(req.body?.selections) ? req.body.selections : []
-  const total = sels.reduce((s, x) => s + (Number(x?.count) || 0), 0)
-  return Math.min(Math.max(1, total || 5), 50)
-}
-
 router.post('/existing-questions', async (req, res, next) => {
   try {
-    const { classNum, subject, selections, filters, paperId } = req.body
+    const { classNum, subject, selections, filters } = req.body
 
     if (!classNum || !subject || !Array.isArray(selections) || selections.length === 0) {
       throw new AppError('ক্লাস, বিষয় এবং কমপক্ষে ১টি অধ্যায় সিলেক্ট করুন', 400)
     }
 
-    const requestedTotal = sumExistingCount(req)
-
-    // BYO short-circuit: users with their own stored API key bypass
-    // system credits entirely. Matches the AI middleware behaviour.
-    const byoActive = await userApiKeyService.userHasAnyOwnKey(req.user.uid)
-
-    if (!byoActive) {
-      const balance = req.profile?.ai_op_credits ?? 0
-      if (balance <= 0) {
-        return res.status(402).json({
-          success: false,
-          message: 'AI কোটা শেষ — credit top-up করুন',
-          available: 0,
-          needed: 1,
-          topUpRequired: true,
-        })
-      }
-    }
-
-    // Flat 1-credit-per-call pricing for non-BYO users. Atomic decrement
-    // → race-safe. BYO users skip the charge entirely.
-    const FLAT_CHARGE = byoActive ? 0 : 1
-    if (FLAT_CHARGE > 0) {
-      await creditService.decrementCredits(req.user.uid, FLAT_CHARGE)
-    }
-
-    let limited
-    try {
-      const all = await bookService.getExistingQuestions(
-        classNum,
-        subject,
-        selections,
-        filters || {},
-      )
-      // Still slice to the user-requested count so the flat 1-credit
-      // doesn't unlock arbitrary bulk fetches.
-      limited = all.slice(0, requestedTotal)
-    } catch (err) {
-      if (FLAT_CHARGE > 0) {
-        try {
-          await creditService.incrementCredits(req.user.uid, FLAT_CHARGE)
-        } catch (refundErr) {
-          console.warn('[book/existing] refund failed:', refundErr.message)
-        }
-      }
-      throw err
-    }
-
-    // No value delivered → refund.
-    if (limited.length === 0) {
-      if (FLAT_CHARGE > 0) {
-        try {
-          await creditService.incrementCredits(req.user.uid, FLAT_CHARGE)
-        } catch (refundErr) {
-          console.warn('[book/existing] empty-result refund failed:', refundErr.message)
-        }
-      }
-      return res.json({
-        success: true,
-        questions: [],
-        count: 0,
-        source: 'book',
-        creditsCharged: 0,
-        requestedCount: requestedTotal,
-        byo: byoActive,
-      })
-    }
-
-    if (paperId && FLAT_CHARGE > 0) {
-      await creditService.incrementPaperOps(paperId, FLAT_CHARGE)
-    }
+    const questions = await bookService.getExistingQuestions(
+      classNum,
+      subject,
+      selections,
+      filters || {},
+    )
 
     res.json({
       success: true,
-      questions: limited,
-      count: limited.length,
+      questions,
+      count: questions.length,
       source: 'book',
-      creditsCharged: FLAT_CHARGE,
-      requestedCount: requestedTotal,
-      byo: byoActive,
     })
   } catch (err) {
     next(err)
@@ -210,7 +123,7 @@ router.post('/existing-questions', async (req, res, next) => {
  */
 router.post(
   '/generate',
-  checkAiCredit(1),
+  checkAiCredit((req) => Math.min(Math.max(1, Number(req.body?.count) || 5), 15)),
   async (req, res, next) => {
   try {
     const { classNum, subject, chapters, selections, questionTypes, count, paperId } = req.body
@@ -287,20 +200,23 @@ router.post(
       throw new AppError('চ্যাপ্টার বা সাবচ্যাপ্টার সিলেক্ট করুন', 400)
     }
 
-    // Pricing: FLAT 1 credit per AI generate call, regardless of how many
-    // questions the model returns. Pre-charge 1 atomically → AI call →
-    // refund-on-failure. `requestedCount` is still passed to the AI as a
-    // hint for output size, but does not affect what we bill.
+    // Race-safe credit flow: pre-charge `requestedCount` credits BEFORE
+    // calling the provider. If AI fails, refund. If AI returns fewer than
+    // requested, the extra pre-charge stays (cost-protective for us — the
+    // user got what they asked for capacity-wise).
     const result = await withChargedCredit(
       req.user.uid,
       paperId || null,
-      1,
+      requestedCount,
       () =>
         generateFromBook(
           combinedContext,
           { subject, classNum, questionTypes, count: requestedCount },
           req.user.uid,
         ),
+      // If the model returned MORE questions than asked (rare — extra batches),
+      // charge the surplus too.
+      (out) => Math.max(0, (out.questions?.length || 0) - requestedCount),
     )
 
     res.json({
