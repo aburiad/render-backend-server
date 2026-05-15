@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+server
 
 # Old standalone backend (now merged into server/) — safe to delete
 proshno-shala-v1-server
