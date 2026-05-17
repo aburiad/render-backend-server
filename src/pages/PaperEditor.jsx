@@ -43,6 +43,7 @@ import SectionDivider from '@/components/questions/SectionDivider'
 import {
   computeQuestionNumbers,
   defaultSectionTitle,
+  formatQuestionNumber,
 } from '@/utils/sectionNumbering'
 
 const QUESTION_TYPES = [
@@ -71,7 +72,7 @@ const EDITOR_MAP = {
   table: TableEditor,
 }
 
-function SortableQuestion({ question, index, displayNumber }) {
+function SortableQuestion({ question, index, displayNumber, questionDirection = 'ltr' }) {
   const {
     attributes,
     listeners,
@@ -107,6 +108,7 @@ function SortableQuestion({ question, index, displayNumber }) {
         question={question}
         index={index}
         displayNumber={displayNumber}
+        questionDirection={questionDirection}
         dragHandleProps={listeners}
       >
         <Editor question={question} />
@@ -163,6 +165,7 @@ export default function PaperEditor() {
           watermark: null,
           set_variant: null,
           logo_url: null,
+          print_settings: { questionNumbering: 'en', questionDirection: 'ltr', labelLanguage: 'bn' },
           questions: [],
         })
       }
@@ -488,6 +491,8 @@ export default function PaperEditor() {
                     ? questions
                     : questions.filter((q) => q?.type !== 'section')
                   const numbers = computeQuestionNumbers(visible, sectionMode)
+                  const numberingStyle = currentPaper?.print_settings?.questionNumbering || 'en'
+                  const questionDirection = currentPaper?.print_settings?.questionDirection || 'ltr'
                   return visible.map((q, i) => (
                     <motion.div
                       key={q.id}
@@ -498,7 +503,8 @@ export default function PaperEditor() {
                       <SortableQuestion
                         question={q}
                         index={i}
-                        displayNumber={numbers[i]}
+                        displayNumber={formatQuestionNumber(numbers[i], numberingStyle)}
+                        questionDirection={questionDirection}
                       />
                     </motion.div>
                   ))

@@ -149,7 +149,7 @@ ${stylesHtml}
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  body { font-family: '${settings.font || 'Noto Serif Bengali'}', 'Hind Siliguri', system-ui, sans-serif; }
+  body { font-family: '${settings.font || 'Noto Serif Bengali'}', 'Hind Siliguri', 'Noto Sans Bengali', 'Noto Naskh Arabic', 'Amiri', system-ui, sans-serif; }
   /* Strip any animation hooks that linger from framer-motion variants */
   [data-framer-component-type] { animation: none !important; transition: none !important; }
 </style>

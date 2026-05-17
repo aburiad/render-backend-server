@@ -2,7 +2,10 @@ import ProGate from '@/components/shared/ProGate'
 import useAuthStore from '@/store/authStore'
 import usePaperStore from '@/store/paperStore'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
+import { QUESTION_DIRECTION_OPTIONS, QUESTION_NUMBERING_OPTIONS } from '@/utils/sectionNumbering'
+import { PAPER_LABEL_LANGUAGE_OPTIONS } from '@/utils/paperLabels'
+import ArabicKeyboard from '@/components/questions/ArabicKeyboard'
 
 // InputGroup defined outside component to prevent recreation on each render
 function InputGroup({ label, children, required }) {
@@ -34,6 +37,31 @@ const TEXT_INPUT_CN =
   'w-full bg-slate-50 border border-slate-200 text-slate-800 outline-none transition-all font-medium ' +
   'px-3 py-2 sm:px-3.5 sm:py-3 text-[13px] sm:text-sm rounded-xl sm:rounded-2xl'
 
+function ArabicTextField({ value, onChange, multiline = false, rows, className = TEXT_INPUT_CN, style, ...props }) {
+  const inputRef = useRef(null)
+  const Component = multiline ? 'textarea' : 'input'
+
+  return (
+    <div style={{ display: 'flex', alignItems: multiline ? 'flex-start' : 'center', gap: 6 }}>
+      <Component
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        rows={rows}
+        className={className}
+        style={style}
+        {...props}
+      />
+      <div style={{ paddingTop: multiline ? 6 : 0, flexShrink: 0 }}>
+        <ArabicKeyboard inputRef={inputRef} onInsert={onChange} />
+      </div>
+      <div style={{ paddingTop: multiline ? 6 : 0, flexShrink: 0 }}>
+        <ArabicKeyboard inputRef={inputRef} onInsert={onChange} layout="fa" />
+      </div>
+    </div>
+  )
+}
+
 export default function PaperSetupForm() {
   const paper = usePaperStore((s) => s.currentPaper)
   const updatePaper = usePaperStore((s) => s.updatePaper)
@@ -43,6 +71,15 @@ export default function PaperSetupForm() {
 
   const handleChange = (field, value) => {
     updatePaper({ [field]: value })
+  }
+
+  const handlePrintSettingChange = (field, value) => {
+    updatePaper({
+      print_settings: {
+        ...(paper?.print_settings || {}),
+        [field]: value,
+      },
+    })
   }
 
   return (
@@ -96,10 +133,10 @@ export default function PaperSetupForm() {
             <div className="h-3 sm:h-5" />
             
             <InputGroup label="প্রতিষ্ঠানের নাম">
-              <input
+              <ArabicTextField
                 type="text"
                 value={paper?.institution_name || ''}
-                onChange={(e) => handleChange('institution_name', e.target.value)}
+                onChange={(value) => handleChange('institution_name', value)}
                 placeholder="যেমন: ঢাকা কলেজিয়েট স্কুল"
                 className={TEXT_INPUT_CN}
                 key={paper?.id || 'new'}
@@ -107,10 +144,10 @@ export default function PaperSetupForm() {
             </InputGroup>
 
             <InputGroup label="পরীক্ষার নাম" required>
-              <input
+              <ArabicTextField
                 type="text"
                 value={paper?.exam_title || ''}
-                onChange={(e) => handleChange('exam_title', e.target.value)}
+                onChange={(value) => handleChange('exam_title', value)}
                 placeholder="যেমন: বার্ষিক পরীক্ষা — ২০২৬"
                 className={TEXT_INPUT_CN}
               />
@@ -118,19 +155,19 @@ export default function PaperSetupForm() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               <InputGroup label="শ্রেণি">
-                <input
+                <ArabicTextField
                   type="text"
                   value={paper?.class_name || ''}
-                  onChange={(e) => handleChange('class_name', e.target.value)}
+                  onChange={(value) => handleChange('class_name', value)}
                   placeholder="যেমন: ৯ম"
                   className={TEXT_INPUT_CN}
                 />
               </InputGroup>
               <InputGroup label="বিষয়">
-                <input
+                <ArabicTextField
                   type="text"
                   value={paper?.subject || ''}
-                  onChange={(e) => handleChange('subject', e.target.value)}
+                  onChange={(value) => handleChange('subject', value)}
                   placeholder="যেমন: পদার্থবিজ্ঞান"
                   className={TEXT_INPUT_CN}
                 />
@@ -138,10 +175,10 @@ export default function PaperSetupForm() {
             </div>
 
             <InputGroup label="সেশন/বর্ষ">
-              <input
+              <ArabicTextField
                 type="text"
                 value={paper?.session_year || ''}
-                onChange={(e) => handleChange('session_year', e.target.value)}
+                onChange={(value) => handleChange('session_year', value)}
                 placeholder="২০২৬"
                 className={TEXT_INPUT_CN}
               />
@@ -171,11 +208,12 @@ export default function PaperSetupForm() {
             </div>
 
             <InputGroup label="নির্দেশনা / Notes">
-              <textarea
+              <ArabicTextField
                 value={paper?.instructions || ''}
-                onChange={(e) => handleChange('instructions', e.target.value)}
+                onChange={(value) => handleChange('instructions', value)}
                 placeholder="যেমন: ডান পাশের সংখ্যাগুলো প্রশ্নের পূর্ণমান নির্দেশ করে। প্রতিটি বিভাগ থেকে নির্দিষ্ট সংখ্যক প্রশ্নের উত্তর দিতে হবে।"
                 rows={3}
+                multiline
                 className={`${TEXT_INPUT_CN} resize-y`}
                 style={{ fontFamily: 'inherit' }}
               />
@@ -193,6 +231,20 @@ export default function PaperSetupForm() {
                   <option value="3-column">৩ কলাম</option>
                 </select>
               </InputGroup>
+              <InputGroup label="প্রশ্ন নম্বর">
+                <select
+                  value={paper?.print_settings?.questionNumbering || 'en'}
+                  onChange={(e) => handlePrintSettingChange('questionNumbering', e.target.value)}
+                  className={TEXT_INPUT_CN}
+                >
+                  {QUESTION_NUMBERING_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </InputGroup>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
               <InputGroup label="হেডার অ্যালাইনমেন্ট">
                 <select
                   value={paper?.header_alignment || 'center'}
@@ -204,7 +256,30 @@ export default function PaperSetupForm() {
                   <option value="right">ডানে</option>
                 </select>
               </InputGroup>
+              <InputGroup label="প্রশ্ন দিক">
+                <select
+                  value={paper?.print_settings?.questionDirection || 'ltr'}
+                  onChange={(e) => handlePrintSettingChange('questionDirection', e.target.value)}
+                  className={TEXT_INPUT_CN}
+                >
+                  {QUESTION_DIRECTION_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                  ))}
+                </select>
+              </InputGroup>
             </div>
+
+            <InputGroup label="পেপার লেবেল ভাষা">
+              <select
+                value={paper?.print_settings?.labelLanguage || 'bn'}
+                onChange={(e) => handlePrintSettingChange('labelLanguage', e.target.value)}
+                className={TEXT_INPUT_CN}
+              >
+                {PAPER_LABEL_LANGUAGE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </InputGroup>
 
             <InputGroup label="সেট ভ্যারিয়েন্ট">
               <div className="flex gap-1.5 sm:gap-2.5">
@@ -277,10 +352,10 @@ export default function PaperSetupForm() {
 
             <InputGroup label="ওয়াটারমার্ক">
               {isPro ? (
-                <input
+                <ArabicTextField
                   type="text"
                   value={paper?.watermark || ''}
-                  onChange={(e) => handleChange('watermark', e.target.value || null)}
+                  onChange={(value) => handleChange('watermark', value || null)}
                   placeholder="কাস্টম ওয়াটারমার্ক (খালি রাখলে থাকবে না)"
                   className={TEXT_INPUT_CN}
                 />

@@ -29,7 +29,7 @@ const TYPE_COLORS = {
   accounting: { bg: '#ecfdf5', border: '#d1fae5', text: '#059669' },
 }
 
-export default function QuestionWrapper({ question, index, displayNumber, children, dragHandleProps }) {
+export default function QuestionWrapper({ question, index, displayNumber, questionDirection = 'ltr', children, dragHandleProps }) {
   const removeQuestion = usePaperStore((s) => s.removeQuestion)
   const duplicateQuestion = usePaperStore((s) => s.duplicateQuestion)
   const currentPaper = usePaperStore((s) => s.currentPaper)
@@ -62,7 +62,10 @@ export default function QuestionWrapper({ question, index, displayNumber, childr
       {/* Card Header & Controls */}
       <div
         className="flex items-center gap-1.5 sm:gap-2.5 px-2 py-2 sm:px-3.5 sm:py-3 border-b border-slate-100"
-        style={{ background: '#fcfcfd' }}
+        style={{
+          background: '#fcfcfd',
+          flexDirection: questionDirection === 'rtl' ? 'row-reverse' : 'row',
+        }}
       >
         {/* Drag Handle */}
         <button
@@ -76,7 +79,11 @@ export default function QuestionWrapper({ question, index, displayNumber, childr
           </svg>
         </button>
 
-        <span className="text-[11px] sm:text-[13px] font-black text-slate-400 min-w-[18px] sm:min-w-[20px]">
+        <span
+          dir="ltr"
+          className="text-[11px] sm:text-[13px] font-black text-slate-400 min-w-[18px] sm:min-w-[20px]"
+          style={{ unicodeBidi: 'isolate' }}
+        >
           {(displayNumber != null ? displayNumber : index + 1)}.
         </span>
 
