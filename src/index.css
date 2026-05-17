@@ -1,11 +1,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Serif+Bengali:wght@400;500;600;700&family=Tiro+Bangla&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* ─── Design Tokens ──────────────────────────────────────── */
 :root {
   /* Fonts */
-  --font-bengali: 'Hind Siliguri', 'Noto Sans Bengali', sans-serif;
+  --font-bengali: 'Hind Siliguri', 'Noto Sans Bengali', 'Noto Naskh Arabic', 'Amiri', sans-serif;
   --font-english: 'Inter', system-ui, sans-serif;
 
   /* MathLive virtual keyboard must sit above the modal backdrop (zIndex 9999) */

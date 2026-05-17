@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import 'mathlive'
 import 'mathlive/static.css'
 import { MathText } from '@/utils/mathRender'
+import ArabicKeyboard from './ArabicKeyboard'
 
 // If the cursor sits inside an existing $...$ block on the same line, return
 // its bounds + LaTeX so we can pre-fill the editor and replace on save.
@@ -371,6 +372,9 @@ export default function MathLiveEditor({ inputRef, onInsert }) {
             <text x="13" y="21" fontFamily="serif" fontSize="9" fontWeight="700" fill="currentColor">Σ</text>
           </svg>
         </button>
+
+        <ArabicKeyboard inputRef={inputRef} onInsert={onInsert} />
+        <ArabicKeyboard inputRef={inputRef} onInsert={onInsert} layout="fa" />
       </div>
       {modal}
     </>

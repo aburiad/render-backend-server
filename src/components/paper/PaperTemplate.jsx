@@ -1,7 +1,8 @@
 import { forwardRef, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { MathText } from '@/utils/mathRender'
 import { getSubLabel } from '@/utils/subNumbering'
-import { computeQuestionNumbers } from '@/utils/sectionNumbering'
+import { computeQuestionNumbers, formatQuestionNumber } from '@/utils/sectionNumbering'
+import { getPaperLabels } from '@/utils/paperLabels'
 
 // CSS px per mm at the 96-dpi spec ratio: 1mm = 96/25.4 ≈ 3.7795 px.
 // CSS unit calculations are always in CSS pixels, independent of devicePixelRatio.
@@ -23,7 +24,7 @@ const PaperTemplate = forwardRef(function PaperTemplate(
   { paper, questions, font = 'Noto Serif Bengali', size = '12pt', spacing = '1.85', orientation = 'portrait', columnGap },
   ref,
 ) {
-  const fontStack = `"${font}", "Hind Siliguri", "Noto Sans Bengali", serif`
+  const fontStack = `"${font}", "Hind Siliguri", "Noto Sans Bengali", "Noto Naskh Arabic", "Amiri", serif`
   const isLandscape = orientation === 'landscape'
 
   // No padding on the element itself. Horizontal + vertical margins are added
@@ -68,6 +69,8 @@ const PaperTemplate = forwardRef(function PaperTemplate(
             questions={questions}
             layout={layoutKey}
             sectionMode={!!paper?.section_mode}
+            numberingStyle={paper?.print_settings?.questionNumbering || 'en'}
+            questionDirection={paper?.print_settings?.questionDirection || 'ltr'}
             columnGap={columnGap}
           />
         </>
@@ -91,6 +94,8 @@ const PaperTemplate = forwardRef(function PaperTemplate(
           paper={paper}
           questions={questions}
           sectionMode={!!paper?.section_mode}
+          numberingStyle={paper?.print_settings?.questionNumbering || 'en'}
+          questionDirection={paper?.print_settings?.questionDirection || 'ltr'}
           colCount={colCount}
           isLandscape={isLandscape}
           columnGap={columnGap}
@@ -118,6 +123,8 @@ function PaginatedColumns({
   paper,
   questions,
   sectionMode,
+  numberingStyle,
+  questionDirection,
   colCount,
   isLandscape,
   columnGap,
@@ -182,7 +189,7 @@ function PaginatedColumns({
     return () => { cancelled = true }
     // numbers is derived from visible + sectionMode (already in deps).
     // pageColHeightPx / colWidthMm are derived from gapMm + isLandscape (in deps).
-  }, [visible, sectionMode, colCount, gapMm, isLandscape, font, size, spacing, pageColHeightPx])
+  }, [visible, sectionMode, numberingStyle, colCount, gapMm, isLandscape, font, size, spacing, pageColHeightPx])
 
   return (
     <>
@@ -208,7 +215,12 @@ function PaginatedColumns({
         <div style={{ width: `${colWidthMm}mm` }}>
           {visible.map((q, i) => (
             <div key={q?.id || `m-${i}`} data-pq-idx={i} style={{ marginBottom: ITEM_SPACING_PX }}>
-              <RenderedItem q={q} number={numbers[i]} outerColumns={colCount} />
+              <RenderedItem
+                q={q}
+                number={formatQuestionNumber(numbers[i], numberingStyle)}
+                questionDirection={questionDirection}
+                outerColumns={colCount}
+              />
             </div>
           ))}
         </div>
@@ -267,7 +279,12 @@ function PaginatedColumns({
                     const q = visible[idx]
                     return (
                       <div key={q?.id || idx} style={{ marginBottom: ITEM_SPACING_PX }}>
-                        <RenderedItem q={q} number={numbers[idx]} outerColumns={colCount} />
+                        <RenderedItem
+                          q={q}
+                          number={formatQuestionNumber(numbers[idx], numberingStyle)}
+                          questionDirection={questionDirection}
+                          outerColumns={colCount}
+                        />
                       </div>
                     )
                   })}
@@ -281,11 +298,11 @@ function PaginatedColumns({
   )
 }
 
-function RenderedItem({ q, number, outerColumns }) {
+function RenderedItem({ q, number, questionDirection = 'ltr', outerColumns }) {
   if (q?.type === 'section') {
     return <SectionHeader q={q} />
   }
-  return <QuestionRow index={number} q={q} outerColumns={outerColumns} />
+  return <QuestionRow index={number} q={q} questionDirection={questionDirection} outerColumns={outerColumns} />
 }
 
 /**
@@ -365,9 +382,15 @@ function makePage(colCount) {
 function Header({ paper }) {
   if (!paper) return null
   const align = paper.header_alignment || 'center'
+  const labelLanguage = paper?.print_settings?.labelLanguage || 'bn'
+  const numberingStyle = paper?.print_settings?.questionNumbering || 'en'
+  const labels = getPaperLabels(labelLanguage)
+  const isRtlLabels = labelLanguage === 'ar' || labelLanguage === 'fa'
+  const timeValue = paper.time_minutes ? formatQuestionNumber(paper.time_minutes, numberingStyle) : ''
+  const marksValue = paper.total_marks ? formatQuestionNumber(paper.total_marks, numberingStyle) : ''
 
   return (
-    <header style={{ marginBottom: 18 }}>
+    <header dir={isRtlLabels ? 'rtl' : 'ltr'} style={{ marginBottom: 18 }}>
       {/* Optional: institution name + logo at the very top */}
       {(paper.institution_name || paper.logo_url) && (
         <div
@@ -407,17 +430,17 @@ function Header({ paper }) {
           >
             {paper.exam_title}
             {paper.session_year ? ` — ${paper.session_year}` : ''}
-            {paper.set_variant ? ` (সেট ${paper.set_variant})` : ''}
+            {paper.set_variant ? ` (${labels.set} ${paper.set_variant})` : ''}
           </div>
         )}
         {paper.class_name && (
           <div style={{ fontSize: '1em', fontWeight: 600, margin: '2px 0' }}>
-            শ্রেণি: {paper.class_name}
+            {labels.className}: {paper.class_name}
           </div>
         )}
         {paper.subject && (
           <div style={{ fontSize: '1em', fontWeight: 600, margin: '2px 0' }}>
-            বিষয়: {paper.subject}
+            {labels.subject}: {paper.subject}
           </div>
         )}
       </div>
@@ -437,10 +460,10 @@ function Header({ paper }) {
         }}
       >
         <span>
-          {paper.time_minutes ? `সময়: ${paper.time_minutes} মিনিট` : ''}
+          {timeValue ? `${labels.time}: ${timeValue} ${labels.minutes}` : ''}
         </span>
         <span>
-          {paper.total_marks ? `পূর্ণমান: ${paper.total_marks}` : ''}
+          {marksValue ? `${labels.totalMarks}: ${marksValue}` : ''}
         </span>
       </div>
 
@@ -455,7 +478,7 @@ function Header({ paper }) {
             lineHeight: 1.5,
           }}
         >
-          <span style={{ fontWeight: 700, fontStyle: 'normal' }}>নির্দেশনা: </span>
+          <span style={{ fontWeight: 700, fontStyle: 'normal' }}>{labels.instructions}: </span>
           <span style={{ whiteSpace: 'pre-line' }}>{paper.instructions}</span>
         </div>
       )}
@@ -463,7 +486,7 @@ function Header({ paper }) {
   )
 }
 
-function QuestionList({ questions, layout = '1-column', sectionMode = false, columnGap }) {
+function QuestionList({ questions, layout = '1-column', sectionMode = false, numberingStyle = 'en', questionDirection = 'ltr', columnGap }) {
   if (!questions || questions.length === 0) {
     return (
       <p style={{ textAlign: 'center', padding: '40px 0', color: '#666' }}>
@@ -516,7 +539,12 @@ function QuestionList({ questions, layout = '1-column', sectionMode = false, col
               WebkitColumnBreakInside: 'avoid',
             }}
           >
-            <QuestionRow index={numbers[i]} q={q} outerColumns={colCount} />
+            <QuestionRow
+              index={formatQuestionNumber(numbers[i], numberingStyle)}
+              q={q}
+              questionDirection={questionDirection}
+              outerColumns={colCount}
+            />
           </div>
         )
       })}
@@ -562,13 +590,32 @@ function SectionHeader({ q }) {
   )
 }
 
-function QuestionRow({ index, q, outerColumns = 1 }) {
+function QuestionRow({ index, q, questionDirection = 'ltr', outerColumns = 1 }) {
+  const isRtl = questionDirection === 'rtl'
   return (
-    <div style={{ display: 'flex', gap: 4 }}>
-      <div style={{ flexShrink: 0, fontWeight: 700 }}>
+    <div
+      dir={isRtl ? 'rtl' : 'ltr'}
+      style={{
+        display: 'flex',
+        flexDirection: 'row',
+        gap: 4,
+      }}
+    >
+      <div
+        dir="ltr"
+        style={{
+          flexShrink: 0,
+          fontWeight: 700,
+          unicodeBidi: 'isolate',
+          textAlign: isRtl ? 'right' : 'left',
+        }}
+      >
         {index}.
       </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        dir={isRtl ? 'rtl' : 'ltr'}
+        style={{ flex: 1, minWidth: 0, textAlign: isRtl ? 'right' : 'left' }}
+      >
         <QuestionBody q={q} outerColumns={outerColumns} />
       </div>
     </div>

@@ -62,7 +62,7 @@ export default function PDFPreview() {
     setSavingSettings(true)
     try {
       const { data } = await api.put(`/papers/${paper.id}`, {
-        print_settings: { font, size, spacing, orientation, columnGap },
+        print_settings: { ...(paper.print_settings || {}), font, size, spacing, orientation, columnGap },
       })
       if (data?.paper) setPaper(data.paper)
       toast.success('সেটিংস সেভ হয়েছে')
@@ -183,9 +183,11 @@ export default function PDFPreview() {
       if (document.fonts) {
         await Promise.all([
           document.fonts.load(`400 16px "${font}"`),
-          document.fonts.load(`700 16px "${font}"`),
-          document.fonts.load(`400 16px "Hind Siliguri"`),
-          document.fonts.load(`400 16px KaTeX_Main`),
+            document.fonts.load(`700 16px "${font}"`),
+            document.fonts.load(`400 16px "Hind Siliguri"`),
+            document.fonts.load(`400 16px "Noto Naskh Arabic"`),
+            document.fonts.load(`700 16px "Noto Naskh Arabic"`),
+            document.fonts.load(`400 16px KaTeX_Main`),
           document.fonts.load(`700 16px KaTeX_Main`),
           document.fonts.load(`italic 400 16px KaTeX_Math`),
           document.fonts.load(`400 16px KaTeX_Size1`),
