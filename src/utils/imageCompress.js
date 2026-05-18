@@ -9,15 +9,14 @@
  *     (without hurting OCR quality — 1600px wide is plenty for handwriting).
  *   - Less bandwidth eaten from Vercel's 100GB/month free quota.
  *
- * Strategy: scale longest side to `maxDimension` (default 1600px) and
- * re-encode as JPEG at `quality` (default 0.85). Below ~1MB original we
- * just pass through to avoid useless re-encoding.
+ * Strategy: scale longest side to `maxDimension` (default 1280px) and
+ * re-encode as JPEG at `quality` (default 0.75).
+ * We compress ALL images to ensure consistency and lower token usage for OCR.
  */
 
 const DEFAULTS = {
-  maxDimension: 1600,
-  quality: 0.85,
-  passthroughBelowBytes: 1024 * 1024, // <1MB: don't bother compressing
+  maxDimension: 1280,
+  quality: 0.75,
   outputType: 'image/jpeg',
 }
 
@@ -30,11 +29,6 @@ const DEFAULTS = {
  */
 export async function compressImageToDataUrl(fileOrBlob, opts = {}) {
   const cfg = { ...DEFAULTS, ...opts }
-
-  // Skip compression for already-small images.
-  if (fileOrBlob.size && fileOrBlob.size < cfg.passthroughBelowBytes) {
-    return blobToDataUrl(fileOrBlob)
-  }
 
   const dataUrl = await blobToDataUrl(fileOrBlob)
   return resizeDataUrl(dataUrl, cfg)
@@ -63,6 +57,11 @@ function resizeDataUrl(dataUrl, cfg) {
       canvas.width = w
       canvas.height = h
       const ctx = canvas.getContext('2d')
+      
+      // Fill with white background first, so transparent PNGs don't become black in JPEG
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, w, h)
+
       ctx.imageSmoothingQuality = 'high'
       ctx.drawImage(img, 0, 0, w, h)
 

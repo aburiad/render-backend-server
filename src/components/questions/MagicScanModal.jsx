@@ -40,8 +40,8 @@ export default function MagicScanModal({ onClose }) {
     if (!file) return
     setImageFile(file)
     try {
-      // Compress to ≤1600px JPEG @ 0.85q — keeps Gemini OCR quality high
-      // while staying well under Vercel's 4.5MB request body cap.
+      // Compress to ≤1280px JPEG @ 0.75q — keeps Gemini Flash OCR readability high
+      // while minimizing token usage and staying well under Vercel's 4.5MB request body cap.
       const compressed = await compressImageToDataUrl(file)
       const sizeKB = Math.round(approximateDataUrlBytes(compressed) / 1024)
       if (sizeKB > 3500) {
