@@ -25,5 +25,6 @@ const VISION_CHAIN = [groq, openrouter, mistral, sambanova, cohere, novita, hugg
 const TEXT_CHAIN = [groq, sambanova, mistral, openrouter, cohere, novita, huggingface, zai]
 
 const ALL = [groq, openrouter, mistral, sambanova, cohere, novita, huggingface, zai]
+const ALL_MAP = Object.fromEntries(ALL.map((p) => [p.name, p]))
 
-module.exports = { VISION_CHAIN, TEXT_CHAIN, ALL }
+module.exports = { VISION_CHAIN, TEXT_CHAIN, ALL, ALL_MAP }

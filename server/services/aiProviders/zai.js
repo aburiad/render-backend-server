@@ -1,7 +1,7 @@
 // Z.ai (Zhipu AI / GLM family) — paid provider, used as the last-resort fallback
 // after all free options are exhausted.
-const VISION_MODELS = ['glm-4.5v', 'glm-4.6v', 'glm-5v-turbo', 'glm-4.6v-flash']
-const TEXT_MODELS = ['glm-4.5', 'glm-4.6', 'glm-4.5-flash', 'glm-4.5-air']
+const VISION_MODELS = ['glm-5v-turbo', 'glm-4.6v', 'glm-4.5v']
+const TEXT_MODELS = ['glm-5.1', 'glm-5', 'glm-4.6', 'glm-4.5']
 const URL = 'https://api.z.ai/api/paas/v4/chat/completions'
 
 async function tryModel({ apiKey, model, messages, jsonMode, temperature }) {
