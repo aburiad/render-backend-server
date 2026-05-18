@@ -1,8 +1,8 @@
 const { supabaseAdmin } = require('../config/supabase')
 
 const DEFAULT_AI_PROVIDER_CONFIG = {
-  vision_chain: ['groq', 'openrouter', 'mistral', 'sambanova', 'cohere', 'novita', 'huggingface', 'zai'],
-  text_chain: ['groq', 'sambanova', 'mistral', 'openrouter', 'cohere', 'novita', 'huggingface', 'zai'],
+  vision_chain: ['gemini', 'groq', 'openrouter', 'mistral', 'sambanova', 'cohere', 'novita', 'huggingface', 'zai'],
+  text_chain: ['gemini', 'groq', 'sambanova', 'mistral', 'openrouter', 'cohere', 'novita', 'huggingface', 'zai'],
 }
 
 const DEFAULT_RATE_LIMITS = {

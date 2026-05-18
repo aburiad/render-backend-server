@@ -6,6 +6,7 @@ const huggingface = require('./huggingface')
 const sambanova = require('./sambanova')
 const cohere = require('./cohere')
 const zai = require('./zai')
+const gemini = require('./gemini')
 
 /**
  * Fallback chains. Order = preference (speed × free-tier headroom × reliability).
@@ -21,10 +22,10 @@ const zai = require('./zai')
  *   - Novita: Qwen2.5-VL-72B
  *   - Z.ai: glm-4.5v / glm-4.6v
  */
-const VISION_CHAIN = [groq, openrouter, mistral, sambanova, cohere, novita, huggingface, zai]
-const TEXT_CHAIN = [groq, sambanova, mistral, openrouter, cohere, novita, huggingface, zai]
+const VISION_CHAIN = [gemini, groq, openrouter, mistral, sambanova, cohere, novita, huggingface, zai]
+const TEXT_CHAIN = [gemini, groq, sambanova, mistral, openrouter, cohere, novita, huggingface, zai]
 
-const ALL = [groq, openrouter, mistral, sambanova, cohere, novita, huggingface, zai]
+const ALL = [gemini, groq, openrouter, mistral, sambanova, cohere, novita, huggingface, zai]
 const ALL_MAP = Object.fromEntries(ALL.map((p) => [p.name, p]))
 
 module.exports = { VISION_CHAIN, TEXT_CHAIN, ALL, ALL_MAP }

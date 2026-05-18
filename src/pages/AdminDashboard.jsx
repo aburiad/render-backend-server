@@ -33,8 +33,8 @@ export default function AdminDashboard() {
       enable_byo_subscription: false,
     },
     aiProviderConfig: {
-      vision_chain: ['groq', 'openrouter', 'mistral', 'sambanova', 'cohere', 'novita', 'huggingface', 'zai'],
-      text_chain: ['groq', 'sambanova', 'mistral', 'openrouter', 'cohere', 'novita', 'huggingface', 'zai']
+      vision_chain: ['gemini', 'groq', 'openrouter', 'mistral', 'sambanova', 'cohere', 'novita', 'huggingface', 'zai'],
+      text_chain: ['gemini', 'groq', 'sambanova', 'mistral', 'openrouter', 'cohere', 'novita', 'huggingface', 'zai']
     }
   })
   const [pendingPayments, setPendingPayments] = useState([])
@@ -69,10 +69,18 @@ export default function AdminDashboard() {
           ...prev.creditConfig,
           ...(configRes.data.config?.creditConfig || {}),
         },
-        aiProviderConfig: {
-          ...prev.aiProviderConfig,
-          ...(configRes.data.config?.aiProviderConfig || {}),
-        }
+        aiProviderConfig: (() => {
+          const dbChain = configRes.data.config?.aiProviderConfig || {}
+          const mergeChain = (dbArr, prevArr) => {
+            const base = dbArr?.length ? dbArr : prevArr
+            // Ensure gemini is always first if not already in the chain
+            return base.includes('gemini') ? base : ['gemini', ...base]
+          }
+          return {
+            vision_chain: mergeChain(dbChain.vision_chain, prev.aiProviderConfig?.vision_chain),
+            text_chain: mergeChain(dbChain.text_chain, prev.aiProviderConfig?.text_chain),
+          }
+        })()
       }))
       setPendingPayments(paymentsRes.data.payments)
       if (usersRes.data.users) setUsers(usersRes.data.users)
@@ -832,7 +840,7 @@ export default function AdminDashboard() {
                     AI API Priorities
                   </h3>
                   <p className="text-[11px] text-indigo-800 mt-1">
-                    API গুলো কোন সিরিয়ালে কল হবে তা কন্ট্রোল করুন। কমা দিয়ে নামগুলো লিখুন। Available: groq, openrouter, mistral, sambanova, cohere, novita, huggingface, zai
+                    API গুলো কোন সিরিয়ালে কল হবে তা কন্ট্রোল করুন। কমা দিয়ে নামগুলো লিখুন। Available: gemini, groq, openrouter, mistral, sambanova, cohere, novita, huggingface, zai
                   </p>
                 </div>
                 

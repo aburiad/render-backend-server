@@ -54,6 +54,7 @@ const ENV_KEY = {
   sambanova: 'SAMBANOVA_API_KEY',
   cohere: 'COHERE_API_KEY',
   zai: 'Z_API_KEY',
+  gemini: 'GEMINI_API_KEY',
 }
 
 /**
