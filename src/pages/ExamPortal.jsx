@@ -19,6 +19,7 @@ import MathLiveEditor from '@/components/questions/MathLiveEditor'
  */
 function AnswerTextarea({ value, onChange, placeholder, minH = '50px' }) {
   const ref = useRef(null)
+  const [customKbOpen, setCustomKbOpen] = useState(false)
   return (
     <div className="flex flex-col sm:flex-row sm:items-start gap-1.5 sm:gap-2">
       <textarea
@@ -26,11 +27,14 @@ function AnswerTextarea({ value, onChange, placeholder, minH = '50px' }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        readOnly={customKbOpen || undefined}
+        inputMode={customKbOpen ? 'none' : undefined}
+        aria-hidden={customKbOpen ? true : undefined}
         className="flex-1 min-w-0 p-2 sm:p-3 bg-gray-50 border border-gray-100 rounded-lg sm:rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-blue-500 transition-all outline-none"
         style={{ minHeight: minH }}
       />
       <div className="flex justify-end sm:block flex-shrink-0">
-        <MathLiveEditor inputRef={ref} onInsert={onChange} />
+        <MathLiveEditor inputRef={ref} onInsert={onChange} onCustomKeyboardChange={setCustomKbOpen} />
       </div>
     </div>
   )
