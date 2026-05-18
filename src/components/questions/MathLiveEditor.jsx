@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import 'mathlive'
 import 'mathlive/static.css'
 import { MathText } from '@/utils/mathRender'
-import ArabicKeyboard from './ArabicKeyboard'
+import ArabicKeyboardPair from './ArabicKeyboardPair'
 
 // If the cursor sits inside an existing $...$ block on the same line, return
 // its bounds + LaTeX so we can pre-fill the editor and replace on save.
@@ -34,7 +34,8 @@ function detectMathAtCursor(value, selStart) {
   }
 }
 
-export default function MathLiveEditor({ inputRef, onInsert }) {
+export default function MathLiveEditor({ inputRef, onInsert, onCustomKeyboardChange }) {
+  const customKbOpenCount = useRef(0)
   const [open, setOpen] = useState(false)
   const [latex, setLatex] = useState('')
   const [isReplacing, setIsReplacing] = useState(false)
@@ -316,6 +317,12 @@ export default function MathLiveEditor({ inputRef, onInsert }) {
     setOpen(true)
   }
 
+  const handleArabicKeyboardOpenChange = (isOpen) => {
+    customKbOpenCount.current += isOpen ? 1 : -1
+    if (customKbOpenCount.current < 0) customKbOpenCount.current = 0
+    onCustomKeyboardChange?.(customKbOpenCount.current > 0)
+  }
+
   return (
     <>
       <div style={{ display: 'inline-flex', gap: 4, flexShrink: 0 }}>
@@ -373,8 +380,7 @@ export default function MathLiveEditor({ inputRef, onInsert }) {
           </svg>
         </button>
 
-        <ArabicKeyboard inputRef={inputRef} onInsert={onInsert} />
-        <ArabicKeyboard inputRef={inputRef} onInsert={onInsert} layout="fa" />
+        <ArabicKeyboardPair inputRef={inputRef} onInsert={onInsert} onOpenChange={handleArabicKeyboardOpenChange} />
       </div>
       {modal}
     </>

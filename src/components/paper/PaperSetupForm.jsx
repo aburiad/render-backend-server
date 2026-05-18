@@ -5,7 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useRef, useState } from 'react'
 import { QUESTION_DIRECTION_OPTIONS, QUESTION_NUMBERING_OPTIONS } from '@/utils/sectionNumbering'
 import { PAPER_LABEL_LANGUAGE_OPTIONS } from '@/utils/paperLabels'
-import ArabicKeyboard from '@/components/questions/ArabicKeyboard'
+import ArabicKeyboardPair from '@/components/questions/ArabicKeyboardPair'
 
 // InputGroup defined outside component to prevent recreation on each render
 function InputGroup({ label, children, required }) {
@@ -39,7 +39,17 @@ const TEXT_INPUT_CN =
 
 function ArabicTextField({ value, onChange, multiline = false, rows, className = TEXT_INPUT_CN, style, ...props }) {
   const inputRef = useRef(null)
+  const customKbOpenCount = useRef(0)
+  const [, forceKbLockRender] = useState(0)
   const Component = multiline ? 'textarea' : 'input'
+
+  const handleKeyboardOpenChange = (isOpen) => {
+    customKbOpenCount.current += isOpen ? 1 : -1
+    if (customKbOpenCount.current < 0) customKbOpenCount.current = 0
+    forceKbLockRender((n) => n + 1) // sync readOnly before next paint
+  }
+
+  const customKbOpen = customKbOpenCount.current > 0
 
   return (
     <div style={{ display: 'flex', alignItems: multiline ? 'flex-start' : 'center', gap: 6 }}>
@@ -51,12 +61,11 @@ function ArabicTextField({ value, onChange, multiline = false, rows, className =
         className={className}
         style={style}
         {...props}
+        readOnly={customKbOpen ? true : props.readOnly}
+        inputMode={customKbOpen ? 'none' : props.inputMode}
       />
-      <div style={{ paddingTop: multiline ? 6 : 0, flexShrink: 0 }}>
-        <ArabicKeyboard inputRef={inputRef} onInsert={onChange} />
-      </div>
-      <div style={{ paddingTop: multiline ? 6 : 0, flexShrink: 0 }}>
-        <ArabicKeyboard inputRef={inputRef} onInsert={onChange} layout="fa" />
+      <div style={{ paddingTop: multiline ? 6 : 0, flexShrink: 0, display: 'flex', gap: 4 }}>
+        <ArabicKeyboardPair inputRef={inputRef} onInsert={onChange} onOpenChange={handleKeyboardOpenChange} />
       </div>
     </div>
   )
