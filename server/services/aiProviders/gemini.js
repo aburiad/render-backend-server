@@ -1,5 +1,5 @@
-const VISION_MODELS = ['gemini-2.5-flash']
-const TEXT_MODELS = ['gemini-2.5-flash']
+const VISION_MODELS = ['gemini-2.5-flash-lite']
+const TEXT_MODELS = ['gemini-2.5-flash-lite']
 
 // Translate OpenAI-style messages to Gemini-style contents
 function convertMessagesToGemini(messages) {
@@ -44,7 +44,12 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   const URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
   
   const contents = convertMessagesToGemini(messages)
-  const generationConfig = { temperature }
+  const generationConfig = { 
+    temperature,
+    thinkingConfig: {
+      thinkingBudget: 0
+    }
+  }
   
   if (jsonMode) {
     generationConfig.responseMimeType = 'application/json'
