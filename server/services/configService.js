@@ -1,5 +1,10 @@
 const { supabaseAdmin } = require('../config/supabase')
 
+const DEFAULT_AI_PROVIDER_CONFIG = {
+  vision_chain: ['groq', 'openrouter', 'mistral', 'sambanova', 'cohere', 'novita', 'huggingface', 'zai'],
+  text_chain: ['groq', 'sambanova', 'mistral', 'openrouter', 'cohere', 'novita', 'huggingface', 'zai'],
+}
+
 const DEFAULT_RATE_LIMITS = {
   ai: {
     max: 30, // limit when user uses SYSTEM AI keys (our cost)
@@ -49,6 +54,7 @@ const DEFAULT_CONFIG = {
   ],
   rate_limits: DEFAULT_RATE_LIMITS,
   credit_config: DEFAULT_CREDIT_CONFIG,
+  ai_provider_config: DEFAULT_AI_PROVIDER_CONFIG,
 }
 
 function normalizeRateLimits(input) {
@@ -119,6 +125,20 @@ function normalizeCreditConfig(input) {
   return out
 }
 
+function normalizeAiProviderConfig(input) {
+  const out = { ...DEFAULT_AI_PROVIDER_CONFIG }
+  if (!input || typeof input !== 'object') return out
+  
+  if (Array.isArray(input.vision_chain) && input.vision_chain.length > 0) {
+    out.vision_chain = input.vision_chain.map(String)
+  }
+  if (Array.isArray(input.text_chain) && input.text_chain.length > 0) {
+    out.text_chain = input.text_chain.map(String)
+  }
+  
+  return out
+}
+
 function rowToConfig(row) {
   if (!row) return null
   return {
@@ -129,6 +149,7 @@ function rowToConfig(row) {
     features: row.features,
     rateLimits: normalizeRateLimits(row.rate_limits),
     creditConfig: normalizeCreditConfig(row.credit_config),
+    aiProviderConfig: normalizeAiProviderConfig(row.ai_provider_config),
     updatedAt: row.updated_at,
   }
 }
@@ -150,6 +171,7 @@ const configService = {
         features: DEFAULT_CONFIG.features,
         rateLimits: DEFAULT_CONFIG.rate_limits,
         creditConfig: DEFAULT_CONFIG.credit_config,
+        aiProviderConfig: DEFAULT_CONFIG.ai_provider_config,
       })
       return {
         proPrice: DEFAULT_CONFIG.pro_price,
@@ -159,6 +181,7 @@ const configService = {
         features: DEFAULT_CONFIG.features,
         rateLimits: DEFAULT_CONFIG.rate_limits,
         creditConfig: DEFAULT_CONFIG.credit_config,
+        aiProviderConfig: DEFAULT_CONFIG.ai_provider_config,
       }
     }
     return rowToConfig(data)
@@ -183,6 +206,12 @@ const configService = {
           : newConfig.creditConfig !== undefined
           ? normalizeCreditConfig(newConfig.creditConfig)
           : undefined,
+      ai_provider_config:
+        newConfig.ai_provider_config !== undefined
+          ? normalizeAiProviderConfig(newConfig.ai_provider_config)
+          : newConfig.aiProviderConfig !== undefined
+          ? normalizeAiProviderConfig(newConfig.aiProviderConfig)
+          : undefined,
       updated_at: new Date().toISOString(),
     }
     Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k])
@@ -200,3 +229,4 @@ const configService = {
 module.exports = configService
 module.exports.DEFAULT_RATE_LIMITS = DEFAULT_RATE_LIMITS
 module.exports.DEFAULT_CREDIT_CONFIG = DEFAULT_CREDIT_CONFIG
+module.exports.DEFAULT_AI_PROVIDER_CONFIG = DEFAULT_AI_PROVIDER_CONFIG

@@ -1,4 +1,6 @@
-const { VISION_CHAIN, TEXT_CHAIN } = require('./aiProviders')
+const { VISION_CHAIN: DEFAULT_VISION, TEXT_CHAIN: DEFAULT_TEXT, ALL_MAP } = require('./aiProviders')
+const configService = require('./configService')
+const { supabaseAdmin } = require('../config/supabase')
 const { AppError } = require('../middleware/errorHandler')
 const userApiKeyService = require('./userApiKeyService')
 
@@ -97,11 +99,19 @@ async function callWithFallback(chain, params, label, userId = null) {
       if (isUserKey && userId) {
         userApiKeyService.markUsed(userId, provider.name).catch(() => {})
       }
+      // Log usage for dashboard graph
+      supabaseAdmin.rpc('log_ai_provider_usage', { p_provider: provider.name, p_success: true })
+        .then(({ error }) => { if (error) console.warn('AI stat log error:', error.message) })
+      
       return { questions, provider: provider.name, source: isUserKey ? 'user' : 'system' }
     } catch (err) {
       const msg = err?.message || String(err)
       console.warn(`[ai:${label}] ✗ ${provider.name}: ${msg}`)
       errors.push({ provider: provider.name, message: msg, source: isUserKey ? 'user' : 'system' })
+      
+      // Log failure for dashboard graph
+      supabaseAdmin.rpc('log_ai_provider_usage', { p_provider: provider.name, p_success: false })
+        .then(({ error }) => { if (error) console.warn('AI stat log error:', error.message) })
     }
   }
 
@@ -128,6 +138,10 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null) {
 
   const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '')
   const dataUrl = `data:${mimeType};base64,${cleanBase64}`
+
+  const config = await configService.getConfig()
+  const providerNames = config?.aiProviderConfig?.vision_chain || DEFAULT_VISION.map(p => p.name)
+  const visionChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
 
   const prompt = `Extract every question from this Bengali question paper image into a JSON array.
 
@@ -174,7 +188,7 @@ Output: ONLY the JSON array. No markdown fences, no commentary. Use \\n for line
   ]
 
   const { questions, provider, source } = await callWithFallback(
-    VISION_CHAIN,
+    visionChain,
     // Temperature 0 → deterministic transcription. Higher temp lets the
     // model "creatively" swap letters/digits, which is the exact failure
     // mode (x ↔ y, m ↔ n, fraction flip) we are trying to eliminate.
@@ -203,6 +217,10 @@ async function generateFromBook(chapterContext, config = {}, userId = null) {
     accounting: 'হিসাববিজ্ঞান',
   }
   const subjectBn = SUBJECTS_BN[subject] || subject
+  
+  const configServiceData = await configService.getConfig()
+  const providerNames = configServiceData?.aiProviderConfig?.text_chain || DEFAULT_TEXT.map(p => p.name)
+  const textChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
 
   const typeInstructions = questionTypes
     .map((t) => {
@@ -274,7 +292,7 @@ ${mathBlock}
   const messages = [{ role: 'user', content: prompt }]
 
   const { questions, provider, source } = await callWithFallback(
-    TEXT_CHAIN,
+    textChain,
     { messages, vision: false, jsonMode: true, temperature: 0.6 },
     'book-generate',
     userId,

@@ -32,6 +32,10 @@ export default function AdminDashboard() {
       byo_unlimited_price_bdt: 999,
       enable_byo_subscription: false,
     },
+    aiProviderConfig: {
+      vision_chain: ['groq', 'openrouter', 'mistral', 'sambanova', 'cohere', 'novita', 'huggingface', 'zai'],
+      text_chain: ['groq', 'sambanova', 'mistral', 'openrouter', 'cohere', 'novita', 'huggingface', 'zai']
+    }
   })
   const [pendingPayments, setPendingPayments] = useState([])
   const [users, setUsers] = useState([])
@@ -65,6 +69,10 @@ export default function AdminDashboard() {
           ...prev.creditConfig,
           ...(configRes.data.config?.creditConfig || {}),
         },
+        aiProviderConfig: {
+          ...prev.aiProviderConfig,
+          ...(configRes.data.config?.aiProviderConfig || {}),
+        }
       }))
       setPendingPayments(paymentsRes.data.payments)
       if (usersRes.data.users) setUsers(usersRes.data.users)
@@ -146,11 +154,48 @@ export default function AdminDashboard() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
+            className="space-y-6"
           >
-            <StatCard title="মোট ইউজার" value={stats?.totalUsers} icon="users" color="bg-blue-50 text-blue-600" />
-            <StatCard title="মোট প্রশ্নপত্র" value={stats?.totalPapers} icon="file-text" color="bg-purple-50 text-purple-600" />
-            <StatCard title="মোট আয় (৳)" value={stats?.totalRevenue || 0} icon="credit-card" color="bg-emerald-50 text-emerald-600" />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <StatCard title="মোট ইউজার" value={stats?.totalUsers} icon="users" color="bg-blue-50 text-blue-600" />
+              <StatCard title="মোট প্রশ্নপত্র" value={stats?.totalPapers} icon="file-text" color="bg-purple-50 text-purple-600" />
+              <StatCard title="মোট আয় (৳)" value={stats?.totalRevenue || 0} icon="credit-card" color="bg-emerald-50 text-emerald-600" />
+            </div>
+
+            {/* AI Usage Stats Graph */}
+            {stats?.aiStats && stats.aiStats.length > 0 && (
+              <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
+                <h3 className="text-lg font-bold text-gray-900 mb-6">AI API ব্যবহার (Usage Stats)</h3>
+                <div className="space-y-4">
+                  {stats.aiStats.map(stat => {
+                    const total = stat.success_count + stat.fail_count
+                    const successPct = total > 0 ? Math.round((stat.success_count / total) * 100) : 0
+                    const failPct = total > 0 ? Math.round((stat.fail_count / total) * 100) : 0
+                    
+                    return (
+                      <div key={stat.provider} className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-center text-sm font-bold">
+                          <span className="capitalize text-gray-700">{stat.provider}</span>
+                          <span className="text-gray-500">{total} calls ({successPct}% success)</span>
+                        </div>
+                        <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden flex">
+                          <div 
+                            className="h-full bg-green-500 transition-all duration-1000" 
+                            style={{ width: `${successPct}%` }}
+                            title={`${stat.success_count} Success`}
+                          ></div>
+                          <div 
+                            className="h-full bg-red-500 transition-all duration-1000" 
+                            style={{ width: `${failPct}%` }}
+                            title={`${stat.fail_count} Failed`}
+                          ></div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </motion.div>
         )}
 
@@ -777,6 +822,57 @@ export default function AdminDashboard() {
                     Live Saved Values (verify after each save)
                   </h4>
                   <pre className="text-[10px] text-gray-700 bg-gray-50 p-2 rounded overflow-x-auto">{JSON.stringify(config.creditConfig, null, 2)}</pre>
+                </div>
+              </div>
+
+              {/* ── AI Provider Configuration ── */}
+              <div className="space-y-4 p-5 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl border border-indigo-100">
+                <div>
+                  <h3 className="text-sm font-black text-indigo-900 uppercase tracking-widest">
+                    AI API Priorities
+                  </h3>
+                  <p className="text-[11px] text-indigo-800 mt-1">
+                    API গুলো কোন সিরিয়ালে কল হবে তা কন্ট্রোল করুন। কমা দিয়ে নামগুলো লিখুন। Available: groq, openrouter, mistral, sambanova, cohere, novita, huggingface, zai
+                  </p>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-indigo-900 uppercase mb-1">
+                      Vision Chain (Image Scan)
+                    </label>
+                    <textarea
+                      value={(config.aiProviderConfig?.vision_chain || []).join(', ')}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          aiProviderConfig: {
+                            ...config.aiProviderConfig,
+                            vision_chain: e.target.value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-indigo-500 text-sm h-16"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-indigo-900 uppercase mb-1">
+                      Text Chain (Book Generate)
+                    </label>
+                    <textarea
+                      value={(config.aiProviderConfig?.text_chain || []).join(', ')}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          aiProviderConfig: {
+                            ...config.aiProviderConfig,
+                            text_chain: e.target.value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean),
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-indigo-500 text-sm h-16"
+                    />
+                  </div>
                 </div>
               </div>
 

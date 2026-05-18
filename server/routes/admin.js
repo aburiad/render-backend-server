@@ -239,10 +239,11 @@ router.put('/users/:uid', async (req, res, next) => {
 
 router.get('/stats', async (req, res, next) => {
   try {
-    const [{ count: uCount }, { count: pCount }, { data: payRows }] = await Promise.all([
+    const [{ count: uCount }, { count: pCount }, { data: payRows }, { data: aiStats }] = await Promise.all([
       supabaseAdmin.from('profiles').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('papers').select('*', { count: 'exact', head: true }),
       supabaseAdmin.from('manual_payments').select('amount, status'),
+      supabaseAdmin.from('ai_provider_stats').select('*').order('success_count', { ascending: false }),
     ])
 
     let totalRevenue = 0
@@ -258,6 +259,7 @@ router.get('/stats', async (req, res, next) => {
       totalPapers: pCount || 0,
       totalPayments: (payRows || []).length,
       totalRevenue,
+      aiStats: aiStats || [],
     })
   } catch (err) {
     next(err)
