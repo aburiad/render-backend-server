@@ -31,9 +31,9 @@ function parseQuestionsJson(raw) {
   throw new Error('Could not parse JSON array from model output')
 }
 
-// Vercel Hobby caps a serverless function at 10s. Cap each provider attempt
-// so a stalled one cannot drain the budget for the rest of the chain.
-const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || 8000
+// Vercel Hobby caps a serverless function at 10s, but since we are on Cloud Run / custom backend,
+// we can safely increase this. Google Gemini vision often takes 15-20s.
+const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || 30000
 
 function withTimeout(promise, ms, label) {
   return new Promise((resolve, reject) => {

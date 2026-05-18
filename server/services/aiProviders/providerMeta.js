@@ -8,6 +8,17 @@
  */
 const PROVIDER_META = [
   {
+    name: 'gemini',
+    label: 'Google Gemini',
+    envVar: 'GEMINI_API_KEY',
+    signupUrl: 'https://aistudio.google.com/app/apikey',
+    description: 'Gemini 2.5 Flash - Text & Vision',
+    supportsVision: true,
+    supportsText: true,
+    keyPrefix: 'AIzaSy',
+    recommended: true,
+  },
+  {
     name: 'groq',
     label: 'Groq',
     envVar: 'GROQ_API_KEY',
