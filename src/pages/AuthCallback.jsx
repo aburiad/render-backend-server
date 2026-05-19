@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import useAuthStore from '@/store/authStore'
+import api from '@/services/api'
 import { useEffect, useRef } from 'react'
 import toast from 'react-hot-toast'
 import { useNavigate } from 'react-router-dom'
@@ -46,10 +47,14 @@ export default function AuthCallback() {
           return
         }
         if (!user.role) {
-          navigate('/register?step=role', { replace: true })
-        } else {
-          navigate('/dashboard', { replace: true })
+          try {
+            const { data } = await api.put('/auth/set-role', { role: 'school' })
+            useAuthStore.getState().setUser(data.user)
+          } catch (roleErr) {
+            console.error('Failed to auto-set role:', roleErr)
+          }
         }
+        navigate('/dashboard', { replace: true })
       } catch (e) {
         if (!cancelled) {
           console.error('AuthCallback:', e)

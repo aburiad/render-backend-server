@@ -19,9 +19,9 @@ export default function Login() {
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password })
       if (error) throw error
-      const user = await applySession(data.session)
+      await applySession(data.session)
       toast.success('স্বাগতম!')
-      navigate(user?.role ? '/dashboard' : '/register?step=role', { replace: true })
+      navigate('/dashboard', { replace: true })
     } catch (err) {
       toast.error(err.message || 'লগইন ব্যর্থ হয়েছে')
     } finally {

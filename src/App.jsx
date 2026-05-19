@@ -30,28 +30,19 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 function ProtectedRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const user = useAuthStore((s) => s.user)
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  // Role still missing (Google OAuth user not finished onboarding) → send to role step
-  if (!user?.role) return <Navigate to="/register?step=role" replace />
   return children
 }
 
 function GuestRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const user = useAuthStore((s) => s.user)
-  if (isAuthenticated && user && !user.role) {
-    return <Navigate to="/register?step=role" replace />
-  }
-  if (isAuthenticated && user?.role) return <Navigate to="/dashboard" replace />
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />
   return children
 }
 
-/** Allow register while logged in (e.g. Google user finishing role) but not if already complete */
 function RegisterRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const user = useAuthStore((s) => s.user)
-  if (isAuthenticated && user?.role) return <Navigate to="/dashboard" replace />
+  if (isAuthenticated) return <Navigate to="/dashboard" replace />
   return children
 }
 

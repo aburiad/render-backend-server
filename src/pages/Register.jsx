@@ -66,7 +66,7 @@ export default function Register() {
   const setUser = useAuthStore((s) => s.setUser)
   const user = useAuthStore((s) => s.user)
   // Only allow skipping to step 2 via URL if user is already logged in (e.g. Google OAuth completing role)
-  const initialStep = searchParams.get('step') === 'role' && user ? 2 : 1
+  const initialStep = 1
   const [step, setStep] = useState(initialStep)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -76,12 +76,12 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
-  const handleSubmitInfo = (e) => {
+  const handleSubmitInfo = async (e) => {
     e.preventDefault()
     if (password !== confirmPassword) {
       return toast.error('পাসওয়ার্ড মিলছে না')
     }
-    setStep(2)
+    await handleRoleSelect('school')
   }
 
   const handleGoogleRegister = async () => {

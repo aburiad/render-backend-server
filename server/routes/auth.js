@@ -67,7 +67,7 @@ router.get('/me', requireAuth, async (req, res, next) => {
         id: req.user.uid,
         email: req.user.email,
         display_name: req.user.name,
-        role: req.user.role || null,
+        role: req.user.role || 'school',
         subscription: 'free',
         ai_op_credits: signupBonus,
       }

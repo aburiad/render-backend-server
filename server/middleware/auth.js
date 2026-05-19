@@ -31,6 +31,18 @@ function computeTier(profile, trialDays) {
   return { tier: 'free', trialEndAt: trialEnd.toISOString() }
 }
 
+async function retryOperation(operation, retries = 3, delay = 1000) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await operation()
+    } catch (err) {
+      if (i === retries - 1) throw err
+      console.warn(`[auth] Retrying database operation after error: ${err.message} (attempt ${i + 1}/${retries})`)
+      await new Promise((resolve) => setTimeout(resolve, delay))
+    }
+  }
+}
+
 /**
  * Verify Supabase JWT (sent as `Authorization: Bearer <token>`) and load profile.
  * On success, populates:
@@ -54,18 +66,23 @@ async function requireAuth(req, res, next) {
   }
 
   try {
-    const { data, error } = await supabaseAdmin.auth.getUser(token)
-    if (error || !data?.user) {
-      return res.status(401).json({ message: 'Invalid or expired token' })
-    }
-    const sUser = data.user
+    const sUser = await retryOperation(async () => {
+      const { data, error } = await supabaseAdmin.auth.getUser(token)
+      if (error) throw error
+      if (!data?.user) throw new Error('No user returned from Supabase Auth')
+      return data.user
+    }, 3, 1500)
+
     const meta = sUser.user_metadata || {}
 
-    const [profileRes, config] = await Promise.all([
-      supabaseAdmin.from('profiles').select('*').eq('id', sUser.id).maybeSingle(),
+    const [profile, config] = await Promise.all([
+      retryOperation(async () => {
+        const { data, error } = await supabaseAdmin.from('profiles').select('*').eq('id', sUser.id).maybeSingle()
+        if (error) throw error
+        return data
+      }, 3, 1500),
       getCachedConfig(),
     ])
-    const profile = profileRes.data
 
     if (profile?.is_banned) {
       return res.status(403).json({ message: 'আপনার অ্যাকাউন্ট নিষিদ্ধ করা হয়েছে। সহায়তার জন্য যোগাযোগ করুন।', banned: true })
