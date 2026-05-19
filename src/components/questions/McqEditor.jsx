@@ -101,34 +101,38 @@ export default function McqEditor({ question }) {
           const displayLabel = getSubLabel(numbering, i, opt.toUpperCase())
           return (
             <div key={opt} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => handleChange('correct_answer', opt)}
-                  className="btn-press"
-                  style={{
-                    minWidth: 32, height: 32, padding: '0 6px', borderRadius: 10, flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 12, fontWeight: 900, transition: 'all 0.2s',
-                    background: isCorrect ? '#22c55e' : '#fff',
-                    border: `2px solid ${isCorrect ? '#22c55e' : '#e2e8f0'}`,
-                    color: isCorrect ? '#fff' : '#94a3b8',
-                    boxShadow: isCorrect ? '0 4px 10px rgba(34,197,94,0.3)' : 'none'
-                  }}
-                  title={isCorrect ? 'সঠিক উত্তর' : 'এটিকে সঠিক করুন'}
-                >
-                  {displayLabel}
-                </button>
-                <AutoTextarea
-                  ref={optionRefs[opt]}
-                  value={question[`option_${opt}`] || ''}
-                  onChange={(e) => handleChange(`option_${opt}`, e.target.value)}
-                  placeholder={`অপশন ${displayLabel}`}
-                  rows={1}
-                  style={{ ...InputStyle, padding: '8px 12px', flex: 1, minWidth: 0, resize: 'none', lineHeight: 1.5 }}
-                />
+              <div className="flex flex-col sm:flex-row sm:items-start gap-2">
+                <div className="flex items-start gap-2 flex-1 min-w-0">
+                  <button
+                    type="button"
+                    onClick={() => handleChange('correct_answer', opt)}
+                    className="btn-press"
+                    style={{
+                      minWidth: 32, height: 32, padding: '0 6px', borderRadius: 10, flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 12, fontWeight: 900, transition: 'all 0.2s',
+                      background: isCorrect ? '#22c55e' : '#fff',
+                      border: `2px solid ${isCorrect ? '#22c55e' : '#e2e8f0'}`,
+                      color: isCorrect ? '#fff' : '#94a3b8',
+                      boxShadow: isCorrect ? '0 4px 10px rgba(34,197,94,0.3)' : 'none'
+                    }}
+                    title={isCorrect ? 'সঠিক উত্তর' : 'এটিকে সঠিক করুন'}
+                  >
+                    {displayLabel}
+                  </button>
+                  <AutoTextarea
+                    ref={optionRefs[opt]}
+                    value={question[`option_${opt}`] || ''}
+                    onChange={(e) => handleChange(`option_${opt}`, e.target.value)}
+                    placeholder={`অপশন ${displayLabel}`}
+                    rows={1}
+                    style={{ ...InputStyle, padding: '8px 12px', flex: 1, minWidth: 0, resize: 'none', lineHeight: 1.5 }}
+                  />
+                </div>
                 {layout === 1 && (
-                  <MathLiveEditor inputRef={optionRefs[opt]} onInsert={(v) => handleChange(`option_${opt}`, v)} />
+                  <div className="flex justify-end sm:block pl-10 sm:pl-0">
+                    <MathLiveEditor inputRef={optionRefs[opt]} onInsert={(v) => handleChange(`option_${opt}`, v)} />
+                  </div>
                 )}
               </div>
               {layout === 1 && <MathPreview text={question[`option_${opt}`]} label="" />}
