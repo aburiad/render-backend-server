@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+// eslint-disable-next-line no-unused-vars
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   clearDeferredValue,
   commitDeferredValue,
   lockInputEl,
   reapplyInputLock,
+  saveOriginalInputState,
   setDeferredValue,
   unlockInputEl,
 } from './arabicKeyboardInputLock'
@@ -37,6 +39,14 @@ function swallowPointer(e) {
   e.stopPropagation()
 }
 
+function applyTemporaryLock(el) {
+  if (!el) return
+  saveOriginalInputState(el)
+  el.readOnly = true
+  el.setAttribute('inputmode', 'none')
+  el.blur()
+}
+
 /** One modal, two triggers (ar / fa) — one lock session per input. */
 export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange }) {
   const [open, setOpen] = useState(false)
@@ -45,7 +55,9 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
   const [preview, setPreview] = useState('')
   const lastCursor = useRef({ start: 0, end: 0 })
   const onInsertRef = useRef(onInsert)
-  onInsertRef.current = onInsert
+  useEffect(() => {
+    onInsertRef.current = onInsert
+  }, [onInsert])
 
   const config = KEYBOARD_CONFIG[layout] || KEYBOARD_CONFIG.ar
 
@@ -65,7 +77,12 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
       lastCursor.current = { start, end }
       setPreview(el.value || '')
       if (isMobileTouch()) {
-        el.blur()
+        // Immediately prevent the native keyboard from (re-)appearing.
+        // The full lock is applied in the useEffect after render, but
+        // without this synchronous guard the browser's touch handling
+        // can re-focus the input in the gap between blur() and the
+        // effect, causing the native keyboard to flash.
+        applyTemporaryLock(el)
         clearDeferredValue(el)
       }
     }
@@ -82,7 +99,6 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
     const { start, end } = getSelection(el)
     lastCursor.current = { start, end }
     const initial = el.value || ''
-    setPreview(initial)
     setDeferredValue(el, initial)
 
     if (!isMobileTouch()) {
@@ -153,11 +169,6 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
     updateValue(preview.slice(0, removeStart) + preview.slice(end), removeStart)
   }
 
-  const handleKeyPointer = (action) => (e) => {
-    swallowPointer(e)
-    action()
-  }
-
   const rows = config.rows[activeTab] || config.rows.letters
 
   const modal = open && createPortal(
@@ -210,7 +221,10 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
                 <button
                   key={id}
                   type="button"
-                  onPointerDown={handleKeyPointer(() => setActiveTab(id))}
+                  onPointerDown={(e) => {
+                    swallowPointer(e)
+                    setActiveTab(id)
+                  }}
                   className="btn-press"
                   style={{
                     height: 32,
@@ -231,7 +245,10 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
             </div>
             <button
               type="button"
-              onPointerDown={handleKeyPointer(closeKeyboard)}
+              onPointerDown={(e) => {
+                swallowPointer(e)
+                closeKeyboard()
+              }}
               className="btn-press"
               style={{
                 width: 34,
@@ -290,7 +307,10 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
                   <button
                     key={key}
                     type="button"
-                    onPointerDown={handleKeyPointer(() => insertText(key))}
+                    onPointerDown={(e) => {
+                      swallowPointer(e)
+                      insertText(key)
+                    }}
                     className="btn-press"
                     style={keyBtnStyle(key)}
                   >
@@ -307,9 +327,9 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
             gridTemplateColumns: '1fr 2fr 1fr',
             gap: 8,
           }}>
-            <button type="button" onPointerDown={handleKeyPointer(backspace)} className="btn-press" style={actionStyle} title="Backspace">⌫</button>
-            <button type="button" onPointerDown={handleKeyPointer(() => insertText(' '))} className="btn-press" style={{ ...actionStyle, fontSize: 13, fontWeight: 800 }}>Space</button>
-            <button type="button" onPointerDown={handleKeyPointer(() => insertText('\n'))} className="btn-press" style={actionStyle} title="New line">↵</button>
+            <button type="button" onPointerDown={(e) => { swallowPointer(e); backspace() }} className="btn-press" style={actionStyle} title="Backspace">⌫</button>
+            <button type="button" onPointerDown={(e) => { swallowPointer(e); insertText(' ') }} className="btn-press" style={{ ...actionStyle, fontSize: 13, fontWeight: 800 }}>Space</button>
+            <button type="button" onPointerDown={(e) => { swallowPointer(e); insertText('\n') }} className="btn-press" style={actionStyle} title="New line">↵</button>
           </div>
         </motion.div>
       </motion.div>
@@ -325,7 +345,19 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
           <button
             key={lay}
             type="button"
+            onTouchStart={(e) => {
+              // touchstart fires before the browser's "dismiss keyboard"
+              // logic on iOS/Android, making it the most reliable event
+              // for opening the custom keyboard when a native soft-keyboard
+              // is visible over a focused input.
+              e.preventDefault()
+              e.stopPropagation()
+              openWithLayout(lay)
+            }}
             onPointerDown={(e) => {
+              // On touch devices touchstart already handled the open;
+              // skip here to avoid double-invocation.
+              if (e.pointerType === 'touch') return
               swallowPointer(e)
               openWithLayout(lay)
             }}
