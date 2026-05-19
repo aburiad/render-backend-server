@@ -5,6 +5,7 @@
 
 const lockState = new WeakMap()
 const deferredValues = new WeakMap()
+const originalStates = new WeakMap()
 
 export function isInputLocked(el) {
   if (!el) return false
@@ -27,16 +28,25 @@ export function commitDeferredValue(el, onInsert) {
   deferredValues.delete(el)
 }
 
+export function saveOriginalInputState(el) {
+  if (!el || originalStates.has(el)) return
+  originalStates.set(el, {
+    readOnly: el.readOnly,
+    inputMode: el.getAttribute('inputmode') || '',
+  })
+}
+
 export function lockInputEl(el, { onLastUnlock } = {}) {
   if (!el) return
   let state = lockState.get(el)
   if (!state) {
+    const cached = originalStates.get(el)
     state = {
       count: 0,
       onLastUnlock: null,
       saved: {
-        readOnly: el.readOnly,
-        inputMode: el.getAttribute('inputmode') || '',
+        readOnly: cached ? cached.readOnly : el.readOnly,
+        inputMode: cached ? cached.inputMode : (el.getAttribute('inputmode') || ''),
         tabIndex: el.tabIndex,
         pointerEvents: el.style.pointerEvents,
         ariaHidden: el.getAttribute('aria-hidden'),
@@ -76,6 +86,7 @@ export function unlockInputEl(el) {
   else el.removeAttribute('inputmode')
 
   lockState.delete(el)
+  originalStates.delete(el)
 }
 
 /** Re-apply lock after React re-render — blur only, never focus anything */
