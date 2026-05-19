@@ -264,8 +264,21 @@ export default function MagicScanModal({ onClose }) {
                             <label className="text-[10px] font-bold text-gray-400 uppercase">প্রশ্ন টেক্সট</label>
                             <textarea 
                               className="w-full mt-1 p-2 text-sm border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none min-h-[80px]"
-                              value={q.question || q.stimulus || ''}
-                              onChange={(e) => updateExtractedQuestion(i, q.type === 'CQ' ? { stimulus: e.target.value } : { question: e.target.value })}
+                              value={q.question || q.stimulus || q.description || q.topic || q.scenario || q.prompt || q.instruction || q.arabic_text || q.arabic_block || q.passage || ''}
+                              onChange={(e) => {
+                                const val = e.target.value
+                                let key = 'question'
+                                if (q.stimulus !== undefined) key = 'stimulus'
+                                else if (q.description !== undefined) key = 'description'
+                                else if (q.topic !== undefined) key = 'topic'
+                                else if (q.scenario !== undefined) key = 'scenario'
+                                else if (q.prompt !== undefined) key = 'prompt'
+                                else if (q.instruction !== undefined) key = 'instruction'
+                                else if (q.arabic_text !== undefined) key = 'arabic_text'
+                                else if (q.arabic_block !== undefined) key = 'arabic_block'
+                                else if (q.passage !== undefined) key = 'passage'
+                                updateExtractedQuestion(i, { [key]: val })
+                              }}
                             />
                           </div>
                           <div className="flex gap-4">
@@ -275,14 +288,14 @@ export default function MagicScanModal({ onClose }) {
                                  type="number"
                                  className="w-full mt-1 p-2 text-sm border border-gray-200 rounded-xl outline-none"
                                  value={q.marks || 0}
-                                 onChange={(e) => updateExtractedQuestion(i, { marks: e.target.value })}
+                                 onChange={(e) => updateExtractedQuestion(i, { marks: Number(e.target.value) || 0 })}
                                />
                              </div>
                              <div className="flex items-end">
                                <button 
                                  onClick={() => setEditingIndex(null)}
                                  className="px-4 py-2 bg-blue-600 text-white text-xs font-bold rounded-xl btn-press"
-                               >
+                                >
                                  ঠিক আছে
                                </button>
                              </div>
@@ -336,7 +349,22 @@ export default function MagicScanModal({ onClose }) {
                             </div>
                           </div>
                           <div className="text-sm text-gray-800 font-medium leading-relaxed">
-                            <MathText text={q.question || q.stimulus || q.description || (q.sentence?.replace(/___/g, '______')) || 'প্রশ্ন খুঁজে পাওয়া যায়নি'} />
+                            <MathText
+                              text={
+                                q.question ||
+                                q.stimulus ||
+                                q.description ||
+                                q.topic ||
+                                q.scenario ||
+                                q.prompt ||
+                                q.instruction ||
+                                q.arabic_text ||
+                                q.arabic_block ||
+                                q.passage ||
+                                (q.sentence?.replace(/___/g, '______')) ||
+                                'প্রশ্ন খুঁজে পাওয়া যায়নি'
+                              }
+                            />
                           </div>
                           {q.type === 'MCQ' && (
                             <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 pl-2">
@@ -344,6 +372,58 @@ export default function MagicScanModal({ onClose }) {
                                 <div key={opt} className={`text-[11px] flex gap-1 ${q.correct_answer === opt ? 'text-green-700 font-semibold' : 'text-gray-600'}`}>
                                   <span className="font-bold">{['ক', 'খ', 'গ', 'ঘ'][['a', 'b', 'c', 'd'].indexOf(opt)]}.</span>
                                   <MathText text={String(q[`option_${opt}`])} />
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {q.type === 'essay' && q.word_limit && (
+                            <div className="text-[10px] text-gray-500 mt-1.5 italic">
+                              শব্দ সীমা: {q.word_limit} শব্দ
+                            </div>
+                          )}
+                          {q.type === 'paragraph' && Array.isArray(q.hints) && q.hints.length > 0 && (
+                            <div className="text-[11px] text-gray-500 mt-1.5 font-semibold">
+                              Hints: {q.hints.join(', ')}
+                            </div>
+                          )}
+                          {q.type === 'grammar' && q.instruction && (
+                            <div className="text-[11px] text-gray-600 mt-1.5 font-semibold italic">
+                              ({q.instruction}) {q.answer && <span className="text-green-600 font-bold ml-2">Ans: {q.answer}</span>}
+                            </div>
+                          )}
+                          {q.type === 'math' && (
+                            <div className="mt-1.5 space-y-1 pl-3 border-l-2 border-slate-200">
+                              {Array.isArray(q.equations) && q.equations.map((eq, eqIdx) => (
+                                <div key={eqIdx} className="text-xs text-gray-500">{eq}</div>
+                              ))}
+                              {q.answer && <div className="text-xs text-green-700 font-bold">Ans: {q.answer}</div>}
+                            </div>
+                          )}
+                          {q.type === 'poem' && Array.isArray(q.lines) && (
+                            <div className="mt-1.5 space-y-0.5 text-center text-xs text-gray-600 italic bg-slate-50 p-2 rounded-xl">
+                              {q.lines.map((line, lnIdx) => (
+                                <div key={lnIdx}>{line}</div>
+                              ))}
+                              {q.author && <div className="text-right text-[10px] font-bold text-gray-700 mt-1">— {q.author}</div>}
+                            </div>
+                          )}
+                          {q.type === 'passage' && Array.isArray(q.questions) && (
+                            <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-100">
+                              {q.questions.map((sq, si) => (
+                                <div key={si} className="text-[11px] text-gray-500">
+                                  <span className="font-bold mr-1">{sq.no || si + 1}.</span>
+                                  <MathText text={sq.text} />
+                                  {sq.marks ? <span className="ml-1 text-gray-400">[{sq.marks}]</span> : null}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          {q.type === 'true_false' && Array.isArray(q.statements) && (
+                            <div className="mt-2 space-y-1 pl-3 border-l-2 border-gray-100">
+                              {q.statements.map((stmt, si) => (
+                                <div key={si} className="text-[11px] text-gray-600 flex justify-between">
+                                  <span>{si + 1}. <MathText text={stmt.text} /></span>
+                                  <span className="font-bold text-blue-600">({stmt.answer ? 'T' : 'F'})</span>
                                 </div>
                               ))}
                             </div>

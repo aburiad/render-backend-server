@@ -39,6 +39,7 @@ import RearrangingEditor from '@/components/questions/RearrangingEditor'
 import TranslationEditor from '@/components/questions/TranslationEditor'
 import TableEditor from '@/components/questions/TableEditor'
 import AccountingEditor from '@/components/questions/AccountingEditor'
+import GenericEditor from '@/components/questions/GenericEditor'
 import SectionDivider from '@/components/questions/SectionDivider'
 import {
   computeQuestionNumbers,
@@ -57,6 +58,23 @@ const QUESTION_TYPES = [
   { type: 'rearranging', label: 'পুনর্বিন্যাস', icon: '↕' },
   { type: 'translation', label: 'অনুবাদ', icon: 'অ' },
   { type: 'table', label: 'টেবিল', icon: '▦' },
+  { type: 'short_question', label: 'সংক্ষিপ্ত প্রশ্ন (Scan)', icon: '✏️' },
+  { type: 'one_word', label: 'এক কথায় উত্তর', icon: '☝️' },
+  { type: 'essay', label: 'প্রবন্ধ/রচনা', icon: '📝' },
+  { type: 'paragraph', label: 'অনুচ্ছেদ', icon: '📖' },
+  { type: 'letter', label: 'চিঠি/দরখাস্ত', icon: '✉️' },
+  { type: 'dialogue', label: 'কথোপকথন', icon: '💬' },
+  { type: 'grammar', label: 'ব্যাকরণ', icon: '🔤' },
+  { type: 'math', label: 'গণিত সমাধান', icon: '➕' },
+  { type: 'finance', label: 'ফিন্যান্স সমস্যা', icon: '📊' },
+  { type: 'diagram_question', label: 'চিত্রভিত্তিক', icon: '🖼️' },
+  { type: 'arabic', label: 'আরবি অনুবাদ', icon: '🕌' },
+  { type: 'hifz', label: 'হিফজুল কুরআন', icon: '📖' },
+  { type: 'hadith', label: 'আল-হাদীস', icon: '📜' },
+  { type: 'ebtedayi', label: 'এবতেদায়ী মাসআলা', icon: '🕋' },
+  { type: 'poem', label: 'কবিতা/মূলভাব', icon: '🎭' },
+  { type: 'passage', label: 'প্যাসেজভিত্তিক', icon: '📰' },
+  { type: 'true_false', label: 'সত্য/মিথ্যা', icon: '✅' },
 ]
 
 const EDITOR_MAP = {
@@ -70,6 +88,23 @@ const EDITOR_MAP = {
   rearranging: RearrangingEditor,
   translation: TranslationEditor,
   table: TableEditor,
+  short_question: GenericEditor,
+  one_word: GenericEditor,
+  essay: GenericEditor,
+  paragraph: GenericEditor,
+  letter: GenericEditor,
+  dialogue: GenericEditor,
+  grammar: GenericEditor,
+  math: GenericEditor,
+  finance: GenericEditor,
+  diagram_question: GenericEditor,
+  arabic: GenericEditor,
+  hifz: GenericEditor,
+  hadith: GenericEditor,
+  ebtedayi: GenericEditor,
+  poem: GenericEditor,
+  passage: GenericEditor,
+  true_false: GenericEditor,
 }
 
 function SortableQuestion({ question, index, displayNumber, questionDirection = 'ltr' }) {
@@ -275,6 +310,40 @@ export default function PaperEditor() {
           { label: 'গ', text: 'শাপলু এন্ড কোং-এর পরিচালন মুনাফা নির্ণয় করো।', marks: 4 },
         ],
       })
+    } else if (type === 'short_question') {
+      Object.assign(defaults, { question: '', marks: 2 })
+    } else if (type === 'one_word') {
+      Object.assign(defaults, { question: '', answer: '', marks: 1 })
+    } else if (type === 'essay') {
+      Object.assign(defaults, { topic: '', word_limit: 500, marks: 10 })
+    } else if (type === 'paragraph') {
+      Object.assign(defaults, { topic: '', hints: [], marks: 5 })
+    } else if (type === 'letter') {
+      Object.assign(defaults, { subtype: 'application', scenario: '', marks: 8 })
+    } else if (type === 'dialogue') {
+      Object.assign(defaults, { scenario: '', turns: 6, marks: 5 })
+    } else if (type === 'grammar') {
+      Object.assign(defaults, { sentence: '', instruction: '', answer: '', marks: 1 })
+    } else if (type === 'math') {
+      Object.assign(defaults, { question: '', equations: [], answer: '', marks: 5 })
+    } else if (type === 'finance') {
+      Object.assign(defaults, { question: '', formula: '', values: {}, marks: 5 })
+    } else if (type === 'diagram_question') {
+      Object.assign(defaults, { diagram_ref: '', labels: [], question: '', marks: 5 })
+    } else if (type === 'arabic') {
+      Object.assign(defaults, { subtype: 'ayat', arabic_text: '', source: '', instruction: 'অনুবাদ করো:', bangla_translation: '', marks: 5 })
+    } else if (type === 'hifz') {
+      Object.assign(defaults, { prompt: '', surah_name: '', arabic_text: '', zero_hallucination: true, verify_against: 'quran_corpus', marks: 5 })
+    } else if (type === 'hadith') {
+      Object.assign(defaults, { arabic_text: '', source: '', bangla_text: '', instruction: 'অনুবাদ ও ব্যাখ্যা করো:', marks: 5 })
+    } else if (type === 'ebtedayi') {
+      Object.assign(defaults, { masala_number: 1, arabic_block: '', bangla_block: '', instruction: 'অনুবাদ ও মাসআলা বিশ্লেষণ করো:', marks: 5 })
+    } else if (type === 'poem') {
+      Object.assign(defaults, { lines: [], author: '', instruction: 'কবিতাংশটির মূলভাব লিখুন:', marks: 5 })
+    } else if (type === 'passage') {
+      Object.assign(defaults, { passage: '', questions: [{ no: 1, text: '', marks: 2 }] })
+    } else if (type === 'true_false') {
+      Object.assign(defaults, { statements: [{ text: '', answer: true }], marks: 5 })
     } else {
       Object.assign(defaults, { question: '', marks: 1 })
     }

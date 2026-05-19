@@ -86,6 +86,13 @@ const usePaperStore = create((set, get) => ({
         )
         return sum + subMarks
       }
+      if (q.type === 'passage') {
+        const subMarks = (q.questions || []).reduce(
+          (s, sq) => s + (Number(sq.marks) || 0),
+          0
+        )
+        return sum + subMarks
+      }
       return sum + (Number(q.marks) || 0)
     }, 0)
   },

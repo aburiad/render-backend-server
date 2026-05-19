@@ -43,7 +43,22 @@ function QuestionCard({ q, isExpanded, onToggle, onDelete }) {
              display: '-webkit-box', WebkitLineClamp: isExpanded ? 'unset' : 3,
              WebkitBoxOrient: 'vertical', overflow: 'hidden'
            }}>
-             <MathText text={q.data?.question || q.data?.stimulus || q.data?.sentence || "প্রশ্ন উপাত্ত নেই"} />
+             <MathText
+               text={
+                 q.data?.question ||
+                 q.data?.stimulus ||
+                 q.data?.description ||
+                 q.data?.topic ||
+                 q.data?.scenario ||
+                 q.data?.prompt ||
+                 q.data?.instruction ||
+                 q.data?.arabic_text ||
+                 q.data?.arabic_block ||
+                 q.data?.passage ||
+                 (q.data?.sentence?.replace(/___/g, '______')) ||
+                 "প্রশ্ন উপাত্ত নেই"
+               }
+             />
            </div>
 
            <AnimatePresence>
@@ -70,8 +85,55 @@ function QuestionCard({ q, isExpanded, onToggle, onDelete }) {
                      </div>
                    )}
 
+                   {/* Essay Details */}
+                   {q.type === 'essay' && q.data?.word_limit && (
+                     <div style={{ fontSize: 11, color: '#64748b', fontStyle: 'italic' }}>
+                       শব্দ সীমা: {q.data.word_limit} শব্দ
+                     </div>
+                   )}
+
+                   {/* Paragraph Details */}
+                   {q.type === 'paragraph' && Array.isArray(q.data?.hints) && q.data.hints.length > 0 && (
+                     <div style={{ fontSize: 11, color: '#64748b', fontWeight: 700 }}>
+                       Hints: {q.data.hints.join(', ')}
+                     </div>
+                   )}
+
+                   {/* Poem Lines */}
+                   {q.type === 'poem' && Array.isArray(q.data?.lines) && (
+                     <div style={{ fontSize: 12, background: '#f5f3ff', padding: '10px', borderRadius: 10, border: '1px solid #ede9fe', textAlign: 'center', fontStyle: 'italic', lineHeight: 1.6 }}>
+                       {q.data.lines.map((line, li) => (
+                         <div key={li}>{line}</div>
+                       ))}
+                       {q.data.author && <div style={{ textAlign: 'right', fontWeight: 'bold', marginTop: 4, marginRight: '10%' }}>— {q.data.author}</div>}
+                     </div>
+                   )}
+
+                   {/* Passage Sub-questions */}
+                   {q.type === 'passage' && Array.isArray(q.data?.questions) && (
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, pl: 12, borderLeft: '2px solid #e2e8f0' }}>
+                       {q.data.questions.map((sq, si) => (
+                         <div key={si} style={{ fontSize: 12, color: '#475569' }}>
+                           <span style={{ fontWeight: 800 }}>{sq.no || si + 1}.</span> {sq.text} {sq.marks ? `(${sq.marks})` : ''}
+                         </div>
+                       ))}
+                     </div>
+                   )}
+
+                   {/* True/False Statements */}
+                   {q.type === 'true_false' && Array.isArray(q.data?.statements) && (
+                     <div style={{ display: 'flex', flexDirection: 'column', gap: 6, pl: 12, borderLeft: '2px solid #e2e8f0' }}>
+                       {q.data.statements.map((stmt, si) => (
+                         <div key={si} style={{ fontSize: 12, color: '#475569', display: 'flex', justifyContent: 'space-between' }}>
+                           <span>{si + 1}. {stmt.text}</span>
+                           <span style={{ fontWeight: 800, color: '#2563eb' }}>({stmt.answer ? 'T' : 'F'})</span>
+                         </div>
+                       ))}
+                     </div>
+                   )}
+
                    {/* CQ Sub-questions */}
-                   {q.type === 'CQ' && q.data?.sub_questions?.map(sq => (
+                   {(q.type === 'CQ' || q.type === 'accounting') && q.data?.sub_questions?.map(sq => (
                      <div key={sq.label} style={{ fontSize: 12, background: '#f5f3ff', padding: '10px', borderRadius: 10, border: '1px solid #ede9fe' }}>
                        <span style={{ fontWeight: 800, color: '#7c3aed', marginRight: 6 }}>{sq.label}.</span>
                        <span style={{ color: '#4b5563' }}><MathText text={sq.text} /></span>
@@ -79,11 +141,20 @@ function QuestionCard({ q, isExpanded, onToggle, onDelete }) {
                      </div>
                    ))}
 
+                   {/* Arabic translations */}
+                   {['arabic', 'hadith', 'ebtedayi'].includes(q.type) && (
+                     <div style={{ fontSize: 12, background: '#f8fafc', padding: '10px', borderRadius: 10, border: '1px solid #e2e8f0', direction: 'rtl', textAlign: 'right', fontFamily: 'serif', fontSize: '1.2em' }}>
+                       {q.data.arabic_text || q.data.arabic_block}
+                     </div>
+                   )}
+
                    {/* Answers */}
-                   {['short', 'broad', 'translation'].includes(q.type) && q.data?.answer && (
+                   {['short', 'broad', 'translation', 'grammar', 'math', 'one_word', 'arabic', 'hadith', 'ebtedayi'].includes(q.type) && (q.data?.answer || q.data?.bangla_translation || q.data?.bangla_text || q.data?.bangla_block) && (
                      <div style={{ fontSize: 12, background: '#f0fdf4', padding: '10px', borderRadius: 10, border: '1px solid #dcfce7' }}>
-                        <p style={{ fontSize: 10, fontWeight: 800, color: '#16a34a', marginBottom: 4, textTransform: 'uppercase' }}>উত্তর সংকেত:</p>
-                        <p style={{ color: '#166534', margin: 0 }}>{q.data.answer}</p>
+                        <p style={{ fontSize: 10, fontWeight: 800, color: '#16a34a', marginBottom: 4, textTransform: 'uppercase' }}>উত্তর/অনুবাদ সংকেত:</p>
+                        <p style={{ color: '#166534', margin: 0 }}>
+                          {q.data.answer || q.data.bangla_translation || q.data.bangla_text || q.data.bangla_block}
+                        </p>
                      </div>
                    )}
                  </div>

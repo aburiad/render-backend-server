@@ -195,17 +195,15 @@ OUTPUT RULES:
 
 PRIORITY ORDER:
 
-1. Accuracy
-2. Exact preservation
-3. No hallucination
-4. No guessing
-5. Maintain original content structure
+1. Structural Matching: Match the JSON "type" to the question's visual layout pattern in the image (e.g., if a question has a stimulus and sub-questions like ক/খ/গ/ঘ, it MUST be parsed as "CQ"; if it is a passage with questions, it is "passage"; if it has choices/options, it is "MCQ" — regardless of whether the language is Bangla, English, Arabic, or Islamic Studies. Do NOT force Arabic/Islamic questions into "arabic", "hadith", or "ebtedayi" types if they follow a CQ, MCQ, passage, or other structured layout).
+2. Accuracy & No Hallucination: Extract only visible text, do not invent or translate text.
+3. Exact preservation of original text, symbols, formatting, and line breaks.
 
-Task: Extract every question from this Bengali question paper image into a JSON array.
+Task: Extract every question from this question paper image into a JSON array, prioritizing structural matching.
 
 Schema per question type:
-- MCQ: { type: "MCQ", question, option_a, option_b, option_c, option_d, correct_answer, marks, confidence }
-- CQ:  { type: "CQ", stimulus, sub_questions: [{ label, text, marks }], confidence }
+- MCQ: { type: "MCQ", question, option_a, option_b, option_c, option_d, correct_answer, marks, confidence } — Use for any question with options, regardless of language.
+- CQ:  { type: "CQ", stimulus, sub_questions: [{ label, text, marks }], confidence } — Use for ANY creative question with a stimulus/passage and sub-questions (e.g., ক, খ, গ, ঘ), regardless of the language (Bangla, English, Arabic, etc.).
 - accounting (USE THIS for accounting/finance questions that contain a tabular ledger/trial-balance/journal followed by adjustments and ক/খ/গ sub-questions — NOT plain CQ):
   {
     type: "accounting",
@@ -223,11 +221,28 @@ Schema per question type:
   }
   Detection signals: words ডেবিট / ক্রেডিট / রেওয়ামিল / জাবেদা / খতিয়ান / নগদান বই / হিসাব শিরোনাম, monetary amounts in two columns, "মোট" total row, follow-up "সমন্বয়সমূহ" or "অন্যান্য তথ্যাবলি" paragraph, ক/খ/গ sub-questions. If ALL of these are present, output ONE accounting object — do NOT split it into separate table + CQ entries.
 - table: { type: "table", question, headers: [], rows: [[]], marks, confidence } — for non-accounting plain tables
-- short / broad: { type, question, marks, confidence }
+- short_question: { type: "short_question", question, marks, confidence }
+- one_word: { type: "one_word", question, answer, marks, confidence }
+- essay: { type: "essay", topic, word_limit, marks, confidence }
+- paragraph: { type: "paragraph", topic, hints: [], marks, confidence }
+- letter: { type: "letter", subtype: "application" | "letter", scenario, marks, confidence }
+- dialogue: { type: "dialogue", scenario, turns, marks, confidence }
+- grammar: { type: "grammar", subtype, sentence, instruction, answer, marks, confidence }
+- math: { type: "math", question, equations: [], answer, marks, confidence }
+- finance: { type: "finance", question, formula, values: {}, marks, confidence }
+- diagram_question: { type: "diagram_question", diagram_ref, labels: [], question, marks, confidence }
+- arabic: { type: "arabic", subtype: "ayat" | "hadith" | "generic", arabic_text, source, instruction, bangla_translation, marks, confidence } — Use ONLY for plain Arabic sentence translation/explanation questions that DO NOT follow a CQ, MCQ, or passage structure.
+- hifz: { type: "hifz", prompt, surah_name, arabic_text, zero_hallucination: true, verify_against: "quran_corpus", marks, confidence }
+- hadith: { type: "hadith", arabic_text, source, bangla_text, instruction, marks, confidence } — Use ONLY for plain Hadith translation/explanation questions that DO NOT follow a CQ, MCQ, or passage structure.
+- ebtedayi: { type: "ebtedayi", masala_number, arabic_block, bangla_block, instruction, marks, confidence } — Use ONLY for plain Ebtedayi Masala explanation questions that DO NOT follow a CQ, MCQ, or passage structure.
+- poem: { type: "poem", lines: [], author, instruction, marks, confidence }
+- passage: { type: "passage", passage, questions: [{ no, text, marks }], confidence }
+- true_false: { type: "true_false", statements: [{ text, answer: true|false }], marks, confidence }
 - fill_blank: { type: "fill_blank", sentence, clues, marks, confidence }
 - matching: { type: "matching", column_a: [], column_b: [], marks, confidence }
 - rearranging: { type: "rearranging", sentences: [], marks, confidence }
 - translation: { type: "translation", source_text, direction, marks, confidence }
+- short / broad: { type: "short" | "broad", question, marks, confidence }
 
 Math: wrap math expressions in $...$ using LaTeX (e.g. $\\frac{a}{b}$, $\\sqrt{x}$, $x^{2}$). Keep an entire equation inside a SINGLE $...$ pair — don't split around + or =.
 

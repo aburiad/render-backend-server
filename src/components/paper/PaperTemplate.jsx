@@ -640,6 +640,40 @@ function QuestionBody({ q, outerColumns = 1 }) {
       return <TableQuestion q={q} />
     case 'accounting':
       return <AccountingQuestion q={q} />
+    case 'short_question':
+      return <SimpleQuestion q={q} />
+    case 'one_word':
+      return <SimpleQuestion q={q} />
+    case 'essay':
+      return <EssayQuestion q={q} />
+    case 'paragraph':
+      return <ParagraphQuestion q={q} />
+    case 'letter':
+      return <LetterQuestion q={q} />
+    case 'dialogue':
+      return <DialogueQuestion q={q} />
+    case 'grammar':
+      return <GrammarQuestion q={q} />
+    case 'math':
+      return <SimpleQuestion q={q} />
+    case 'finance':
+      return <SimpleQuestion q={q} />
+    case 'diagram_question':
+      return <DiagramQuestion q={q} />
+    case 'arabic':
+      return <ArabicQuestion q={q} />
+    case 'hifz':
+      return <HifzQuestion q={q} />
+    case 'hadith':
+      return <HadithQuestion q={q} />
+    case 'ebtedayi':
+      return <EbtedayiQuestion q={q} />
+    case 'poem':
+      return <PoemQuestion q={q} />
+    case 'passage':
+      return <PassageQuestion q={q} />
+    case 'true_false':
+      return <TrueFalseQuestion q={q} />
     case 'short':
     case 'broad':
     default:
@@ -1087,6 +1121,237 @@ const cellTH = {
 const cellTD = {
   border: '1px solid #999',
   padding: '5px 10px',
+}
+
+function EssayQuestion({ q }) {
+  const limitStr = q.word_limit ? ` (অনূর্ধ্ব ${q.word_limit} শব্দ)` : ''
+  const enLimitStr = q.word_limit ? ` (within ${q.word_limit} words)` : ''
+  const isEn = /^[A-Za-z0-9\s.,?!"'-]+$/.test(q.topic || '')
+  const mainPrompt = isEn
+    ? `Write an essay on one of the following topics${enLimitStr}:`
+    : `যেকোনো একটি বিষয়ে প্রবন্ধ লিখুন${limitStr}:`
+  return (
+    <div>
+      <div>{mainPrompt}</div>
+      <div style={{ marginLeft: 16, marginTop: 4, fontWeight: 600 }}>
+        (ক) <MathText as="span" text={q.topic || ''} />
+      </div>
+    </div>
+  )
+}
+
+function ParagraphQuestion({ q }) {
+  return (
+    <div>
+      <div>
+        Write a paragraph on <strong>'{q.topic || ''}'</strong> using the following hints:
+      </div>
+      {q.hints && q.hints.length > 0 && (
+        <div style={{ fontStyle: 'italic', marginTop: 4, color: '#444' }}>
+          Hints: {Array.isArray(q.hints) ? q.hints.join(', ') : q.hints}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function LetterQuestion({ q }) {
+  return <MathText text={q.scenario || ''} />
+}
+
+function DialogueQuestion({ q }) {
+  const turnsStr = q.turns ? ` (Take at least ${q.turns} turns)` : ''
+  return (
+    <div>
+      <MathText text={`${q.scenario || ''}${turnsStr}`} />
+    </div>
+  )
+}
+
+function GrammarQuestion({ q }) {
+  return (
+    <div>
+      <MathText as="span" text={q.sentence || ''} />
+      {q.instruction && (
+        <span style={{ fontStyle: 'italic', color: '#555', marginLeft: 6 }}>
+          ({q.instruction})
+        </span>
+      )}
+    </div>
+  )
+}
+
+function DiagramQuestion({ q }) {
+  return (
+    <div>
+      {q.diagram_ref && (
+        <div style={{ margin: '6px 0', textAlign: 'center', breakInside: 'avoid' }}>
+          <img
+            src={q.diagram_ref}
+            alt="Diagram"
+            style={{ maxWidth: '100%', maxHeight: '60mm', objectFit: 'contain' }}
+            crossOrigin="anonymous"
+            onError={(e) => {
+              e.target.style.display = 'none'
+            }}
+          />
+        </div>
+      )}
+      <MathText text={q.question || ''} />
+    </div>
+  )
+}
+
+function ArabicQuestion({ q }) {
+  return (
+    <div style={{ textAlign: 'center', breakInside: 'avoid' }}>
+      {q.instruction && (
+        <div style={{ textAlign: 'left', fontStyle: 'italic', marginBottom: 6 }}>
+          {q.instruction}
+        </div>
+      )}
+      <div
+        style={{
+          fontFamily: '"Noto Naskh Arabic", "Amiri", serif',
+          fontSize: '1.4em',
+          lineHeight: 1.8,
+          margin: '10px 0',
+          direction: 'rtl',
+        }}
+      >
+        {q.arabic_text}
+      </div>
+      {q.source && (
+        <div style={{ fontSize: '0.85em', color: '#444', fontStyle: 'italic' }}>
+          (উৎস: {q.source})
+        </div>
+      )}
+    </div>
+  )
+}
+
+function HifzQuestion({ q }) {
+  return <MathText text={q.prompt || ''} />
+}
+
+function HadithQuestion({ q }) {
+  return (
+    <div style={{ textAlign: 'center', breakInside: 'avoid' }}>
+      {q.instruction && (
+        <div style={{ textAlign: 'left', fontStyle: 'italic', marginBottom: 6 }}>
+          {q.instruction}
+        </div>
+      )}
+      <div
+        style={{
+          fontFamily: '"Noto Naskh Arabic", "Amiri", serif',
+          fontSize: '1.4em',
+          lineHeight: 1.8,
+          margin: '10px 0',
+          direction: 'rtl',
+        }}
+      >
+        {q.arabic_text}
+      </div>
+      {q.source && (
+        <div style={{ fontSize: '0.85em', color: '#444', fontStyle: 'italic' }}>
+          (উৎস: {q.source})
+        </div>
+      )}
+    </div>
+  )
+}
+
+function EbtedayiQuestion({ q }) {
+  return (
+    <div style={{ breakInside: 'avoid' }}>
+      <div>
+        <strong>মাসআলা নং {q.masala_number || ''}:</strong> {q.instruction || ''}
+      </div>
+      {q.arabic_block && (
+        <div
+          style={{
+            fontFamily: '"Noto Naskh Arabic", "Amiri", serif',
+            fontSize: '1.3em',
+            lineHeight: 1.8,
+            margin: '8px 0',
+            textAlign: 'center',
+            direction: 'rtl',
+          }}
+        >
+          {q.arabic_block}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PoemQuestion({ q }) {
+  const lines = Array.isArray(q.lines) ? q.lines : []
+  return (
+    <div style={{ breakInside: 'avoid' }}>
+      {q.instruction && <div style={{ fontStyle: 'italic', marginBottom: 6 }}>{q.instruction}</div>}
+      <div style={{ margin: '8px 0', textAlign: 'center', fontStyle: 'italic', lineHeight: 1.6 }}>
+        {lines.map((line, i) => (
+          <div key={i}>{line}</div>
+        ))}
+        {q.author && (
+          <div style={{ marginTop: 4, fontWeight: 600, textAlign: 'right', marginRight: '20%' }}>
+            — {q.author}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function PassageQuestion({ q }) {
+  return (
+    <div style={{ breakInside: 'avoid' }}>
+      <div style={{ fontStyle: 'italic', marginBottom: 6 }}>
+        Read the passage carefully and answer the questions:
+      </div>
+      <div
+        style={{
+          padding: '10px 12px',
+          border: '1px solid #aaa',
+          background: '#fcfcfc',
+          marginBottom: 10,
+          whiteSpace: 'pre-line',
+          lineHeight: 1.5,
+        }}
+      >
+        {q.passage}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginLeft: 12 }}>
+        {(q.questions || []).map((sq, i) => (
+          <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 600 }}>{sq.no || i + 1}.</span>
+            <span style={{ flex: 1 }}><MathText text={sq.text || ''} /></span>
+            {sq.marks ? <span style={{ fontWeight: 600 }}>({sq.marks})</span> : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function TrueFalseQuestion({ q }) {
+  return (
+    <div style={{ breakInside: 'avoid' }}>
+      <div style={{ fontStyle: 'italic', marginBottom: 6 }}>
+        নিচের বাক্যগুলো সত্য নাকি মিথ্যা নির্ণয় করো:
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginLeft: 12 }}>
+        {(q.statements || []).map((stmt, i) => (
+          <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'baseline' }}>
+            <span style={{ fontWeight: 600 }}>{i + 1}.</span>
+            <span style={{ flex: 1 }}><MathText text={stmt.text || ''} /></span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 export default PaperTemplate
