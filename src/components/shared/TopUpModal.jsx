@@ -103,8 +103,8 @@ export default function TopUpModal({ onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.tranId && !form.screenshot) {
-      return toast.error('Transaction ID অথবা স্ক্রিনশট দিন')
+    if (!form.tranId) {
+      return toast.error('Transaction ID দিন')
     }
     if (!quote || quote.ops < 1) {
       return toast.error('সঠিক amount দিন')
@@ -305,6 +305,7 @@ export default function TopUpModal({ onClose, onSuccess }) {
             />
           </div>
 
+          {/*
           <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase">
             <div className="flex-1 h-px bg-gray-200" />
             অথবা স্ক্রিনশট
@@ -338,6 +339,7 @@ export default function TopUpModal({ onClose, onSuccess }) {
               )}
             </div>
           </label>
+          */}
 
           <button
             type="submit"

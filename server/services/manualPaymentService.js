@@ -54,8 +54,8 @@ const manualPaymentService = {
    * @param {string|null} payload.screenshot — data URL
    */
   async submitTopUp(userId, { amount, method, tranId, phone, email, screenshot }) {
-    if (!tranId && !screenshot) {
-      throw new AppError('Transaction ID অথবা স্ক্রিনশট দিন', 400)
+    if (!tranId) {
+      throw new AppError('Transaction ID দিন', 400)
     }
 
     // Validate amount against admin-configured bounds.
@@ -160,6 +160,7 @@ const manualPaymentService = {
       .update({
         status,
         verified_by: adminId,
+        screenshot: null, // Clear base64 screenshot data on verify/reject to prevent database bloat
         updated_at: new Date().toISOString(),
       })
       .eq('id', paymentId)

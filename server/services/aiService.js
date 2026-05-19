@@ -33,7 +33,9 @@ function parseQuestionsJson(raw) {
 
 // Vercel Hobby caps a serverless function at 10s, but since we are on Cloud Run / custom backend,
 // we can safely increase this. Google Gemini vision often takes 15-20s.
-const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || 30000
+// When running on Vercel, we default to 4s (4000ms) to ensure fallbacks can try other providers before timeout.
+const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 4000 : 30000
+const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || DEFAULT_TIMEOUT
 
 function withTimeout(promise, ms, label) {
   return new Promise((resolve, reject) => {
