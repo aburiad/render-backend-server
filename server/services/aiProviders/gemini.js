@@ -83,19 +83,27 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
 }
 
 async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
-  const apiKey = providedKey || process.env.GEMINI_API_KEY
-  if (!apiKey) throw new Error('GEMINI_API_KEY not set')
+  const apiKeys = []
+  if (providedKey) {
+    apiKeys.push(providedKey)
+  } else {
+    if (process.env.GEMINI_API_KEY) apiKeys.push(process.env.GEMINI_API_KEY)
+    if (process.env.GEMINI_API_KEY_TWO) apiKeys.push(process.env.GEMINI_API_KEY_TWO)
+  }
+
+  if (apiKeys.length === 0) {
+    throw new Error('GEMINI_API_KEY or GEMINI_API_KEY_TWO not set')
+  }
 
   // Filter out system messages as Gemini native API handles system instructions differently,
   // but aiService currently just sends everything as user messages anyway.
   const cleanMessages = messages.filter((m) => m.role !== 'system')
   
   const models = vision ? VISION_MODELS : TEXT_MODELS
-  const maxRetries = 2 // 1 initial attempt + 1 retry
 
   let lastErr
-  for (const model of models) {
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+  for (const apiKey of apiKeys) {
+    for (const model of models) {
       try {
         const text = await tryModel({ apiKey, model, messages: cleanMessages, jsonMode, temperature, vision })
         if (text) return text
@@ -103,16 +111,12 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
         lastErr = err
         if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
         
-        console.warn(`[gemini] Attempt ${attempt} failed for ${model}: ${err.message}`)
-        if (attempt < maxRetries) {
-          const waitTime = Math.pow(2, attempt) * 1000 // 2 seconds
-          console.log(`[gemini] Waiting ${waitTime / 1000}s before next try...`)
-          await delay(waitTime)
-        }
+        console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." failed for ${model}: ${err.message}`)
+        // Immediately try the next key/model in the loop
       }
     }
   }
-  throw lastErr || new Error('Gemini: no usable model')
+  throw lastErr || new Error('Gemini: all keys failed')
 }
 
 module.exports = { name: 'gemini', supportsVision: true, supportsText: true, chat }
