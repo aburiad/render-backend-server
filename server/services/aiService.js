@@ -144,7 +144,64 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null) {
   const providerNames = config?.aiProviderConfig?.vision_chain || DEFAULT_VISION.map(p => p.name)
   const visionChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
 
-  const prompt = `Extract every question from this Bengali question paper image into a JSON array.
+  const prompt = `You are a strict OCR text extraction engine.
+
+Your ONLY task is to accurately extract text that is directly visible in the image.
+
+STRICT RULES:
+
+* Do NOT explain anything
+* Do NOT summarize anything
+* Do NOT answer questions
+* Do NOT translate text
+* Do NOT infer missing content
+* Do NOT complete incomplete sentences
+* Do NOT guess unclear words
+* Do NOT add extra information
+* Do NOT hallucinate content
+* Do NOT rewrite the text
+* Do NOT correct grammar or spelling
+* Do NOT generate interpretations
+
+TEXT EXTRACTION RULES:
+
+* Extract ONLY clearly visible text
+* Preserve the original structure and line breaks as much as possible
+* Preserve paragraphs exactly
+* Preserve spacing where possible
+* Preserve question numbering exactly
+* Preserve bullets, symbols, punctuation, and special characters
+* Preserve Bangla, English, and Arabic exactly as written
+* Preserve Quranic Arabic and madrasha text exactly without modification
+* Preserve math equations, fractions, subscripts, superscripts, and symbols exactly
+* Preserve tables and lists in readable text form
+* Preserve handwritten text exactly if readable
+
+UNREADABLE CONTENT RULES:
+
+* If a word or line is unclear, write: [unreadable]
+* If partially readable, preserve readable parts and mark unclear parts with [unreadable]
+* Never invent missing text
+
+OUTPUT RULES:
+
+* Return plain text only
+* No markdown
+* No code blocks
+* No commentary
+* No labels
+* No metadata
+* No explanations before or after the extracted text
+
+PRIORITY ORDER:
+
+1. Accuracy
+2. Exact preservation
+3. No hallucination
+4. No guessing
+5. Maintain original content structure
+
+Task: Extract every question from this Bengali question paper image into a JSON array.
 
 Schema per question type:
 - MCQ: { type: "MCQ", question, option_a, option_b, option_c, option_d, correct_answer, marks, confidence }
@@ -176,7 +233,7 @@ Math: wrap math expressions in $...$ using LaTeX (e.g. $\\frac{a}{b}$, $\\sqrt{x
 
 Numbers in accounting tables: keep Bengali numerals as shown in the image (যেমন: ৮০,০০০ — do NOT convert to 80,000).
 
-Output: ONLY the JSON array. No markdown fences, no commentary. Use \\n for line breaks inside text — never <br> tags.`
+Final Output Format: Output ONLY the valid JSON array containing the extracted questions. No markdown fences (e.g. do not wrap in triple-backtick json blocks), no commentary. Use \\n for line breaks inside text fields — never <br> tags.`
 
   const messages = [
     {
