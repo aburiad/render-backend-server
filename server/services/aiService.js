@@ -166,7 +166,15 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, qu
     poem:       'Extract poem: [{type:"poem",lines:[],author,marks,confidence}]',
     essay:      'Extract essay: [{type:"essay",question,word_limit,marks,confidence}]',
     paragraph:  'Extract paragraph topic: [{type:"paragraph",question,hints:[],marks,confidence}]',
-    translation:'Extract translation: [{type:"translation",question,marks,confidence}]'
+    translation:'Extract translation: [{type:"translation",question,marks,confidence}]',
+    arabic:     'Extract Arabic block: [{type:"arabic",arabic_text,question,marks,confidence}]',
+    hadith:     'Extract Hadith/Tafseer: [{type:"hadith",arabic_block,translation,question,marks,confidence}]',
+    fiqh:       'Extract Fiqh question: [{type:"fiqh",question,marks,confidence}]',
+    letter_app: 'Extract letter/application: [{type:"letter_app",question,marks,confidence}]',
+    rearrange:  'Extract rearrange: [{type:"rearrange",sentences:[],marks,confidence}]',
+    graph_chart:'Extract graph/chart: [{type:"graph_chart",question,marks,confidence}]',
+    summary:    'Extract summary/theme: [{type:"summary",passage,question,marks,confidence}]',
+    dialogue:   'Extract dialogue/story: [{type:"dialogue",question,marks,confidence}]'
   }
   const langRule = ' Preserve Bangla/Arabic/English exactly. Math in LaTeX $...$. Return ONLY JSON array.'
   const userPrompt = (PROMPTS[questionType] || PROMPTS.mcq) + langRule

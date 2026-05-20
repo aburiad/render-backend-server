@@ -167,24 +167,33 @@ export default function MagicScanModal({ onClose }) {
           {step === 'upload' && !questionType && (
             <div className="w-full max-w-4xl mx-auto px-2 lg:px-4">
               <h3 className="text-lg sm:text-xl font-black text-center text-gray-900 mb-5">কোন ধরনের প্রশ্ন স্ক্যান করবেন?</h3>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
-                {[
-                  { id: 'mcq', label: 'MCQ', desc: 'বহুনির্বাচনী (A B C D)', icon: '📝' },
-                  { id: 'cq', label: 'CQ', desc: 'সৃজনশীল (ক খ গ ঘ)', icon: '🧠' },
-                  { id: 'creative', label: 'Creative', desc: 'রচনামূলক/সাধারণ', icon: '✍️' },
-                  { id: 'short', label: 'Short Q', desc: 'সংক্ষিপ্ত প্রশ্ন', icon: '⚡' },
-                  { id: 'fill_blank', label: 'Fill in Blank', desc: 'শূন্যস্থান পূরণ', icon: '🕳️' },
-                  { id: 'matching', label: 'Matching', desc: 'বাম-ডান মিলকরণ', icon: '🔗' },
-                  { id: 'true_false', label: 'True / False', desc: 'সত্য/মিথ্যা নির্ণয়', icon: '✅' },
-                  { id: 'math', label: 'Math', desc: 'গাণিতিক সমস্যা', icon: '➗' },
-                  { id: 'passage', label: 'Passage', desc: 'অনুচ্ছেদ ভিত্তিক', icon: '📖' },
-                  { id: 'accounting', label: 'Accounting', desc: 'হিসাববিজ্ঞান ছক', icon: '📊' },
-                  { id: 'grammar', label: 'Grammar', desc: 'ব্যাকরণ / গ্রামার', icon: '🔤' },
-                  { id: 'poem', label: 'Poem', desc: 'কবিতা / সাহিত্য', icon: '✒️' },
-                  { id: 'essay', label: 'Essay', desc: 'প্রবন্ধ / রচনা', icon: '📚' },
-                  { id: 'paragraph', label: 'Paragraph', desc: 'অনুচ্ছেদ লিখন', icon: '📄' },
-                  { id: 'translation', label: 'Translation', desc: 'অনুবাদ (En-Bn)', icon: '🔄' }
-                ].map((t) => (
+              <div className="max-h-[55vh] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 pb-4">
+                  {[
+                    { id: 'mcq', label: 'MCQ', desc: 'বহুনির্বাচনী (A B C D)', icon: '📝' },
+                    { id: 'cq', label: 'CQ', desc: 'সৃজনশীল (ক খ গ ঘ)', icon: '🧠' },
+                    { id: 'creative', label: 'Creative', desc: 'রচনামূলক/সাধারণ', icon: '✍️' },
+                    { id: 'short', label: 'Short Q', desc: 'সংক্ষিপ্ত প্রশ্ন', icon: '⚡' },
+                    { id: 'fill_blank', label: 'Fill in Blank', desc: 'শূন্যস্থান পূরণ', icon: '🕳️' },
+                    { id: 'matching', label: 'Matching', desc: 'বাম-ডান মিলকরণ', icon: '🔗' },
+                    { id: 'true_false', label: 'True / False', desc: 'সত্য/মিথ্যা নির্ণয়', icon: '✅' },
+                    { id: 'math', label: 'Math', desc: 'গাণিতিক সমস্যা', icon: '➗' },
+                    { id: 'passage', label: 'Passage', desc: 'অনুচ্ছেদ ভিত্তিক', icon: '📖' },
+                    { id: 'accounting', label: 'Accounting', desc: 'হিসাববিজ্ঞান ছক', icon: '📊' },
+                    { id: 'grammar', label: 'Grammar', desc: 'ব্যাকরণ / গ্রামার', icon: '🔤' },
+                    { id: 'poem', label: 'Poem', desc: 'কবিতা / সাহিত্য', icon: '✒️' },
+                    { id: 'essay', label: 'Essay', desc: 'প্রবন্ধ / রচনা', icon: '📚' },
+                    { id: 'paragraph', label: 'Paragraph', desc: 'অনুচ্ছেদ লিখন', icon: '📄' },
+                    { id: 'translation', label: 'Translation', desc: 'অনুবাদ (En-Bn)', icon: '🔄' },
+                    { id: 'arabic', label: 'Arabic', desc: 'আরবি ইবারত / নস', icon: '🕌' },
+                    { id: 'hadith', label: 'Hadith/Tafseer', desc: 'হাদিস ও তাফসীর', icon: '📖' },
+                    { id: 'fiqh', label: 'Fiqh/Aqaid', desc: 'ফিকহ ও মাসআলা', icon: '🕋' },
+                    { id: 'letter_app', label: 'Letter/App', desc: 'চিঠি বা দরখাস্ত', icon: '✉️' },
+                    { id: 'rearrange', label: 'Rearrange', desc: 'বাক্য সাজানো', icon: '🧩' },
+                    { id: 'graph_chart', label: 'Graph/Chart', desc: 'গ্রাফ বা চার্ট', icon: '📈' },
+                    { id: 'summary', label: 'Summary', desc: 'সারাংশ / সারমর্ম', icon: '📋' },
+                    { id: 'dialogue', label: 'Dialogue/Story', desc: 'সংলাপ / গল্প', icon: '💬' }
+                  ].map((t) => (
                   <button 
                     key={t.id} 
                     onClick={() => setQuestionType(t.id)}
@@ -201,6 +210,7 @@ export default function MagicScanModal({ onClose }) {
                 ))}
               </div>
             </div>
+          </div>
           )}
 
           {step === 'upload' && questionType && (
