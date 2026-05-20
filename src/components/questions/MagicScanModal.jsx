@@ -165,21 +165,38 @@ export default function MagicScanModal({ onClose }) {
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
           {step === 'upload' && !questionType && (
-            <div className="max-w-md mx-auto">
-              <h3 className="text-xl font-bold text-center text-gray-900 mb-6">কোন ধরনের প্রশ্ন স্ক্যান করবেন?</h3>
-              <div className="space-y-4">
+            <div className="w-full max-w-4xl mx-auto px-2 lg:px-4">
+              <h3 className="text-lg sm:text-xl font-black text-center text-gray-900 mb-5">কোন ধরনের প্রশ্ন স্ক্যান করবেন?</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3">
                 {[
-                  { id: 'mcq', label: 'MCQ', description: 'বহুনির্বাচনী প্রশ্ন (A B C D)' },
-                  { id: 'cq', label: 'CQ', description: 'সৃজনশীল প্রশ্ন (ক খ গ ঘ)' },
-                  { id: 'creative', label: 'Creative', description: 'রচনামূলক / বর্ণনামূলক প্রশ্ন / সাধারণ প্রশ্ন' }
+                  { id: 'mcq', label: 'MCQ', desc: 'বহুনির্বাচনী (A B C D)', icon: '📝' },
+                  { id: 'cq', label: 'CQ', desc: 'সৃজনশীল (ক খ গ ঘ)', icon: '🧠' },
+                  { id: 'creative', label: 'Creative', desc: 'রচনামূলক/সাধারণ', icon: '✍️' },
+                  { id: 'short', label: 'Short Q', desc: 'সংক্ষিপ্ত প্রশ্ন', icon: '⚡' },
+                  { id: 'fill_blank', label: 'Fill in Blank', desc: 'শূন্যস্থান পূরণ', icon: '🕳️' },
+                  { id: 'matching', label: 'Matching', desc: 'বাম-ডান মিলকরণ', icon: '🔗' },
+                  { id: 'true_false', label: 'True / False', desc: 'সত্য/মিথ্যা নির্ণয়', icon: '✅' },
+                  { id: 'math', label: 'Math', desc: 'গাণিতিক সমস্যা', icon: '➗' },
+                  { id: 'passage', label: 'Passage', desc: 'অনুচ্ছেদ ভিত্তিক', icon: '📖' },
+                  { id: 'accounting', label: 'Accounting', desc: 'হিসাববিজ্ঞান ছক', icon: '📊' },
+                  { id: 'grammar', label: 'Grammar', desc: 'ব্যাকরণ / গ্রামার', icon: '🔤' },
+                  { id: 'poem', label: 'Poem', desc: 'কবিতা / সাহিত্য', icon: '✒️' },
+                  { id: 'essay', label: 'Essay', desc: 'প্রবন্ধ / রচনা', icon: '📚' },
+                  { id: 'paragraph', label: 'Paragraph', desc: 'অনুচ্ছেদ লিখন', icon: '📄' },
+                  { id: 'translation', label: 'Translation', desc: 'অনুবাদ (En-Bn)', icon: '🔄' }
                 ].map((t) => (
                   <button 
                     key={t.id} 
                     onClick={() => setQuestionType(t.id)}
-                    className="w-full text-left p-4 bg-white rounded-2xl border-2 border-transparent hover:border-blue-500 hover:bg-blue-50/50 shadow-sm transition-all flex flex-col gap-1"
+                    className="w-full text-left p-2 bg-white rounded-xl border border-gray-200 hover:border-blue-500 hover:bg-blue-50 shadow-sm hover:shadow-md transition-all flex items-center gap-2.5 group"
                   >
-                    <strong className="text-gray-900 text-lg">{t.label}</strong>
-                    <span className="text-gray-500 text-sm">{t.description}</span>
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 bg-gray-50 rounded-lg border border-gray-100 group-hover:bg-blue-100 group-hover:border-blue-200 flex items-center justify-center text-base sm:text-xl transition-all shadow-inner">
+                      {t.icon}
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <strong className="text-gray-900 text-[11px] sm:text-xs font-bold truncate">{t.label}</strong>
+                      <span className="text-gray-500 text-[9px] sm:text-[10px] truncate leading-tight mt-0.5">{t.desc}</span>
+                    </div>
                   </button>
                 ))}
               </div>
@@ -222,7 +239,7 @@ export default function MagicScanModal({ onClose }) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-black flex justify-center max-h-[500px]">
+                  <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-black flex justify-center max-h-[300px] sm:max-h-[500px]">
                     <ReactCrop
                       crop={crop}
                       onChange={(c, pc) => setCrop(pc)}
@@ -237,7 +254,7 @@ export default function MagicScanModal({ onClose }) {
                           const isBlurry = detectBlur(e.currentTarget)
                           if (isBlurry) toast.error('ছবিটি ঝাপসা মনে হচ্ছে — ভালো আলোতে আবার ছবি তুলুন', { duration: 5000 })
                         }}
-                        className="max-h-[500px] w-auto object-contain" 
+                        className="max-h-[300px] sm:max-h-[500px] w-auto object-contain" 
                       />
                     </ReactCrop>
                     <button 
@@ -288,9 +305,9 @@ export default function MagicScanModal({ onClose }) {
           )}
 
           {step === 'review' && (
-            <div className="flex flex-col lg:flex-row gap-6 h-[600px]">
+            <div className="flex flex-col lg:flex-row gap-6 lg:h-[600px] h-auto">
               {/* Left: Image Side */}
-              <div className="flex-1 bg-gray-200 rounded-2xl overflow-hidden relative group flex items-center justify-center">
+              <div className="lg:flex-1 h-[250px] lg:h-full bg-gray-200 rounded-2xl overflow-hidden relative group flex items-center justify-center">
                 <img src={croppedImagePreview || imagePreview} alt="Original" className="max-w-full max-h-full object-contain bg-gray-900" />
                 <div className="absolute top-4 left-4 px-3 py-1 bg-gray-900/50 text-white text-[10px] rounded-full backdrop-blur-md">
                   ক্রপ করা ছবি
@@ -298,7 +315,7 @@ export default function MagicScanModal({ onClose }) {
               </div>
 
               {/* Right: Questions Side */}
-              <div className="flex-1 bg-white rounded-2xl border border-gray-200 flex flex-col">
+              <div className="lg:flex-1 h-[450px] lg:h-full bg-white rounded-2xl border border-gray-200 flex flex-col">
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-white">
                   <h4 className="font-bold text-gray-900">এক্সট্রাক্টেড প্রশ্ন ({extractedQuestions.length})</h4>
                   <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-100">

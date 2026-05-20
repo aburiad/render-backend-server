@@ -152,9 +152,21 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, qu
   // Ultra-compact type-specific prompts (~20-30 tokens each).
   // Keeping them minimal eliminates layout-detection reasoning entirely.
   const PROMPTS = {
-    mcq:      'Extract MCQ: [{type:"MCQ",question,option_a,option_b,option_c,option_d,correct_answer,marks,confidence}]',
-    cq:       'Extract CQ: [{type:"CQ",stimulus,sub_questions:[{label,text,marks}],confidence}]',
-    creative: 'Extract descriptive question: [{type:"broad",question,marks,confidence}]',
+    mcq:        'Extract MCQ: [{type:"MCQ",question,option_a,option_b,option_c,option_d,correct_answer,marks,confidence}]',
+    cq:         'Extract CQ: [{type:"CQ",stimulus,sub_questions:[{label,text,marks}],confidence}]',
+    creative:   'Extract descriptive: [{type:"broad",question,marks,confidence}]',
+    short:      'Extract short Q: [{type:"short",question,marks,confidence}]',
+    fill_blank: 'Extract fill-in-blank: [{type:"fill_blank",sentence,clues,marks,confidence}]',
+    matching:   'Extract matching: [{type:"matching",column_a:[],column_b:[],marks,confidence}]',
+    true_false: 'Extract true/false: [{type:"true_false",statements:[{text,answer}],marks,confidence}]',
+    math:       'Extract math: [{type:"math",question,equations:[],answer,marks,confidence}]',
+    passage:    'Extract passage: [{type:"passage",passage,questions:[{no,text,marks}],confidence}]',
+    accounting: 'Extract accounting table: [{type:"accounting",title_lines:[],headers:[],rows:[[]],total_row:[],notes,marks,confidence}]',
+    grammar:    'Extract grammar: [{type:"grammar",question,instruction,answer,marks,confidence}]',
+    poem:       'Extract poem: [{type:"poem",lines:[],author,marks,confidence}]',
+    essay:      'Extract essay: [{type:"essay",question,word_limit,marks,confidence}]',
+    paragraph:  'Extract paragraph topic: [{type:"paragraph",question,hints:[],marks,confidence}]',
+    translation:'Extract translation: [{type:"translation",question,marks,confidence}]'
   }
   const langRule = ' Preserve Bangla/Arabic/English exactly. Math in LaTeX $...$. Return ONLY JSON array.'
   const userPrompt = (PROMPTS[questionType] || PROMPTS.mcq) + langRule
