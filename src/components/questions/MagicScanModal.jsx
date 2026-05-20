@@ -334,7 +334,7 @@ export default function MagicScanModal({ onClose }) {
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50/30">
                   {extractedQuestions.map((q, i) => (
-                    <div key={i} className={`p-4 bg-white rounded-2xl border transition-all ${editingIndex === i ? 'border-blue-400 ring-2 ring-blue-50 shadow-md' : 'border-gray-100 shadow-sm'}`}>
+                    <div key={i} className={`p-3 sm:p-4 bg-white rounded-xl sm:rounded-2xl border transition-all ${editingIndex === i ? 'border-blue-400 ring-2 ring-blue-50 shadow-md' : 'border-gray-100 shadow-sm'}`}>
                       {editingIndex === i ? (
                         <div className="space-y-4">
                           <div>
@@ -380,18 +380,18 @@ export default function MagicScanModal({ onClose }) {
                         </div>
                       ) : (
                         <div className="group">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black text-gray-300">#{i + 1}</span>
-                              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${getConfidenceColor(q.confidence || 0.8)}`}>
+                          <div className="flex items-start justify-between gap-2 mb-2 sm:mb-3">
+                            <div className="flex items-center gap-1.5 sm:gap-2 overflow-hidden">
+                              <span className="text-[10px] font-black text-gray-300 shrink-0">#{i + 1}</span>
+                              <span className={`text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-md sm:rounded-full border whitespace-nowrap shrink-0 ${getConfidenceColor(q.confidence || 0.8)}`}>
                                 {q.type} • {Math.round((q.confidence || 0.8) * 100)}% Match
                               </span>
                             </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1 opacity-100 lg:opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                               <button 
                                 onClick={() => handleSaveToBank(q, i)}
                                 disabled={savingBankIdx === i}
-                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all ${
+                                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-lg sm:rounded-xl transition-all ${
                                   savingBankIdx === i 
                                     ? 'bg-blue-50 text-blue-400' 
                                     : 'bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white shadow-sm'
@@ -405,7 +405,7 @@ export default function MagicScanModal({ onClose }) {
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
                                     </svg>
-                                    <span className="text-[10px] font-bold">ব্যাংকে সেভ</span>
+                                    <span className="text-[9px] sm:text-[10px] font-bold hidden sm:inline">ব্যাংকে সেভ</span>
                                   </>
                                 )}
                               </button>
