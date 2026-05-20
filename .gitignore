@@ -13,6 +13,7 @@ dist-ssr
 *.local
 server
 testapp
+testingapp
 # Old standalone backend (now merged into server/) — safe to delete
 proshno-shala-v1-server
 
