@@ -45,7 +45,11 @@ function convertMessagesToGemini(messages) {
 async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision }) {
   const URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
   
-  const contents = convertMessagesToGemini(messages)
+  const contents = convertMessagesToGemini(messages.filter(m => m.role !== 'system'))
+  
+  // Extract system message and pass as Gemini's native systemInstruction field
+  const systemMsg = messages.find(m => m.role === 'system')
+  
   const generationConfig = { 
     temperature,
     thinkingConfig: {
@@ -64,10 +68,19 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
     generationConfig.responseMimeType = 'application/json'
   }
 
+  const body = { contents, generationConfig, safetySettings }
+  
+  // Attach system instruction if present (Gemini native format)
+  if (systemMsg) {
+    body.systemInstruction = {
+      parts: [{ text: typeof systemMsg.content === 'string' ? systemMsg.content : systemMsg.content?.[0]?.text || '' }]
+    }
+  }
+
   const res = await fetch(URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ contents, generationConfig, safetySettings }),
+    body: JSON.stringify(body),
   })
   
   if (!res.ok) {
@@ -82,22 +95,31 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   return data?.candidates?.[0]?.content?.parts?.[0]?.text
 }
 
+let rrIndex = 0
+
 async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
-  const apiKeys = []
+  let apiKeys = []
   if (providedKey) {
     apiKeys.push(providedKey)
   } else {
-    if (process.env.GEMINI_API_KEY) apiKeys.push(process.env.GEMINI_API_KEY)
-    if (process.env.GEMINI_API_KEY_TWO) apiKeys.push(process.env.GEMINI_API_KEY_TWO)
+    const envKeys = [
+      process.env.GEMINI_API_KEY,
+      process.env.GEMINI_API_KEY_TWO
+    ].filter(Boolean)
+    
+    if (envKeys.length > 0) {
+      const primaryKey = envKeys[rrIndex % envKeys.length]
+      rrIndex++
+      // Put primary key first, then fallback keys
+      apiKeys = [primaryKey, ...envKeys.filter(k => k !== primaryKey)]
+    }
   }
 
   if (apiKeys.length === 0) {
     throw new Error('GEMINI_API_KEY or GEMINI_API_KEY_TWO not set')
   }
 
-  // Filter out system messages as Gemini native API handles system instructions differently,
-  // but aiService currently just sends everything as user messages anyway.
-  const cleanMessages = messages.filter((m) => m.role !== 'system')
+  // system messages are now handled via systemInstruction field above
   
   const models = vision ? VISION_MODELS : TEXT_MODELS
 
@@ -105,7 +127,7 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   for (const apiKey of apiKeys) {
     for (const model of models) {
       try {
-        const text = await tryModel({ apiKey, model, messages: cleanMessages, jsonMode, temperature, vision })
+        const text = await tryModel({ apiKey, model, messages, jsonMode, temperature, vision })
         if (text) return text
       } catch (err) {
         lastErr = err

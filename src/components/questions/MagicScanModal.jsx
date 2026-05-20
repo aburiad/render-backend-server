@@ -4,17 +4,25 @@ import api from '@/services/api'
 import usePaperStore from '@/store/paperStore'
 import { toast } from 'react-hot-toast'
 import { MathText } from '@/utils/mathRender'
-import { compressImageToDataUrl, approximateDataUrlBytes } from '@/utils/imageCompress'
 import Spinner from '@/components/shared/Spinner'
+import ReactCrop from 'react-image-crop'
+import 'react-image-crop/dist/ReactCrop.css'
+import { processExamImage, detectBlur } from '@/lib/imageProcessor'
 
 export default function MagicScanModal({ onClose }) {
   const [step, setStep] = useState('upload') // upload, processing, review
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
   const [extractedQuestions, setExtractedQuestions] = useState([])
+  const [croppedImagePreview, setCroppedImagePreview] = useState(null)
   const [editingIndex, setEditingIndex] = useState(null)
   const [loading, setLoading] = useState(false)
   const [savingBankIdx, setSavingBankIdx] = useState(null)
+  
+  const [questionType, setQuestionType] = useState(null)
+  const [crop, setCrop] = useState({ unit: '%', width: 90, x: 5, y: 5, height: 90 })
+  const [completedCrop, setCompletedCrop] = useState(null)
+  const imgRef = useRef(null)
   
   const updateExtractedQuestion = (idx, fields) => {
     const newQuestions = [...extractedQuestions]
@@ -35,33 +43,24 @@ export default function MagicScanModal({ onClose }) {
   
   const addQuestion = usePaperStore(s => s.addQuestion)
 
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
     const file = e.target.files[0]
     if (!file) return
     setImageFile(file)
-    try {
-      // Compress to ≤1280px JPEG @ 0.75q — keeps Gemini Flash OCR readability high
-      // while minimizing token usage and staying well under Vercel's 4.5MB request body cap.
-      const compressed = await compressImageToDataUrl(file)
-      const sizeKB = Math.round(approximateDataUrlBytes(compressed) / 1024)
-      if (sizeKB > 3500) {
-        toast.error('ছবি অনেক বড় (3.5MB+) — অন্য ছবি ব্যবহার করুন')
-        return
-      }
-      setImagePreview(compressed)
-    } catch (err) {
-      console.warn('[scan] image compression failed, using raw:', err.message)
-      const reader = new FileReader()
-      reader.onloadend = () => setImagePreview(reader.result)
-      reader.readAsDataURL(file)
-    }
+    const reader = new FileReader()
+    reader.onloadend = () => setImagePreview(reader.result)
+    reader.readAsDataURL(file)
   }
 
-  const postScanOnce = () =>
-    api.post('/ai/scan', { image: imagePreview }, { timeout: 240000 })
+  const postScanOnce = async () => {
+    if (!imgRef.current || !completedCrop) return null
+    const processedDataUrl = await processExamImage(imgRef.current, completedCrop)
+    setCroppedImagePreview(processedDataUrl)
+    return api.post('/ai/scan', { image: processedDataUrl, questionType }, { timeout: 240000 })
+  }
 
   const startScan = async () => {
-    if (!imagePreview) return
+    if (!imagePreview || !completedCrop) return
 
     setStep('processing')
     setLoading(true)
@@ -95,7 +94,7 @@ export default function MagicScanModal({ onClose }) {
       }
     } catch (err) {
       toast.dismiss('scan-retry')
-      toast.error(err.response?.data?.message || 'স্ক্যান করতে ব্যর্থ হয়েছে')
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'স্ক্যান করতে ব্যর্থ হয়েছে')
       setStep('upload')
     } finally {
       setLoading(false)
@@ -165,8 +164,42 @@ export default function MagicScanModal({ onClose }) {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto bg-gray-50 p-6">
-          {step === 'upload' && (
+          {step === 'upload' && !questionType && (
             <div className="max-w-md mx-auto">
+              <h3 className="text-xl font-bold text-center text-gray-900 mb-6">কোন ধরনের প্রশ্ন স্ক্যান করবেন?</h3>
+              <div className="space-y-4">
+                {[
+                  { id: 'mcq', label: 'MCQ', description: 'বহুনির্বাচনী প্রশ্ন (A B C D)' },
+                  { id: 'cq', label: 'CQ', description: 'সৃজনশীল প্রশ্ন (ক খ গ ঘ)' },
+                  { id: 'creative', label: 'Creative', description: 'রচনামূলক / বর্ণনামূলক প্রশ্ন / সাধারণ প্রশ্ন' }
+                ].map((t) => (
+                  <button 
+                    key={t.id} 
+                    onClick={() => setQuestionType(t.id)}
+                    className="w-full text-left p-4 bg-white rounded-2xl border-2 border-transparent hover:border-blue-500 hover:bg-blue-50/50 shadow-sm transition-all flex flex-col gap-1"
+                  >
+                    <strong className="text-gray-900 text-lg">{t.label}</strong>
+                    <span className="text-gray-500 text-sm">{t.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {step === 'upload' && questionType && (
+            <div className="max-w-2xl mx-auto">
+              <div className="flex justify-between items-center mb-4">
+                <button 
+                  onClick={() => { setQuestionType(null); setImagePreview(null) }} 
+                  className="text-sm font-bold text-gray-500 hover:text-gray-900 flex items-center gap-1"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  পেছনে যান
+                </button>
+                <div className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                  {questionType.toUpperCase()}
+                </div>
+              </div>
               {!imagePreview ? (
                 <div 
                   onClick={() => fileInputRef.current.click()}
@@ -189,11 +222,27 @@ export default function MagicScanModal({ onClose }) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-white">
-                    <img src={imagePreview} alt="Preview" className="w-full h-auto max-h-[400px] object-contain" />
+                  <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-black flex justify-center max-h-[500px]">
+                    <ReactCrop
+                      crop={crop}
+                      onChange={(c, pc) => setCrop(pc)}
+                      onComplete={(c, pc) => setCompletedCrop(pc)}
+                      className="max-h-full"
+                    >
+                      <img 
+                        ref={imgRef}
+                        src={imagePreview} 
+                        alt="Preview" 
+                        onLoad={(e) => {
+                          const isBlurry = detectBlur(e.currentTarget)
+                          if (isBlurry) toast.error('ছবিটি ঝাপসা মনে হচ্ছে — ভালো আলোতে আবার ছবি তুলুন', { duration: 5000 })
+                        }}
+                        className="max-h-[500px] w-auto object-contain" 
+                      />
+                    </ReactCrop>
                     <button 
                       onClick={() => setImagePreview(null)}
-                      className="absolute top-2 right-2 p-1.5 bg-gray-900/50 text-white rounded-lg backdrop-blur-md"
+                      className="absolute top-2 right-2 p-1.5 bg-gray-900/50 text-white rounded-lg backdrop-blur-md z-10"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -202,9 +251,10 @@ export default function MagicScanModal({ onClose }) {
                   </div>
                   <button 
                     onClick={startScan}
-                    className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-600/20 btn-press"
+                    disabled={!completedCrop || completedCrop.width === 0}
+                    className="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-600/20 btn-press disabled:opacity-50"
                   >
-                    স্ক্যান শুরু করুন
+                    স্ক্যান শুরু করুন (ক্রপ করা অংশ)
                   </button>
                 </div>
               )}
@@ -240,10 +290,10 @@ export default function MagicScanModal({ onClose }) {
           {step === 'review' && (
             <div className="flex flex-col lg:flex-row gap-6 h-[600px]">
               {/* Left: Image Side */}
-              <div className="flex-1 bg-gray-200 rounded-2xl overflow-hidden relative group">
-                <img src={imagePreview} alt="Original" className="w-full h-full object-contain bg-gray-900" />
+              <div className="flex-1 bg-gray-200 rounded-2xl overflow-hidden relative group flex items-center justify-center">
+                <img src={croppedImagePreview || imagePreview} alt="Original" className="max-w-full max-h-full object-contain bg-gray-900" />
                 <div className="absolute top-4 left-4 px-3 py-1 bg-gray-900/50 text-white text-[10px] rounded-full backdrop-blur-md">
-                  মূল ছবি
+                  ক্রপ করা ছবি
                 </div>
               </div>
 

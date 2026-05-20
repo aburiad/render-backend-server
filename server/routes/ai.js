@@ -18,19 +18,26 @@ router.use(requireAuth)
  */
 router.post('/scan', checkAiCredit(1), async (req, res, next) => {
   try {
-    const { image, paperId } = req.body
+    const { image, paperId, questionType } = req.body
     if (!image) {
       throw new AppError('Image is required', 400)
     }
 
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '')
-    Buffer.from(base64Data, 'base64')
+    const imageBuffer = Buffer.from(base64Data, 'base64')
+    const imageSizeKB = imageBuffer.length / 1024
+    
+    console.log(`[ai:scan] Received image size: ${Math.round(imageSizeKB)}KB (Question Type: ${questionType})`)
+
+    if (imageSizeKB > 500) {
+      throw new AppError(`ছবি অনেক বড় (${Math.round(imageSizeKB)}KB) — 500KB এর মধ্যে রাখুন`, 400)
+    }
 
     const result = await withChargedCredit(
       req.user.uid,
       paperId || null,
       1,
-      () => scanImage(image, 'image/jpeg', req.user.uid),
+      () => scanImage(image, 'image/webp', req.user.uid, questionType),
       (out) => Math.max(0, (Number(out?.count) || 1) - 1),
     )
 
