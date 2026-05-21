@@ -146,8 +146,8 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, qu
   const providerNames = config?.aiProviderConfig?.vision_chain || DEFAULT_VISION.map(p => p.name)
   const visionChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
 
-  // System message: tells the model its ONLY job is to output JSON — no reasoning, no explanation.
-  const SYSTEM_MSG = 'You are a strict JSON extractor. Output ONLY a valid JSON array. No explanation, no comments, no markdown.'
+  // System message: tells the model its ONLY job is to output JSON. Added hallucination control and example.
+  const SYSTEM_MSG = 'You are a strict JSON extractor. Output ONLY a valid JSON array. No explanation, no comments, no markdown. Rule: Do not guess or hallucinate any text. If any word is totally illegible, output "[unreadable]". Example Output: [{"type": "MCQ", "question": "What is the capital of BD?", "option_a": "Dhaka", "correct_answer": "Dhaka"}]'
 
   // Ultra-compact type-specific prompts (~20-30 tokens each).
   // Keeping them minimal eliminates layout-detection reasoning entirely.

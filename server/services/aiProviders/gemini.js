@@ -104,7 +104,9 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   } else {
     const envKeys = [
       process.env.GEMINI_API_KEY,
-      process.env.GEMINI_API_KEY_TWO
+      process.env.GEMINI_API_KEY_TWO,
+      process.env.GEMINI_API_KEY_THREE,
+      process.env.GEMINI_API_KEY_FOUR
     ].filter(Boolean)
     
     if (envKeys.length > 0) {
@@ -116,7 +118,7 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   }
 
   if (apiKeys.length === 0) {
-    throw new Error('GEMINI_API_KEY or GEMINI_API_KEY_TWO not set')
+    throw new Error('No GEMINI_API_KEY set (tried 1 to 4)')
   }
 
   // system messages are now handled via systemInstruction field above

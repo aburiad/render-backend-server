@@ -15,7 +15,7 @@
  */
 
 const DEFAULTS = {
-  maxDimension: 1280,
+  maxDimension: 1024,
   quality: 0.75,
   outputType: 'image/jpeg',
 }
@@ -62,6 +62,8 @@ function resizeDataUrl(dataUrl, cfg) {
       ctx.fillStyle = '#ffffff'
       ctx.fillRect(0, 0, w, h)
 
+      // Apply Grayscale and High Contrast for better OCR and smaller file size
+      ctx.filter = 'grayscale(100%) contrast(120%)'
       ctx.imageSmoothingQuality = 'high'
       ctx.drawImage(img, 0, 0, w, h)
 
