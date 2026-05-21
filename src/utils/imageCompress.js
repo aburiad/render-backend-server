@@ -17,7 +17,7 @@
 const DEFAULTS = {
   maxDimension: 1024,
   quality: 0.75,
-  outputType: 'image/jpeg',
+  outputType: 'image/webp',
 }
 
 /**

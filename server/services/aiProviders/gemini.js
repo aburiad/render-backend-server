@@ -96,6 +96,7 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
 }
 
 let rrIndex = 0
+const cooldowns = {}
 
 async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
   let apiKeys = []
@@ -109,11 +110,21 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
       process.env.GEMINI_API_KEY_FOUR
     ].filter(Boolean)
     
-    if (envKeys.length > 0) {
-      const primaryKey = envKeys[rrIndex % envKeys.length]
+    let validEnvKeys = envKeys.filter(k => !cooldowns[k] || Date.now() > cooldowns[k])
+
+    // If all keys are in cooldown, wait 2 seconds, clear cooldowns and force retry
+    if (validEnvKeys.length === 0 && envKeys.length > 0) {
+      console.warn('[gemini] All keys in cooldown. Waiting 2s and retrying...')
+      await delay(2000)
+      validEnvKeys = envKeys
+      envKeys.forEach(k => delete cooldowns[k])
+    }
+
+    if (validEnvKeys.length > 0) {
+      const primaryKey = validEnvKeys[rrIndex % validEnvKeys.length]
       rrIndex++
       // Put primary key first, then fallback keys
-      apiKeys = [primaryKey, ...envKeys.filter(k => k !== primaryKey)]
+      apiKeys = [primaryKey, ...validEnvKeys.filter(k => k !== primaryKey)]
     }
   }
 
@@ -134,6 +145,11 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
       } catch (err) {
         lastErr = err
         if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
+        
+        // Put key in cooldown for 60 seconds so other concurrent requests don't waste time on it
+        if (!providedKey) {
+          cooldowns[apiKey] = Date.now() + 60000
+        }
         
         console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." failed for ${model}: ${err.message}`)
         // Immediately try the next key/model in the loop

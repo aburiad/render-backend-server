@@ -34,7 +34,7 @@ function parseQuestionsJson(raw) {
 // Vercel Hobby caps a serverless function at 10s, but since we are on Cloud Run / custom backend,
 // we can safely increase this. Google Gemini vision often takes 15-20s.
 // When running on Vercel, we default to 5s (5000ms) to ensure fallbacks can try other providers before timeout.
-const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 5000 : 30000
+const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 20000 : 30000
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || DEFAULT_TIMEOUT
 
 function withTimeout(promise, ms, label) {
@@ -121,8 +121,8 @@ async function callWithFallback(chain, params, label, userId = null) {
   const triedNames = enabled.map((e) => e.provider.name).join(', ')
   const userMsg =
     label === 'scan'
-      ? `প্রশ্ন স্ক্যান করতে পারিনি — সব AI provider সাড়া দিচ্ছে না। আবার চেষ্টা করুন বা ছবি পরিষ্কার তুলে দেখুন। (${triedNames})`
-      : `প্রশ্ন তৈরি করতে পারিনি — সব AI provider সাড়া দিচ্ছে না। কিছুক্ষণ পর আবার চেষ্টা করুন। (${triedNames})`
+      ? `প্রশ্ন স্ক্যান করতে পারিনি — সব AI provider সাড়া দিচ্ছে না। দয়া করে ১-২ মিনিট অপেক্ষা করে আবার চেষ্টা করুন। (${triedNames})`
+      : `প্রশ্ন তৈরি করতে পারিনি — সব AI provider সাড়া দিচ্ছে না। দয়া করে ১-২ মিনিট অপেক্ষা করে আবার চেষ্টা করুন। (${triedNames})`
 
   const wrapped = new AppError(userMsg, 502)
   wrapped.providerErrors = errors
