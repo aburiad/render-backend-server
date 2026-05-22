@@ -8,12 +8,12 @@ function convertMessagesToGemini(messages) {
   return messages.map(msg => {
     // Gemini roles are 'user' and 'model'
     let role = msg.role === 'assistant' ? 'model' : 'user'
-    
+
     // Handle string content
     if (typeof msg.content === 'string') {
       return { role, parts: [{ text: msg.content }] }
     }
-    
+
     // Handle array content (usually text + image_url)
     if (Array.isArray(msg.content)) {
       const parts = msg.content.map(part => {
@@ -34,42 +34,42 @@ function convertMessagesToGemini(messages) {
         }
         return null
       }).filter(Boolean)
-      
+
       return { role, parts }
     }
-    
+
     return { role, parts: [{ text: '' }] }
   })
 }
 
 async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision }) {
   const URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
-  
+
   const contents = convertMessagesToGemini(messages.filter(m => m.role !== 'system'))
-  
+
   // Extract system message and pass as Gemini's native systemInstruction field
   const systemMsg = messages.find(m => m.role === 'system')
-  
-  const generationConfig = { 
+
+  const generationConfig = {
     temperature,
     thinkingConfig: {
       thinkingBudget: 0
     }
   }
-  
+
   const safetySettings = [
     { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
     { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
     { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
     { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
   ]
-  
+
   if (jsonMode) {
     generationConfig.responseMimeType = 'application/json'
   }
 
   const body = { contents, generationConfig, safetySettings }
-  
+
   // Attach system instruction if present (Gemini native format)
   if (systemMsg) {
     body.systemInstruction = {
@@ -82,7 +82,7 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   })
-  
+
   if (!res.ok) {
     const text = await res.text()
     const isModelGone = res.status === 404 || res.status === 400
@@ -90,13 +90,24 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
     err.modelDecommissioned = isModelGone
     throw err
   }
-  
+
   const data = await res.json()
   return data?.candidates?.[0]?.content?.parts?.[0]?.text
 }
 
 let rrIndex = 0
 const cooldowns = {}
+const failureCount = {}  // Track failures per key
+
+// Shuffle array using Fisher-Yates (non-deterministic order to avoid collisions)
+function shuffleArray(arr) {
+  const copy = [...arr]
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]]
+  }
+  return copy
+}
 
 async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
   let apiKeys = []
@@ -109,23 +120,16 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
       process.env.GEMINI_API_KEY_THREE,
       process.env.GEMINI_API_KEY_FOUR
     ].filter(Boolean)
-    
+
+    // Filter out keys in cooldown, but if ALL are in cooldown, use them anyway (no blocking wait)
     let validEnvKeys = envKeys.filter(k => !cooldowns[k] || Date.now() > cooldowns[k])
-
-    // If all keys are in cooldown, wait 2 seconds, clear cooldowns and force retry
-    if (validEnvKeys.length === 0 && envKeys.length > 0) {
-      console.warn('[gemini] All keys in cooldown. Waiting 2s and retrying...')
-      await delay(2000)
-      validEnvKeys = envKeys
-      envKeys.forEach(k => delete cooldowns[k])
+    if (validEnvKeys.length === 0) {
+      validEnvKeys = envKeys  // Use all, even if in cooldown (no 2s delay!)
+      console.warn('[gemini] All keys in cooldown, using them anyway (no block)...')
     }
 
-    if (validEnvKeys.length > 0) {
-      const primaryKey = validEnvKeys[rrIndex % validEnvKeys.length]
-      rrIndex++
-      // Put primary key first, then fallback keys
-      apiKeys = [primaryKey, ...validEnvKeys.filter(k => k !== primaryKey)]
-    }
+    // Shuffle to avoid race conditions and distribute load
+    apiKeys = shuffleArray(validEnvKeys)
   }
 
   if (apiKeys.length === 0) {
@@ -133,7 +137,7 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   }
 
   // system messages are now handled via systemInstruction field above
-  
+
   const models = vision ? VISION_MODELS : TEXT_MODELS
 
   let lastErr
@@ -145,12 +149,14 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
       } catch (err) {
         lastErr = err
         if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
-        
-        // Put key in cooldown for 60 seconds so other concurrent requests don't waste time on it
-        if (!providedKey) {
-          cooldowns[apiKey] = Date.now() + 60000
+
+        // Put key in cooldown for 15 seconds (shorter, less blocking)
+        // Only if we have multiple keys to try
+        if (!providedKey && apiKeys.length > 1) {
+          cooldowns[apiKey] = Date.now() + 15000
+          failureCount[apiKey] = (failureCount[apiKey] || 0) + 1
         }
-        
+
         console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." failed for ${model}: ${err.message}`)
         // Immediately try the next key/model in the loop
       }
