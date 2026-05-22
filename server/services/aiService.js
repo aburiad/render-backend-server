@@ -31,44 +31,34 @@ function parseQuestionsJson(raw) {
   throw new Error('Could not parse JSON array from model output')
 }
 
-// Vercel function maxDuration is 60s (set in vercel.json).
-// We give each provider up to 45s so there is still headroom for the
-// HTTP round-trip overhead and a single fallback attempt within the
-// 60s window. Gemini vision calls regularly take 15-25s, so 20s was
-// too tight and caused unnecessary fallbacks.
-const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 45000 : 30000
+// Vercel Hobby plan hard limit is 10s per function invocation.
+// We give each provider up to 8s so there is still headroom for
+// HTTP overhead. Gemini vision calls on flash-lite typically take 3-7s.
+const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 8000 : 30000
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || DEFAULT_TIMEOUT
 
-// Hedging: if the preferred provider (gemini) hasn't responded within this
-// window, fire the fallback providers in parallel. Whichever returns a valid
-// response first wins; the rest are aborted. This keeps Gemini as the primary
-// quality source while bounding worst-case latency to ~hedgeDelay + fast
-// fallback time (groq/mistral typically respond in 3-6s).
-//
-// Default 15s is based on observed Gemini p50=11s, p95=21s for vision calls.
-// For large images (>200KB) we add extra headroom since Gemini takes longer
-// to process them. Override with AI_HEDGE_DELAY_MS env var if needed.
-const HEDGE_DELAY_MS_BASE = Number(process.env.AI_HEDGE_DELAY_MS) || 15000
+// Hedging: fire fallbacks after this delay if preferred hasn't responded.
+// Must be well under the Vercel 10s limit so fallbacks have time to run.
+// Default 4s: if Gemini hasn't responded in 4s, fire fallbacks in parallel.
+const HEDGE_DELAY_MS_BASE = Number(process.env.AI_HEDGE_DELAY_MS) || 4000
 
 /**
  * Calculate hedge delay based on image size in the params.
- * Small image (<100KB)  → 12s  (Gemini usually fast)
- * Medium image (100-300KB) → 15s (default)
- * Large image (>300KB)  → 20s  (Gemini needs more time)
+ * Small image (<100KB)  → 3s
+ * Medium image (100-300KB) → 4s (default)
+ * Large image (>300KB)  → 5s
  */
 function getHedgeDelay(params) {
   if (!params?.messages) return HEDGE_DELAY_MS_BASE
-  // Find the image_url part in messages to estimate size
   for (const msg of params.messages) {
     if (!Array.isArray(msg.content)) continue
     for (const part of msg.content) {
       if (part.type === 'image_url' && part.image_url?.url) {
-        // base64 string length * 0.75 ≈ bytes
         const estimatedBytes = part.image_url.url.length * 0.75
         const kb = estimatedBytes / 1024
-        if (kb < 100) return 12000   // small image
-        if (kb > 300) return 20000   // large image
-        return HEDGE_DELAY_MS_BASE   // medium image
+        if (kb < 100) return 3000
+        if (kb > 300) return 5000
+        return HEDGE_DELAY_MS_BASE
       }
     }
   }
