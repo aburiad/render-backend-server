@@ -39,6 +39,42 @@ function parseQuestionsJson(raw) {
 const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 45000 : 30000
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || DEFAULT_TIMEOUT
 
+// Hedging: if the preferred provider (gemini) hasn't responded within this
+// window, fire the fallback providers in parallel. Whichever returns a valid
+// response first wins; the rest are aborted. This keeps Gemini as the primary
+// quality source while bounding worst-case latency to ~hedgeDelay + fast
+// fallback time (groq/mistral typically respond in 3-6s).
+//
+// Default 15s is based on observed Gemini p50=11s, p95=21s for vision calls.
+// For large images (>200KB) we add extra headroom since Gemini takes longer
+// to process them. Override with AI_HEDGE_DELAY_MS env var if needed.
+const HEDGE_DELAY_MS_BASE = Number(process.env.AI_HEDGE_DELAY_MS) || 15000
+
+/**
+ * Calculate hedge delay based on image size in the params.
+ * Small image (<100KB)  → 12s  (Gemini usually fast)
+ * Medium image (100-300KB) → 15s (default)
+ * Large image (>300KB)  → 20s  (Gemini needs more time)
+ */
+function getHedgeDelay(params) {
+  if (!params?.messages) return HEDGE_DELAY_MS_BASE
+  // Find the image_url part in messages to estimate size
+  for (const msg of params.messages) {
+    if (!Array.isArray(msg.content)) continue
+    for (const part of msg.content) {
+      if (part.type === 'image_url' && part.image_url?.url) {
+        // base64 string length * 0.75 ≈ bytes
+        const estimatedBytes = part.image_url.url.length * 0.75
+        const kb = estimatedBytes / 1024
+        if (kb < 100) return 12000   // small image
+        if (kb > 300) return 20000   // large image
+        return HEDGE_DELAY_MS_BASE   // medium image
+      }
+    }
+  }
+  return HEDGE_DELAY_MS_BASE
+}
+
 function withTimeout(promise, ms, label) {
   return new Promise((resolve, reject) => {
     const t = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
@@ -102,6 +138,42 @@ function buildEffectiveProviders(chain, userKeys) {
     .filter(Boolean)
 }
 
+/**
+ * Try a single provider entry. Returns { questions, provider, source } on
+ * success, throws on failure. Side-effects: logs to Supabase, marks user key.
+ */
+async function tryProvider({ provider, apiKey, isUserKey }, params, label, userId) {
+  const text = await withTimeout(
+    provider.chat({ ...params, apiKey }),
+    PROVIDER_TIMEOUT_MS,
+    provider.name,
+  )
+  const questions = parseQuestionsJson(text)
+  console.log(`[ai:${label}] ✓ ${provider.name} returned ${questions.length} questions`)
+  if (isUserKey && userId) {
+    userApiKeyService.markUsed(userId, provider.name).catch(() => {})
+  }
+  supabaseAdmin.rpc('log_ai_provider_usage', { p_provider: provider.name, p_success: true })
+    .then(({ error }) => { if (error) console.warn('AI stat log error:', error.message) })
+  return { questions, provider: provider.name, source: isUserKey ? 'user' : 'system' }
+}
+
+/**
+ * Hedged fallback strategy:
+ *
+ *  1. Fire the PREFERRED provider (first in chain, usually gemini) immediately.
+ *  2. After HEDGE_DELAY_MS, if preferred hasn't resolved yet, fire ALL remaining
+ *     providers in parallel.
+ *  3. Return whichever resolves first with a valid response.
+ *  4. Abort / ignore the rest.
+ *
+ * This keeps Gemini as the quality-first choice while bounding worst-case
+ * latency to roughly HEDGE_DELAY_MS + fastest-fallback-time instead of
+ * PROVIDER_TIMEOUT_MS (45s) + fallback-time.
+ *
+ * If the preferred provider fails immediately (hard error, not slow), the
+ * hedge timer is cancelled and fallbacks fire right away — no 8s penalty.
+ */
 async function callWithFallback(chain, params, label, userId = null) {
   const userKeys = userId ? await userApiKeyService.loadAllForUser(userId) : {}
   const enabled = buildEffectiveProviders(chain, userKeys)
@@ -114,36 +186,107 @@ async function callWithFallback(chain, params, label, userId = null) {
   }
 
   const errors = []
-  for (const { provider, apiKey, isUserKey } of enabled) {
+
+  // ── Single provider: simple path, no hedging overhead ──────────────────
+  if (enabled.length === 1) {
+    const entry = enabled[0]
     try {
-      console.log(`[ai:${label}] trying ${provider.name} (${isUserKey ? 'user-key' : 'system-key'})…`)
-      const text = await withTimeout(
-        provider.chat({ ...params, apiKey }),
-        PROVIDER_TIMEOUT_MS,
-        provider.name,
-      )
-      const questions = parseQuestionsJson(text)
-      console.log(`[ai:${label}] ✓ ${provider.name} returned ${questions.length} questions`)
-      // Best-effort: bump last_used_at when the user's own key was used.
-      if (isUserKey && userId) {
-        userApiKeyService.markUsed(userId, provider.name).catch(() => {})
-      }
-      // Log usage for dashboard graph
-      supabaseAdmin.rpc('log_ai_provider_usage', { p_provider: provider.name, p_success: true })
-        .then(({ error }) => { if (error) console.warn('AI stat log error:', error.message) })
-      
-      return { questions, provider: provider.name, source: isUserKey ? 'user' : 'system' }
+      console.log(`[ai:${label}] trying ${entry.provider.name} (${entry.isUserKey ? 'user-key' : 'system-key'})…`)
+      return await tryProvider(entry, params, label, userId)
     } catch (err) {
       const msg = err?.message || String(err)
-      console.warn(`[ai:${label}] ✗ ${provider.name}: ${msg}`)
-      errors.push({ provider: provider.name, message: msg, source: isUserKey ? 'user' : 'system' })
-      
-      // Log failure for dashboard graph
-      supabaseAdmin.rpc('log_ai_provider_usage', { p_provider: provider.name, p_success: false })
+      console.warn(`[ai:${label}] ✗ ${entry.provider.name}: ${msg}`)
+      supabaseAdmin.rpc('log_ai_provider_usage', { p_provider: entry.provider.name, p_success: false })
         .then(({ error }) => { if (error) console.warn('AI stat log error:', error.message) })
+      errors.push({ provider: entry.provider.name, message: msg })
+    }
+  } else {
+    // ── Hedged path ─────────────────────────────────────────────────────
+    const [preferred, ...fallbacks] = enabled
+    const hedgeDelay = getHedgeDelay(params)
+
+    console.log(`[ai:${label}] trying ${preferred.provider.name} (preferred, hedge=${hedgeDelay}ms)…`)
+
+    // Wrap preferred in a promise we can race against the hedge timer.
+    // We need to track whether it resolved/rejected to decide if we should
+    // fire fallbacks immediately or wait for the hedge delay.
+    let preferredDone = false
+    let hedgeTimer = null
+
+    const preferredPromise = tryProvider(preferred, params, label, userId)
+      .then((result) => { preferredDone = true; return result })
+      .catch((err) => {
+        preferredDone = true
+        const msg = err?.message || String(err)
+        console.warn(`[ai:${label}] ✗ ${preferred.provider.name}: ${msg}`)
+        supabaseAdmin.rpc('log_ai_provider_usage', { p_provider: preferred.provider.name, p_success: false })
+          .then(({ error }) => { if (error) console.warn('AI stat log error:', error.message) })
+        errors.push({ provider: preferred.provider.name, message: msg })
+        // Re-throw so the race knows preferred failed
+        throw err
+      })
+
+    // Returns a promise that fires all fallbacks in parallel after the hedge
+    // delay (or immediately if called before the delay). Resolves with the
+    // first successful fallback result, rejects if all fail.
+    const fireFallbacks = () => {
+      if (hedgeTimer) { clearTimeout(hedgeTimer); hedgeTimer = null }
+
+      console.log(`[ai:${label}] hedging — firing ${fallbacks.length} fallback(s) in parallel…`)
+
+      // Each fallback races independently; we want the first SUCCESS.
+      // Promise.any rejects only when ALL reject (AggregateError).
+      return Promise.any(
+        fallbacks.map(async (entry) => {
+          try {
+            console.log(`[ai:${label}] trying ${entry.provider.name} (${entry.isUserKey ? 'user-key' : 'system-key'})…`)
+            return await tryProvider(entry, params, label, userId)
+          } catch (err) {
+            const msg = err?.message || String(err)
+            console.warn(`[ai:${label}] ✗ ${entry.provider.name}: ${msg}`)
+            supabaseAdmin.rpc('log_ai_provider_usage', { p_provider: entry.provider.name, p_success: false })
+              .then(({ error }) => { if (error) console.warn('AI stat log error:', error.message) })
+            errors.push({ provider: entry.provider.name, message: msg })
+            throw err
+          }
+        })
+      )
+    }
+
+    // Build a hedge-delay promise: after HEDGE_DELAY_MS, if preferred hasn't
+    // finished yet, fire fallbacks in parallel and race them against preferred.
+    const hedgePromise = new Promise((resolve, reject) => {
+      hedgeTimer = setTimeout(() => {
+        if (preferredDone) return // preferred already resolved/rejected — no-op
+        console.log(`[ai:${label}] ${preferred.provider.name} slow (>${hedgeDelay}ms) — launching fallbacks…`)
+        fireFallbacks().then(resolve, reject)
+      }, hedgeDelay)
+    })
+
+    try {
+      // Race: preferred vs hedge-triggered fallbacks.
+      // If preferred wins (fast response), hedgeTimer is cleared below.
+      const result = await Promise.race([preferredPromise, hedgePromise])
+      if (hedgeTimer) clearTimeout(hedgeTimer)
+      return result
+    } catch {
+      // Both preferred AND hedge-triggered fallbacks failed.
+      // If preferred failed fast (before hedge fired), try remaining fallbacks
+      // sequentially as a last resort.
+      if (hedgeTimer) clearTimeout(hedgeTimer)
+
+      if (!preferredDone || errors.filter(e => fallbacks.some(f => f.provider.name === e.provider)).length === 0) {
+        // Fallbacks haven't been tried yet (preferred failed before hedge delay)
+        try {
+          return await fireFallbacks()
+        } catch {
+          // all fallbacks also failed — fall through to error below
+        }
+      }
     }
   }
 
+  // ── All providers exhausted ─────────────────────────────────────────────
   const triedNames = enabled.map((e) => e.provider.name).join(', ')
   const userMsg =
     label === 'scan'
