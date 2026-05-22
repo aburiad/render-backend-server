@@ -31,10 +31,12 @@ function parseQuestionsJson(raw) {
   throw new Error('Could not parse JSON array from model output')
 }
 
-// Vercel Hobby caps a serverless function at 10s, but since we are on Cloud Run / custom backend,
-// we can safely increase this. Google Gemini vision often takes 15-20s.
-// When running on Vercel, we default to 5s (5000ms) to ensure fallbacks can try other providers before timeout.
-const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 20000 : 30000
+// Vercel function maxDuration is 60s (set in vercel.json).
+// We give each provider up to 45s so there is still headroom for the
+// HTTP round-trip overhead and a single fallback attempt within the
+// 60s window. Gemini vision calls regularly take 15-25s, so 20s was
+// too tight and caused unnecessary fallbacks.
+const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 45000 : 30000
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || DEFAULT_TIMEOUT
 
 function withTimeout(promise, ms, label) {
@@ -56,18 +58,42 @@ const ENV_KEY = {
   sambanova: 'SAMBANOVA_API_KEY',
   cohere: 'COHERE_API_KEY',
   zai: 'Z_API_KEY',
-  gemini: 'GEMINI_API_KEY',
+  // Gemini supports multiple system keys (round-robin inside gemini.js).
+  // We intentionally do NOT pass a single apiKey here — passing no key lets
+  // gemini.js read all GEMINI_API_KEY / _TWO / _THREE / _FOUR env vars and
+  // distribute load across them. Passing only GEMINI_API_KEY would silently
+  // drop the other 3 keys.
+  gemini: null,
 }
 
 /**
  * For a given chain, return the list of providers that have an effective
  * API key — either user-supplied OR the system .env fallback. Each item
  * also carries the resolved key + a flag identifying its source.
+ *
+ * Special case — gemini: ENV_KEY is null, meaning gemini.js manages its own
+ * multi-key pool internally. We still include it in the chain as long as at
+ * least one GEMINI_API_KEY* env var is set, but we pass apiKey=undefined so
+ * gemini.js uses its full round-robin pool instead of a single key.
  */
 function buildEffectiveProviders(chain, userKeys) {
   return chain
     .map((provider) => {
       const userKey = userKeys[provider.name]
+
+      // Gemini: self-managed multi-key pool — check any key exists
+      if (ENV_KEY[provider.name] === null) {
+        const hasSystemKey = !!(
+          process.env.GEMINI_API_KEY ||
+          process.env.GEMINI_API_KEY_TWO ||
+          process.env.GEMINI_API_KEY_THREE ||
+          process.env.GEMINI_API_KEY_FOUR
+        )
+        if (!userKey && !hasSystemKey) return null
+        // Pass userKey if set, otherwise undefined → gemini.js uses its pool
+        return { provider, apiKey: userKey || undefined, isUserKey: !!userKey }
+      }
+
       const envKey = process.env[ENV_KEY[provider.name]]
       const apiKey = userKey || envKey
       if (!apiKey) return null

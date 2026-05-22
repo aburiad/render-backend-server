@@ -1,8 +1,6 @@
 const VISION_MODELS = ['gemini-2.5-flash-lite']
 const TEXT_MODELS = ['gemini-2.5-flash-lite']
 
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
-
 // Translate OpenAI-style messages to Gemini-style contents
 function convertMessagesToGemini(messages) {
   return messages.map(msg => {
@@ -85,9 +83,15 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
 
   if (!res.ok) {
     const text = await res.text()
-    const isModelGone = res.status === 404 || res.status === 400
+    // Only treat as "model gone" when the error explicitly says so.
+    // A generic 400 (e.g. bad thinkingConfig param) must NOT set
+    // modelDecommissioned=true — that flag skips ALL remaining key retries.
+    const isModelGone = res.status === 404 ||
+      (res.status === 400 && (text.includes('not found') || text.includes('deprecated')))
+    const isRateLimit = res.status === 429 || res.status === 503
     const err = new Error(`Gemini ${res.status}: ${text}`)
     err.modelDecommissioned = isModelGone
+    err.isRateLimit = isRateLimit
     throw err
   }
 
@@ -95,19 +99,11 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   return data?.candidates?.[0]?.content?.parts?.[0]?.text
 }
 
-let rrIndex = 0
+// Atomic round-robin counter — incremented before key selection so that
+// concurrent requests each get a different starting key (true distribution).
+let rrCounter = 0
 const cooldowns = {}
 const failureCount = {}  // Track failures per key
-
-// Shuffle array using Fisher-Yates (non-deterministic order to avoid collisions)
-function shuffleArray(arr) {
-  const copy = [...arr]
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]]
-  }
-  return copy
-}
 
 async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
   let apiKeys = []
@@ -121,15 +117,35 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
       process.env.GEMINI_API_KEY_FOUR
     ].filter(Boolean)
 
-    // Filter out keys in cooldown, but if ALL are in cooldown, use them anyway (no blocking wait)
-    let validEnvKeys = envKeys.filter(k => !cooldowns[k] || Date.now() > cooldowns[k])
-    if (validEnvKeys.length === 0) {
-      validEnvKeys = envKeys  // Use all, even if in cooldown (no 2s delay!)
-      console.warn('[gemini] All keys in cooldown, using them anyway (no block)...')
+    if (envKeys.length === 0) {
+      throw new Error('No GEMINI_API_KEY set (tried 1 to 4)')
     }
 
-    // Shuffle to avoid race conditions and distribute load
-    apiKeys = shuffleArray(validEnvKeys)
+    // Atomic round-robin: grab a slot before any async work so concurrent
+    // requests each start from a different key index.
+    const startIdx = (rrCounter++) % envKeys.length
+
+    // Build ordered list starting from this request's assigned key.
+    // Keys in cooldown are moved to the end (still tried as fallback).
+    const now = Date.now()
+    const ordered = []
+    const cooled = []
+    for (let i = 0; i < envKeys.length; i++) {
+      const key = envKeys[(startIdx + i) % envKeys.length]
+      if (!cooldowns[key] || now > cooldowns[key]) {
+        ordered.push(key)
+      } else {
+        cooled.push(key)
+      }
+    }
+
+    // If all keys are in cooldown, use them anyway rather than blocking
+    if (ordered.length === 0) {
+      console.warn('[gemini] All keys in cooldown — using them anyway (no block)')
+      apiKeys = cooled
+    } else {
+      apiKeys = [...ordered, ...cooled]
+    }
   }
 
   if (apiKeys.length === 0) {
@@ -150,10 +166,11 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
         lastErr = err
         if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
 
-        // Put key in cooldown for 15 seconds (shorter, less blocking)
-        // Only if we have multiple keys to try
+        // Rate-limited keys get a longer cooldown (60s); other failures get 15s.
+        // Only apply cooldown when we have multiple keys to rotate through.
         if (!providedKey && apiKeys.length > 1) {
-          cooldowns[apiKey] = Date.now() + 15000
+          const cooldownMs = err.isRateLimit ? 60000 : 15000
+          cooldowns[apiKey] = Date.now() + cooldownMs
           failureCount[apiKey] = (failureCount[apiKey] || 0) + 1
         }
 
