@@ -1,19 +1,71 @@
 import useAuthStore from '@/store/authStore'
 import axios from 'axios'
 
-// Same-origin /api by default (Vite proxy in dev, Vercel function in prod).
-// Set VITE_API_URL only if you split frontend and backend across separate domains.
-const apiOrigin = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || ''
-const baseURL = apiOrigin ? `${apiOrigin}/api` : '/api'
+// ─── Dynamic Backend URL ──────────────────────────────────────────────────────
+// Admin can switch between Vercel and Render from the admin panel.
+// On app load we fetch /api/backend-config (from current origin = Vercel),
+// then point all subsequent API calls to the active backend URL.
+//
+// Flow:
+//   1. App starts → baseURL = same-origin /api (Vercel)
+//   2. initBackendUrl() fetches /api/backend-config
+//   3. If active=render and render_url is set → update axios baseURL to Render
+//   4. All subsequent API calls go to the active backend
+//
+// localStorage caches the last known config so there's no flash on reload.
+
+const VITE_API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || ''
+const defaultBase = VITE_API_URL ? `${VITE_API_URL}/api` : '/api'
+
+// Read cached backend URL from localStorage (set by initBackendUrl below)
+function getCachedBackendBase() {
+  try {
+    const cached = localStorage.getItem('_backend_base')
+    if (cached) return cached
+  } catch {}
+  return null
+}
 
 const api = axios.create({
-  baseURL,
+  baseURL: getCachedBackendBase() || defaultBase,
   timeout: 30_000,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
 })
+
+/**
+ * Fetch backend config from Vercel (always same-origin) and update
+ * axios baseURL if Render is active. Called once on app startup.
+ */
+export async function initBackendUrl() {
+  try {
+    // Always fetch from Vercel (same-origin) — this is the source of truth
+    const res = await fetch(`${defaultBase}/backend-config`)
+    if (!res.ok) return
+    const data = await res.json()
+    const bc = data?.backendConfig
+    if (!bc) return
+
+    let newBase = defaultBase
+    if (bc.active === 'render' && bc.render_url) {
+      newBase = `${bc.render_url}/api`
+    } else if (bc.active === 'vercel' && bc.vercel_url) {
+      newBase = `${bc.vercel_url}/api`
+    }
+
+    // Update axios instance baseURL
+    api.defaults.baseURL = newBase
+    // Cache for next reload (avoids flash)
+    try { localStorage.setItem('_backend_base', newBase) } catch {}
+    console.log(`[api] backend → ${newBase}`)
+  } catch (err) {
+    console.warn('[api] initBackendUrl failed:', err.message)
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token

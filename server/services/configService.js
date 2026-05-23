@@ -5,6 +5,12 @@ const DEFAULT_AI_PROVIDER_CONFIG = {
   text_chain: ['gemini', 'groq', 'sambanova', 'mistral', 'openrouter', 'cohere', 'novita', 'huggingface', 'zai'],
 }
 
+const DEFAULT_BACKEND_CONFIG = {
+  active: 'vercel',   // 'vercel' | 'render'
+  vercel_url: '',     // e.g. https://www.rongtonu.com
+  render_url: '',     // e.g. https://proshno-api.onrender.com
+}
+
 const DEFAULT_RATE_LIMITS = {
   ai: {
     max: 30, // limit when user uses SYSTEM AI keys (our cost)
@@ -55,6 +61,7 @@ const DEFAULT_CONFIG = {
   rate_limits: DEFAULT_RATE_LIMITS,
   credit_config: DEFAULT_CREDIT_CONFIG,
   ai_provider_config: DEFAULT_AI_PROVIDER_CONFIG,
+  backend_config: DEFAULT_BACKEND_CONFIG,
 }
 
 function normalizeRateLimits(input) {
@@ -139,6 +146,15 @@ function normalizeAiProviderConfig(input) {
   return out
 }
 
+function normalizeBackendConfig(input) {
+  const out = { ...DEFAULT_BACKEND_CONFIG }
+  if (!input || typeof input !== 'object') return out
+  if (input.active === 'render' || input.active === 'vercel') out.active = input.active
+  if (typeof input.vercel_url === 'string') out.vercel_url = input.vercel_url.trim().replace(/\/$/, '')
+  if (typeof input.render_url === 'string') out.render_url = input.render_url.trim().replace(/\/$/, '')
+  return out
+}
+
 function rowToConfig(row) {
   if (!row) return null
   return {
@@ -150,6 +166,7 @@ function rowToConfig(row) {
     rateLimits: normalizeRateLimits(row.rate_limits),
     creditConfig: normalizeCreditConfig(row.credit_config),
     aiProviderConfig: normalizeAiProviderConfig(row.ai_provider_config),
+    backendConfig: normalizeBackendConfig(row.backend_config),
     updatedAt: row.updated_at,
   }
 }
@@ -212,6 +229,12 @@ const configService = {
           : newConfig.aiProviderConfig !== undefined
           ? normalizeAiProviderConfig(newConfig.aiProviderConfig)
           : undefined,
+      backend_config:
+        newConfig.backend_config !== undefined
+          ? normalizeBackendConfig(newConfig.backend_config)
+          : newConfig.backendConfig !== undefined
+          ? normalizeBackendConfig(newConfig.backendConfig)
+          : undefined,
       updated_at: new Date().toISOString(),
     }
     Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k])
@@ -230,3 +253,4 @@ module.exports = configService
 module.exports.DEFAULT_RATE_LIMITS = DEFAULT_RATE_LIMITS
 module.exports.DEFAULT_CREDIT_CONFIG = DEFAULT_CREDIT_CONFIG
 module.exports.DEFAULT_AI_PROVIDER_CONFIG = DEFAULT_AI_PROVIDER_CONFIG
+module.exports.DEFAULT_BACKEND_CONFIG = DEFAULT_BACKEND_CONFIG

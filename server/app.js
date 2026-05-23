@@ -146,6 +146,20 @@ if (process.env.NODE_ENV === 'production') {
   app.use('/api', globalLimiter)
 }
 
+// Public endpoint — returns active backend URL so the frontend can
+// dynamically switch between Vercel and Render without redeploying.
+// No auth required: this is read-only config, not sensitive data.
+app.get('/api/backend-config', async (_req, res) => {
+  try {
+    const configService = require('./services/configService')
+    const config = await configService.getConfig()
+    const bc = config?.backendConfig || { active: 'vercel', vercel_url: '', render_url: '' }
+    res.json({ success: true, backendConfig: bc })
+  } catch {
+    res.json({ success: true, backendConfig: { active: 'vercel', vercel_url: '', render_url: '' } })
+  }
+})
+
 // Health endpoint — hit by external uptime monitors (e.g. UptimeRobot) every
 // 5 minutes. Purpose is twofold:
 //   1. Touch Supabase via a trivial SELECT so the free-tier project never

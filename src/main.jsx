@@ -1,11 +1,17 @@
 import AuthBootstrap from '@/components/AuthBootstrap'
 import { supabase } from '@/lib/supabase'
 import useAuthStore from '@/store/authStore'
+import { initBackendUrl } from '@/services/api'
 import { createRoot } from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
+
+// Fetch active backend URL (Vercel or Render) before any API calls.
+// Non-blocking — app renders immediately, API calls after this resolves
+// will use the correct backend.
+initBackendUrl()
 
 function isOAuthCallbackRoute() {
   return typeof window !== 'undefined' && window.location.pathname.includes('/auth/callback')

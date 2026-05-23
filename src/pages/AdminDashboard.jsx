@@ -35,7 +35,12 @@ export default function AdminDashboard() {
     aiProviderConfig: {
       vision_chain: ['gemini', 'groq', 'openrouter', 'mistral', 'sambanova', 'cohere', 'novita', 'huggingface', 'zai'],
       text_chain: ['gemini', 'groq', 'sambanova', 'mistral', 'openrouter', 'cohere', 'novita', 'huggingface', 'zai']
-    }
+    },
+    backendConfig: {
+      active: 'vercel',
+      vercel_url: '',
+      render_url: '',
+    },
   })
   const [pendingPayments, setPendingPayments] = useState([])
   const [users, setUsers] = useState([])
@@ -68,6 +73,12 @@ export default function AdminDashboard() {
         creditConfig: {
           ...prev.creditConfig,
           ...(configRes.data.config?.creditConfig || {}),
+        },
+        backendConfig: {
+          active: 'vercel',
+          vercel_url: '',
+          render_url: '',
+          ...(configRes.data.config?.backendConfig || {}),
         },
         aiProviderConfig: (() => {
           const dbChain = configRes.data.config?.aiProviderConfig || {}
@@ -881,6 +892,101 @@ export default function AdminDashboard() {
                       className="w-full px-3 py-2 bg-white border-0 rounded-lg font-bold focus:ring-2 focus:ring-indigo-500 text-sm h-16"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* ── Backend Config — Vercel vs Render ── */}
+              <div className="space-y-4 p-5 bg-gradient-to-br from-slate-50 to-gray-100 rounded-2xl border border-slate-200">
+                <div>
+                  <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2">
+                    <span>⚡</span> Backend Server
+                  </h3>
+                  <p className="text-[11px] text-slate-600 mt-1">
+                    Vercel (10s timeout) বা Render (unlimited timeout) — যেটা active সেটাতে সব API call যাবে।
+                    Render deploy করলে URL দিন এবং Render select করুন।
+                  </p>
+                </div>
+
+                {/* Active backend selector */}
+                <div className="grid grid-cols-2 gap-3">
+                  {['vercel', 'render'].map((backend) => {
+                    const isActive = (config.backendConfig?.active || 'vercel') === backend
+                    return (
+                      <button
+                        key={backend}
+                        type="button"
+                        onClick={() =>
+                          setConfig({
+                            ...config,
+                            backendConfig: { ...(config.backendConfig || {}), active: backend },
+                          })
+                        }
+                        className={`p-4 rounded-xl border-2 text-left transition-all ${
+                          isActive
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-gray-200 bg-white hover:border-gray-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className={`w-3 h-3 rounded-full ${isActive ? 'bg-blue-500' : 'bg-gray-300'}`} />
+                          <span className="font-black text-sm uppercase">{backend}</span>
+                          {isActive && (
+                            <span className="ml-auto text-[9px] font-black text-blue-600 bg-blue-100 px-2 py-0.5 rounded-full">
+                              ACTIVE
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] text-gray-500 ml-5">
+                          {backend === 'vercel'
+                            ? 'Serverless — 10s timeout, no cold start'
+                            : 'Persistent — unlimited timeout, 30-60s cold start'}
+                        </p>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* URLs */}
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                      Vercel URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://www.rongtonu.com"
+                      value={config.backendConfig?.vercel_url || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          backendConfig: { ...(config.backendConfig || {}), vercel_url: e.target.value },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                      Render URL
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://proshno-api.onrender.com"
+                      value={config.backendConfig?.render_url || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          backendConfig: { ...(config.backendConfig || {}), render_url: e.target.value },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="text-[10px] text-slate-600 bg-white px-3 py-2 rounded-lg border border-slate-200">
+                  💡 সেভ করার পর user-রা page reload করলে নতুন backend এ switch হবে।
+                  Render deploy করতে <code className="bg-gray-100 px-1 rounded">render-server/README.md</code> দেখুন।
                 </div>
               </div>
 
