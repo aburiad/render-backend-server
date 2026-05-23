@@ -1,5 +1,34 @@
-const VISION_MODELS = ['gemini-2.5-flash-lite']
-const TEXT_MODELS = ['gemini-2.5-flash-lite']
+// Model cascade — models are the OUTER loop, keys are INNER.
+// This distributes load evenly across all 4 keys per model:
+//   10 concurrent requests → ~2-3 per key on the same model.
+//   When ALL keys are rate-limited for a model, move to next model.
+//
+// Free tier limits per key (as of 2026-05):
+//   gemini-3.1-flash-lite  — 15 RPM, 250K TPM, 500 RPD  ← highest daily cap
+//   gemini-3.5-flash       —  5 RPM, 250K TPM,  20 RPD
+//   gemini-3-flash         —  5 RPM, 250K TPM,  20 RPD
+//   gemini-2.5-flash-lite  — 10 RPM, 250K TPM,  20 RPD
+//   gemini-2.5-flash       —  5 RPM, 250K TPM,  20 RPD
+//
+// Per-key total: 580 RPD × 4 keys = 2,320 scans/day on Gemini alone
+// Model cascade — ordered by free daily quota (RPD) + speed.
+// Each model has INDEPENDENT quota per project.
+// gemini-3.1-flash-lite = 500 RPD (25× more than others!) — #1 priority
+// gemini-2.0-flash* have 0 free quota — removed
+// gemini-3-flash shows in rate limits but API returns NOT FOUND — skip
+// Total free quota: 500 + 20×4 = 580 scans/day per project
+const VISION_MODELS = [
+  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
+  'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
+  'gemini-2.5-flash-lite',   // 10 RPM, 20 RPD — fast (~5.5s)
+  'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
+]
+const TEXT_MODELS = [
+  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
+  'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
+  'gemini-2.5-flash-lite',   // 10 RPM, 20 RPD — fast (~5.5s)
+  'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
+]
 
 // Translate OpenAI-style messages to Gemini-style contents
 function convertMessagesToGemini(messages) {
@@ -83,15 +112,33 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
 
   if (!res.ok) {
     const text = await res.text()
+    
+    // Detect quota exhaustion (daily limit reached)
+    const isQuotaExhausted = res.status === 429 && (
+      text.includes('RESOURCE_EXHAUSTED') ||
+      text.includes('quota') ||
+      text.includes('GenerateRequestsPerDay')
+    )
+    
     // Only treat as "model gone" when the error explicitly says so.
     // A generic 400 (e.g. bad thinkingConfig param) must NOT set
     // modelDecommissioned=true — that flag skips ALL remaining key retries.
     const isModelGone = res.status === 404 ||
       (res.status === 400 && (text.includes('not found') || text.includes('deprecated')))
     const isRateLimit = res.status === 429 || res.status === 503
+    
+    // Debug: log full error for Render deployment diagnostics
+    console.error(`[gemini] ❌ ${model} key=${apiKey.slice(0, 8)}... status=${res.status} body=${text.slice(0, 500)}`)
+    
     const err = new Error(`Gemini ${res.status}: ${text}`)
     err.modelDecommissioned = isModelGone
     err.isRateLimit = isRateLimit
+    err.isQuotaExhausted = isQuotaExhausted
+    
+    if (isQuotaExhausted) {
+      console.warn(`[gemini] ⚠️  Daily quota exhausted for key "${apiKey.slice(0, 8)}..." — model: ${model}`)
+    }
+    
     throw err
   }
 
@@ -99,11 +146,23 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   return data?.candidates?.[0]?.content?.parts?.[0]?.text
 }
 
+// Cache quota-exhausted models so we don't waste time retrying them.
+// Key: model name, Value: timestamp when quota will reset (next day).
+const quotaExhaustedModels = {}
+
+function isModelQuotaExhausted(model) {
+  if (!quotaExhaustedModels[model]) return false
+  if (Date.now() > quotaExhaustedModels[model]) {
+    delete quotaExhaustedModels[model]
+    return false
+  }
+  return true
+}
+
 // Atomic round-robin counter — incremented before key selection so that
 // concurrent requests each get a different starting key (true distribution).
 let rrCounter = 0
 const cooldowns = {}
-const failureCount = {}  // Track failures per key
 
 async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
   let apiKeys = []
@@ -157,26 +216,45 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   const models = vision ? VISION_MODELS : TEXT_MODELS
 
   let lastErr
-  for (const apiKey of apiKeys) {
-    for (const model of models) {
+  // OUTER loop = models, INNER loop = keys
+  // This distributes requests evenly across all keys for each model.
+  // Round-robin already gives each request a different starting key,
+  // so concurrent requests naturally spread across keys.
+  for (const model of models) {
+    // Skip models with known exhausted quota (cached until next day)
+    if (isModelQuotaExhausted(model)) {
+      console.log(`[gemini] Skipping "${model}" — daily quota already exhausted`)
+      continue
+    }
+
+    for (const apiKey of apiKeys) {
       try {
         const text = await tryModel({ apiKey, model, messages, jsonMode, temperature, vision })
         if (text) return text
       } catch (err) {
         lastErr = err
-        if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
+        if (err.modelDecommissioned) {
+          console.warn(`[gemini] Model "${model}" not found/deprecated — skipping to next model`)
+          break // skip remaining keys for this model, try next model
+        }
 
-        // On Vercel serverless, in-memory cooldowns don't persist across
-        // instances — different concurrent requests hit different instances
-        // so cooldown set in one instance is invisible to others.
-        // Strategy: on 429, skip this key immediately and try the next one.
-        // Don't set cooldown (it's useless cross-instance); just move on.
+        if (err.isQuotaExhausted) {
+          // Cache this model as exhausted until next midnight UTC
+          // (Google resets daily quotas at midnight Pacific time)
+          const tomorrow = new Date()
+          tomorrow.setUTCHours(24, 0, 0, 0) // next midnight UTC
+          quotaExhaustedModels[model] = tomorrow.getTime()
+          console.warn(`[gemini] Daily quota exhausted for model "${model}" — cached until reset, skipping to next model`)
+          break
+        }
+
         if (err.isRateLimit) {
-          console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." rate-limited — trying next key`)
-          break // break inner model loop, try next key
+          console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." model "${model}" rate-limited — trying next key`)
+          continue // try next KEY with same model (distribute load)
         }
       }
     }
+    // All keys rate-limited for this model → move to next model
   }
   throw lastErr || new Error('Gemini: all keys failed')
 }

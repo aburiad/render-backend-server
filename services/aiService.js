@@ -38,9 +38,11 @@ const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 8000 : 30000
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || DEFAULT_TIMEOUT
 
 // Hedging: fire fallbacks after this delay if preferred hasn't responded.
-// Must be well under the Vercel 10s limit so fallbacks have time to run.
-// Default 4s: if Gemini hasn't responded in 4s, fire fallbacks in parallel.
-const HEDGE_DELAY_MS_BASE = Number(process.env.AI_HEDGE_DELAY_MS) || 4000
+// On Render (persistent server) the timeout is 30s, so we can afford a
+// longer hedge. Gemini vision with a 226KB image takes 3-9s; we need to
+// give it enough headroom to finish before launching fallbacks.
+// Default 8s: Gemini typically responds in 3-7s; fallbacks fire only if slow.
+const HEDGE_DELAY_MS_BASE = Number(process.env.AI_HEDGE_DELAY_MS) || 8000
 
 /**
  * Calculate hedge delay based on image size in the params.
@@ -49,19 +51,9 @@ const HEDGE_DELAY_MS_BASE = Number(process.env.AI_HEDGE_DELAY_MS) || 4000
  * Large image (>300KB)  → 5s
  */
 function getHedgeDelay(params) {
-  if (!params?.messages) return HEDGE_DELAY_MS_BASE
-  for (const msg of params.messages) {
-    if (!Array.isArray(msg.content)) continue
-    for (const part of msg.content) {
-      if (part.type === 'image_url' && part.image_url?.url) {
-        const estimatedBytes = part.image_url.url.length * 0.75
-        const kb = estimatedBytes / 1024
-        if (kb < 100) return 3000
-        if (kb > 300) return 5000
-        return HEDGE_DELAY_MS_BASE
-      }
-    }
-  }
+  // On Render (persistent server, 30s timeout) we always use the base delay.
+  // Image size no longer reduces hedge — Gemini needs time for vision calls.
+  // Only override via env var AI_HEDGE_DELAY_MS if needed.
   return HEDGE_DELAY_MS_BASE
 }
 
@@ -352,16 +344,16 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, qu
     },
   ]
 
-  const { questions, provider, source } = await callWithFallback(
+  const result = await callWithFallback(
     visionChain,
     // Temperature 0 → deterministic transcription. Higher temp lets the
     // model "creatively" swap letters/digits, which is the exact failure
-    // mode (x ↔ y, m ↔ n, fraction flip) we are trying to eliminate.
+    // mode (x ↔ y, m ↔ n, fraction flip) that we are trying to eliminate.
     { messages, vision: true, jsonMode: false, temperature: 0 },
     'scan',
     userId,
   )
-  return { questions, count: questions.length, provider, source }
+  return result
 }
 
 /**
