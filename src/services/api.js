@@ -38,10 +38,17 @@ const api = axios.create({
 /**
  * Fetch backend config from Vercel (always same-origin) and update
  * axios baseURL if Render is active. Called once on app startup.
+ *
+ * Health-check strategy:
+ *   1. Fetch /api/backend-config from Vercel (source of truth)
+ *   2. If active=render → ping Render's /api/health (3s timeout)
+ *   3. Render healthy → use Render URL
+ *   4. Render down/slow → silently fall back to Vercel
+ *   5. Cache result in localStorage for next reload
  */
 export async function initBackendUrl() {
   try {
-    // Always fetch from Vercel (same-origin) — this is the source of truth
+    // Always fetch config from Vercel (same-origin)
     const res = await fetch(`${defaultBase}/backend-config`)
     if (!res.ok) return
     const data = await res.json()
@@ -49,19 +56,46 @@ export async function initBackendUrl() {
     if (!bc) return
 
     let newBase = defaultBase
+    // Determine vercel base — used as fallback in all cases
+    const vercelBase = bc.vercel_url ? `${bc.vercel_url}/api` : defaultBase
+
     if (bc.active === 'render' && bc.render_url) {
-      newBase = `${bc.render_url}/api`
-    } else if (bc.active === 'vercel' && bc.vercel_url) {
-      newBase = `${bc.vercel_url}/api`
+      // Health-check Render before committing to it
+      const renderHealthy = await checkHealth(`${bc.render_url}/api/health`, 3000)
+      if (renderHealthy) {
+        newBase = `${bc.render_url}/api`
+        console.log('[api] backend → Render ✓')
+      } else {
+        // Render is down — silently fall back to Vercel
+        newBase = vercelBase
+        console.warn('[api] Render unreachable — falling back to Vercel')
+      }
+    } else {
+      // active=vercel, or render_url not set → use Vercel
+      newBase = vercelBase
+      if (bc.active === 'vercel') console.log('[api] backend → Vercel')
     }
 
-    // Update axios instance baseURL
     api.defaults.baseURL = newBase
-    // Cache for next reload (avoids flash)
     try { localStorage.setItem('_backend_base', newBase) } catch {}
-    console.log(`[api] backend → ${newBase}`)
   } catch (err) {
     console.warn('[api] initBackendUrl failed:', err.message)
+  }
+}
+
+/**
+ * Ping a health endpoint with a timeout.
+ * Returns true if the server responds with any 2xx within timeoutMs.
+ */
+async function checkHealth(url, timeoutMs) {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    const res = await fetch(url, { signal: controller.signal })
+    clearTimeout(timer)
+    return res.ok
+  } catch {
+    return false
   }
 }
 
