@@ -48,6 +48,11 @@ function RegisterRoute({ children }) {
 
 function AdminRoute({ children }) {
   const user = useAuthStore((s) => s.user)
+  const isHydrating = useAuthStore((s) => s.isHydrating)
+  // Wait for /auth/me to finish before checking role.
+  // Without this, a page refresh or cross-account login would redirect
+  // the admin to /dashboard because role is null until the fetch completes.
+  if (isHydrating) return null
   if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />
   return children
 }

@@ -33,6 +33,7 @@ const useAuthStore = create(
       token: null,
       refreshToken: null,
       isAuthenticated: false,
+      isHydrating: false, // true while applySession is fetching /auth/me
 
       login: (user, token, refreshToken = null) =>
         set({
@@ -103,6 +104,7 @@ const useAuthStore = create(
               refreshToken: session.refresh_token,
               user: basicUser,
               isAuthenticated: true,
+              isHydrating: true, // role not yet confirmed — block AdminRoute redirect
             })
 
             // Fetch authoritative profile. Auto-creates row if missing.
@@ -112,12 +114,12 @@ const useAuthStore = create(
               })
               const backendUser = res.data?.user
               if (backendUser) {
-                set({ user: backendUser })
+                set({ user: backendUser, isHydrating: false })
                 return backendUser
               }
             } catch (err) {
               if (err.response?.status === 403 && err.response?.data?.banned) {
-                set({ user: null, token: null, refreshToken: null, isAuthenticated: false })
+                set({ user: null, token: null, refreshToken: null, isAuthenticated: false, isHydrating: false })
                 try { await supabase.auth.signOut() } catch { /* best-effort */ }
                 const banErr = new Error(err.response.data.message || 'আপনার অ্যাকাউন্ট নিষিদ্ধ')
                 banErr.banned = true
@@ -126,9 +128,11 @@ const useAuthStore = create(
               console.warn('[authStore] /auth/me failed:', err.message)
             }
 
+            set({ isHydrating: false })
             return basicUser
           } catch (err) {
             console.error('[authStore] applySession error:', err)
+            set({ isHydrating: false })
             return null
           } finally {
             setFlightState(null)
