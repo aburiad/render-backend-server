@@ -121,6 +121,9 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
       (res.status === 400 && (text.includes('not found') || text.includes('deprecated')))
     const isRateLimit = res.status === 429 || res.status === 503
     
+    // Debug: log full error for Render deployment diagnostics
+    console.error(`[gemini] ❌ ${model} key=${apiKey.slice(0, 8)}... status=${res.status} body=${text.slice(0, 500)}`)
+    
     const err = new Error(`Gemini ${res.status}: ${text}`)
     err.modelDecommissioned = isModelGone
     err.isRateLimit = isRateLimit
