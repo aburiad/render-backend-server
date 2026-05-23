@@ -213,8 +213,12 @@ app.get('/api/health/deep', async (_req, res) => {
 const isProd = process.env.NODE_ENV === 'production'
 const noop = (_, __, n) => n()
 
+// /api/auth/me and /api/auth/credits are called on every page load by
+// authenticated users — no rate limit on these.
+// login/register/set-role get the authLimiter (10 req / 15 min).
+app.use('/api/auth/me', authRoutes)
+app.use('/api/auth/credits', authRoutes)
 app.use('/api/auth', isProd ? authLimiter : noop, authRoutes)
-app.use('/api/papers', paperRoutes)
 app.use('/api/exam', examRoutes)
 // /api/payment is mixed (config public, manual auth) — limiter applied
 // inside payment.js on the /manual endpoint after requireAuth, not here.
