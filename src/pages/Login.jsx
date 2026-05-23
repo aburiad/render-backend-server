@@ -21,7 +21,8 @@ export default function Login() {
       if (error) throw error
       await applySession(data.session)
       toast.success('স্বাগতম!')
-      navigate('/dashboard', { replace: true })
+      const { user } = useAuthStore.getState()
+      navigate(user?.role === 'admin' ? '/admin' : '/dashboard', { replace: true })
     } catch (err) {
       toast.error(err.message || 'লগইন ব্যর্থ হয়েছে')
     } finally {

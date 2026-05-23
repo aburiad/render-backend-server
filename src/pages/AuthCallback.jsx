@@ -54,7 +54,7 @@ export default function AuthCallback() {
             console.error('Failed to auto-set role:', roleErr)
           }
         }
-        navigate('/dashboard', { replace: true })
+        navigate(user?.role === 'admin' ? '/admin' : '/dashboard', { replace: true })
       } catch (e) {
         if (!cancelled) {
           console.error('AuthCallback:', e)
