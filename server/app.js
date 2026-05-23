@@ -219,6 +219,7 @@ const noop = (_, __, n) => n()
 app.use('/api/auth/me', authRoutes)
 app.use('/api/auth/credits', authRoutes)
 app.use('/api/auth', isProd ? authLimiter : noop, authRoutes)
+app.use('/api/papers', paperRoutes)
 app.use('/api/exam', examRoutes)
 // /api/payment is mixed (config public, manual auth) — limiter applied
 // inside payment.js on the /manual endpoint after requireAuth, not here.
