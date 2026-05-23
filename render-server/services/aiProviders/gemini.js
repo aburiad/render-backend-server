@@ -1,12 +1,29 @@
-// Model cascade — tried in order per key. If the first model is rate-limited,
-// the next model is tried with the SAME key (each model has independent limits).
+// Model cascade — tried in order per key. Each model has INDEPENDENT rate
+// limits, so when one model is rate-limited we continue to the next model
+// with the SAME key before moving to the next key.
 //
 // Free tier limits per key (as of 2026-05):
 //   gemini-3.1-flash-lite  — 15 RPM, 250K TPM, 500 RPD  ← highest daily cap
+//   gemini-3.5-flash       —  5 RPM, 250K TPM,  20 RPD
+//   gemini-3-flash         —  5 RPM, 250K TPM,  20 RPD
 //   gemini-2.5-flash-lite  — 10 RPM, 250K TPM,  20 RPD
 //   gemini-2.5-flash       —  5 RPM, 250K TPM,  20 RPD
-const VISION_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
-const TEXT_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
+//
+// Per-key total: 580 RPD × 4 keys = 2,320 scans/day on Gemini alone
+const VISION_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-3-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+]
+const TEXT_MODELS = [
+  'gemini-3.1-flash-lite',
+  'gemini-3.5-flash',
+  'gemini-3-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+]
 
 // Translate OpenAI-style messages to Gemini-style contents
 function convertMessagesToGemini(messages) {
@@ -188,14 +205,12 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
         lastErr = err
         if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
 
-        // On Vercel serverless, in-memory cooldowns don't persist across
-        // instances — different concurrent requests hit different instances
-        // so cooldown set in one instance is invisible to others.
-        // Strategy: on 429, skip this key immediately and try the next one.
-        // Don't set cooldown (it's useless cross-instance); just move on.
+        // Each model has INDEPENDENT rate limits. When one model returns 429,
+        // the next model may still have quota — so continue to next model
+        // with the SAME key before trying the next key.
         if (err.isRateLimit) {
-          console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." rate-limited — trying next key`)
-          break // break inner model loop, try next key
+          console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." model "${model}" rate-limited — trying next model`)
+          continue // try next model with same key (independent limits)
         }
       }
     }
