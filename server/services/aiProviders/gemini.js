@@ -1,5 +1,12 @@
-const VISION_MODELS = ['gemini-2.5-flash-lite']
-const TEXT_MODELS = ['gemini-2.5-flash-lite']
+// Model cascade — tried in order per key. If the first model is rate-limited,
+// the next model is tried with the SAME key (each model has independent limits).
+//
+// Free tier limits per key (as of 2026-05):
+//   gemini-3.1-flash-lite  — 15 RPM, 250K TPM, 500 RPD  ← highest daily cap
+//   gemini-2.5-flash-lite  — 10 RPM, 250K TPM,  20 RPD
+//   gemini-2.5-flash       —  5 RPM, 250K TPM,  20 RPD
+const VISION_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
+const TEXT_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
 
 // Translate OpenAI-style messages to Gemini-style contents
 function convertMessagesToGemini(messages) {
@@ -83,15 +90,30 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
 
   if (!res.ok) {
     const text = await res.text()
+    
+    // Detect quota exhaustion (daily limit reached)
+    const isQuotaExhausted = res.status === 429 && (
+      text.includes('RESOURCE_EXHAUSTED') ||
+      text.includes('quota') ||
+      text.includes('GenerateRequestsPerDay')
+    )
+    
     // Only treat as "model gone" when the error explicitly says so.
     // A generic 400 (e.g. bad thinkingConfig param) must NOT set
     // modelDecommissioned=true — that flag skips ALL remaining key retries.
     const isModelGone = res.status === 404 ||
       (res.status === 400 && (text.includes('not found') || text.includes('deprecated')))
     const isRateLimit = res.status === 429 || res.status === 503
+    
     const err = new Error(`Gemini ${res.status}: ${text}`)
     err.modelDecommissioned = isModelGone
     err.isRateLimit = isRateLimit
+    err.isQuotaExhausted = isQuotaExhausted
+    
+    if (isQuotaExhausted) {
+      console.warn(`[gemini] ⚠️  Daily quota exhausted for key "${apiKey.slice(0, 8)}..." — all keys from same project share 20 req/day limit`)
+    }
+    
     throw err
   }
 
@@ -165,6 +187,13 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
       } catch (err) {
         lastErr = err
         if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
+
+        // If daily quota is exhausted, all keys from the same project will fail.
+        // Skip remaining keys immediately to avoid wasting time.
+        if (err.isQuotaExhausted) {
+          console.warn(`[gemini] ⚠️  Daily quota exhausted — skipping remaining keys (all share same project quota)`)
+          throw err
+        }
 
         // On Vercel serverless, in-memory cooldowns don't persist across
         // instances — different concurrent requests hit different instances
