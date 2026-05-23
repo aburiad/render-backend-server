@@ -52,6 +52,7 @@ router.post('/scan', checkAiCredit(1), async (req, res, next) => {
       provider: result.provider,
       source: result.source,
       creditsCharged: result.creditsCharged,
+      _debug: result._debug || undefined,
     })
   } catch (err) {
     console.error('AI Scan Route Error:', err)

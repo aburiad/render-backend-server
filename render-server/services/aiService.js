@@ -344,16 +344,16 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, qu
     },
   ]
 
-  const { questions, provider, source } = await callWithFallback(
+  const result = await callWithFallback(
     visionChain,
     // Temperature 0 → deterministic transcription. Higher temp lets the
     // model "creatively" swap letters/digits, which is the exact failure
-    // mode (x ↔ y, m ↔ n, fraction flip) we are trying to eliminate.
+    // mode (x ↔ y, m ↔ n, fraction flip) that we are trying to eliminate.
     { messages, vision: true, jsonMode: false, temperature: 0 },
     'scan',
     userId,
   )
-  return { questions, count: questions.length, provider, source }
+  return result
 }
 
 /**
