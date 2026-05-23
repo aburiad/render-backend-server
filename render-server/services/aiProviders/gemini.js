@@ -11,17 +11,21 @@
 //   gemini-2.5-flash       —  5 RPM, 250K TPM,  20 RPD
 //
 // Per-key total: 580 RPD × 4 keys = 2,320 scans/day on Gemini alone
+// Model cascade — ordered by speed + reliability.
+// gemini-2.5-flash-lite is the fastest (~5s) and most reliable.
+// gemini-3.1-flash-lite is permanently overloaded (503) — moved to end.
+// gemini-3.5-flash works but very slow (~35s) — last resort.
 const VISION_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-3.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',   // ~5s ✅ fastest, reliable
+  'gemini-2.5-flash',        // ~6s ✅ fast, reliable
+  'gemini-3.5-flash',        // ~35s — slow but works
+  'gemini-3.1-flash-lite',   // 503 overloaded — last resort
 ]
 const TEXT_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-3.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
+  'gemini-2.5-flash-lite',   // ~5s ✅ fastest, reliable
+  'gemini-2.5-flash',        // ~6s ✅ fast, reliable
+  'gemini-3.5-flash',        // ~35s — slow but works
+  'gemini-3.1-flash-lite',   // 503 overloaded — last resort
 ]
 
 // Translate OpenAI-style messages to Gemini-style contents
