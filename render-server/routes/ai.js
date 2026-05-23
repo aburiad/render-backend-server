@@ -23,11 +23,15 @@ router.post('/scan', checkAiCredit(1), async (req, res, next) => {
       throw new AppError('Image is required', 400)
     }
 
+    // Detect MIME type from data URL prefix (e.g. "data:image/jpeg;base64,...")
+    const mimeMatch = image.match(/^data:(image\/\w+);base64,/)
+    const detectedMime = mimeMatch ? mimeMatch[1] : 'image/jpeg'
+    
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '')
     const imageBuffer = Buffer.from(base64Data, 'base64')
     const imageSizeKB = imageBuffer.length / 1024
     
-    console.log(`[ai:scan] Received image size: ${Math.round(imageSizeKB)}KB (Question Type: ${questionType})`)
+    console.log(`[ai:scan] Received image size: ${Math.round(imageSizeKB)}KB (MIME: ${detectedMime}, Question Type: ${questionType})`)
 
     if (imageSizeKB > 500) {
       throw new AppError(`ছবি অনেক বড় (${Math.round(imageSizeKB)}KB) — 500KB এর মধ্যে রাখুন`, 400)
@@ -37,7 +41,7 @@ router.post('/scan', checkAiCredit(1), async (req, res, next) => {
       req.user.uid,
       paperId || null,
       1,
-      () => scanImage(image, 'image/webp', req.user.uid, questionType),
+      () => scanImage(image, detectedMime, req.user.uid, questionType),
       (out) => Math.max(0, (Number(out?.count) || 1) - 1),
     )
 
