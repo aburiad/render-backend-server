@@ -50,10 +50,10 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
 
   const generationConfig = {
     temperature,
-    thinkingConfig: {
-      thinkingBudget: 0
-    }
   }
+
+  // thinkingConfig only supported on models that explicitly support it.
+  // gemini-2.5-flash-lite does NOT support thinkingBudget — omit entirely.
 
   const safetySettings = [
     { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
@@ -166,16 +166,15 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
         lastErr = err
         if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
 
-        // Rate-limited keys get a longer cooldown (60s); other failures get 15s.
-        // Only apply cooldown when we have multiple keys to rotate through.
-        if (!providedKey && apiKeys.length > 1) {
-          const cooldownMs = err.isRateLimit ? 60000 : 15000
-          cooldowns[apiKey] = Date.now() + cooldownMs
-          failureCount[apiKey] = (failureCount[apiKey] || 0) + 1
+        // On Vercel serverless, in-memory cooldowns don't persist across
+        // instances — different concurrent requests hit different instances
+        // so cooldown set in one instance is invisible to others.
+        // Strategy: on 429, skip this key immediately and try the next one.
+        // Don't set cooldown (it's useless cross-instance); just move on.
+        if (err.isRateLimit) {
+          console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." rate-limited — trying next key`)
+          break // break inner model loop, try next key
         }
-
-        console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." failed for ${model}: ${err.message}`)
-        // Immediately try the next key/model in the loop
       }
     }
   }
