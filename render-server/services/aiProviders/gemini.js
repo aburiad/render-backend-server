@@ -11,25 +11,23 @@
 //   gemini-2.5-flash       —  5 RPM, 250K TPM,  20 RPD
 //
 // Per-key total: 580 RPD × 4 keys = 2,320 scans/day on Gemini alone
-// Model cascade — ordered by speed + reliability.
-// Each model has INDEPENDENT 20 req/day free quota per project.
-// More models in cascade = more total free scans (4 working × 20 = 80/day).
-// gemini-2.0-flash* also work but quota-exhausted today; will work after reset.
+// Model cascade — ordered by free daily quota (RPD) + speed.
+// Each model has INDEPENDENT quota per project.
+// gemini-3.1-flash-lite = 500 RPD (25× more than others!) — #1 priority
+// gemini-2.0-flash* have 0 free quota — removed
+// gemini-3-flash shows in rate limits but API returns NOT FOUND — skip
+// Total free quota: 500 + 20×4 = 580 scans/day per project
 const VISION_MODELS = [
-  'gemini-3.5-flash',        // ~5s ✅ fastest
-  'gemini-2.5-flash-lite',   // ~5.5s ✅ fast, reliable
-  'gemini-2.5-flash',        // ~9s — good quality
-  'gemini-2.0-flash-lite',   // fast (when quota available)
-  'gemini-2.0-flash',        // fast (when quota available)
-  'gemini-3.1-flash-lite',   // ~10s — slow, sometimes 503
+  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
+  'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
+  'gemini-2.5-flash-lite',   // 10 RPM, 20 RPD — fast (~5.5s)
+  'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
 ]
 const TEXT_MODELS = [
-  'gemini-3.5-flash',        // ~5s ✅ fastest
-  'gemini-2.5-flash-lite',   // ~5.5s ✅ fast, reliable
-  'gemini-2.5-flash',        // ~9s — good quality
-  'gemini-2.0-flash-lite',   // fast (when quota available)
-  'gemini-2.0-flash',        // fast (when quota available)
-  'gemini-3.1-flash-lite',   // ~10s — slow, sometimes 503
+  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
+  'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
+  'gemini-2.5-flash-lite',   // 10 RPM, 20 RPD — fast (~5.5s)
+  'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
 ]
 
 // Translate OpenAI-style messages to Gemini-style contents
