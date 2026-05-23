@@ -218,6 +218,13 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
           break // skip remaining keys for this model, try next model
         }
 
+        if (err.isQuotaExhausted) {
+          // Daily quota exhausted for this model — ALL keys share the same
+          // project quota, so trying more keys is pointless. Skip to next model.
+          console.warn(`[gemini] Daily quota exhausted for model "${model}" — skipping to next model (all keys share project quota)`)
+          break
+        }
+
         if (err.isRateLimit) {
           console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." model "${model}" rate-limited — trying next key`)
           continue // try next KEY with same model (distribute load)
