@@ -1,6 +1,7 @@
-// Model cascade — tried in order per key. Each model has INDEPENDENT rate
-// limits, so when one model is rate-limited we continue to the next model
-// with the SAME key before moving to the next key.
+// Model cascade — models are the OUTER loop, keys are INNER.
+// This distributes load evenly across all 4 keys per model:
+//   10 concurrent requests → ~2-3 per key on the same model.
+//   When ALL keys are rate-limited for a model, move to next model.
 //
 // Free tier limits per key (as of 2026-05):
 //   gemini-3.1-flash-lite  — 15 RPM, 250K TPM, 500 RPD  ← highest daily cap
@@ -196,8 +197,12 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   const models = vision ? VISION_MODELS : TEXT_MODELS
 
   let lastErr
-  for (const apiKey of apiKeys) {
-    for (const model of models) {
+  // OUTER loop = models, INNER loop = keys
+  // This distributes requests evenly across all keys for each model.
+  // Round-robin already gives each request a different starting key,
+  // so concurrent requests naturally spread across keys.
+  for (const model of models) {
+    for (const apiKey of apiKeys) {
       try {
         const text = await tryModel({ apiKey, model, messages, jsonMode, temperature, vision })
         if (text) return text
@@ -205,15 +210,14 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
         lastErr = err
         if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
 
-        // Each model has INDEPENDENT rate limits. When one model returns 429,
-        // the next model may still have quota — so continue to next model
-        // with the SAME key before trying the next key.
         if (err.isRateLimit) {
-          console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." model "${model}" rate-limited — trying next model`)
-          continue // try next model with same key (independent limits)
+          console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." model "${model}" rate-limited — trying next key`)
+          continue // try next KEY with same model (distribute load)
         }
       }
     }
+    // All keys rate-limited for this model → move to next model
+    console.warn(`[gemini] All keys rate-limited for model "${model}" — trying next model`)
   }
   throw lastErr || new Error('Gemini: all keys failed')
 }
