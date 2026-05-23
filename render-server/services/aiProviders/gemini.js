@@ -12,20 +12,24 @@
 //
 // Per-key total: 580 RPD × 4 keys = 2,320 scans/day on Gemini alone
 // Model cascade — ordered by speed + reliability.
-// gemini-2.5-flash-lite is the fastest (~5s) and most reliable.
-// gemini-3.1-flash-lite is permanently overloaded (503) — moved to end.
-// gemini-3.5-flash works but very slow (~35s) — last resort.
+// Each model has INDEPENDENT 20 req/day free quota per project.
+// More models in cascade = more total free scans (4 working × 20 = 80/day).
+// gemini-2.0-flash* also work but quota-exhausted today; will work after reset.
 const VISION_MODELS = [
-  'gemini-2.5-flash-lite',   // ~5s ✅ fastest, reliable
-  'gemini-2.5-flash',        // ~6s ✅ fast, reliable
-  'gemini-3.5-flash',        // ~35s — slow but works
-  'gemini-3.1-flash-lite',   // 503 overloaded — last resort
+  'gemini-3.5-flash',        // ~5s ✅ fastest
+  'gemini-2.5-flash-lite',   // ~5.5s ✅ fast, reliable
+  'gemini-2.5-flash',        // ~9s — good quality
+  'gemini-2.0-flash-lite',   // fast (when quota available)
+  'gemini-2.0-flash',        // fast (when quota available)
+  'gemini-3.1-flash-lite',   // ~10s — slow, sometimes 503
 ]
 const TEXT_MODELS = [
-  'gemini-2.5-flash-lite',   // ~5s ✅ fastest, reliable
-  'gemini-2.5-flash',        // ~6s ✅ fast, reliable
-  'gemini-3.5-flash',        // ~35s — slow but works
-  'gemini-3.1-flash-lite',   // 503 overloaded — last resort
+  'gemini-3.5-flash',        // ~5s ✅ fastest
+  'gemini-2.5-flash-lite',   // ~5.5s ✅ fast, reliable
+  'gemini-2.5-flash',        // ~9s — good quality
+  'gemini-2.0-flash-lite',   // fast (when quota available)
+  'gemini-2.0-flash',        // fast (when quota available)
+  'gemini-3.1-flash-lite',   // ~10s — slow, sometimes 503
 ]
 
 // Translate OpenAI-style messages to Gemini-style contents
