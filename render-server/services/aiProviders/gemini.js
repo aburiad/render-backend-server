@@ -14,14 +14,12 @@
 const VISION_MODELS = [
   'gemini-3.1-flash-lite',
   'gemini-3.5-flash',
-  'gemini-3-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash',
 ]
 const TEXT_MODELS = [
   'gemini-3.1-flash-lite',
   'gemini-3.5-flash',
-  'gemini-3-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.5-flash',
 ]
@@ -208,7 +206,10 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
         if (text) return text
       } catch (err) {
         lastErr = err
-        if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
+        if (err.modelDecommissioned) {
+          console.warn(`[gemini] Model "${model}" not found/deprecated — skipping to next model`)
+          break // skip remaining keys for this model, try next model
+        }
 
         if (err.isRateLimit) {
           console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." model "${model}" rate-limited — trying next key`)
