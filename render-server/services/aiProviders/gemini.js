@@ -148,11 +148,23 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   return data?.candidates?.[0]?.content?.parts?.[0]?.text
 }
 
+// Cache quota-exhausted models so we don't waste time retrying them.
+// Key: model name, Value: timestamp when quota will reset (next day).
+const quotaExhaustedModels = {}
+
+function isModelQuotaExhausted(model) {
+  if (!quotaExhaustedModels[model]) return false
+  if (Date.now() > quotaExhaustedModels[model]) {
+    delete quotaExhaustedModels[model]
+    return false
+  }
+  return true
+}
+
 // Atomic round-robin counter — incremented before key selection so that
 // concurrent requests each get a different starting key (true distribution).
 let rrCounter = 0
 const cooldowns = {}
-const failureCount = {}  // Track failures per key
 
 async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
   let apiKeys = []
@@ -211,6 +223,12 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   // Round-robin already gives each request a different starting key,
   // so concurrent requests naturally spread across keys.
   for (const model of models) {
+    // Skip models with known exhausted quota (cached until next day)
+    if (isModelQuotaExhausted(model)) {
+      console.log(`[gemini] Skipping "${model}" — daily quota already exhausted`)
+      continue
+    }
+
     for (const apiKey of apiKeys) {
       try {
         const text = await tryModel({ apiKey, model, messages, jsonMode, temperature, vision })
@@ -223,9 +241,12 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
         }
 
         if (err.isQuotaExhausted) {
-          // Daily quota exhausted for this model — ALL keys share the same
-          // project quota, so trying more keys is pointless. Skip to next model.
-          console.warn(`[gemini] Daily quota exhausted for model "${model}" — skipping to next model (all keys share project quota)`)
+          // Cache this model as exhausted until next midnight UTC
+          // (Google resets daily quotas at midnight Pacific time)
+          const tomorrow = new Date()
+          tomorrow.setUTCHours(24, 0, 0, 0) // next midnight UTC
+          quotaExhaustedModels[model] = tomorrow.getTime()
+          console.warn(`[gemini] Daily quota exhausted for model "${model}" — cached until reset, skipping to next model`)
           break
         }
 
@@ -236,7 +257,6 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
       }
     }
     // All keys rate-limited for this model → move to next model
-    console.warn(`[gemini] All keys rate-limited for model "${model}" — trying next model`)
   }
   throw lastErr || new Error('Gemini: all keys failed')
 }
