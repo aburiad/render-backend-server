@@ -18,7 +18,19 @@ function safeFilename(name, fallback = 'paper') {
 // can detect whether the external Puppeteer service is configured, and
 // so admins can verify env wiring directly from a browser.
 router.get('/status', (_req, res) => {
-  res.json({ success: true, configured: pdfServerClient.isConfigured() })
+  const url = process.env.PDF_SERVER_URL || ''
+  const key = process.env.PDF_SERVER_API_KEY || ''
+  res.json({
+    success: true,
+    configured: pdfServerClient.isConfigured(),
+    debug: {
+      hasUrl: Boolean(url),
+      hasKey: Boolean(key),
+      urlPreview: url ? url.slice(0, 40) + '...' : 'EMPTY',
+      keyLength: key.length,
+      keyPreview: key ? key.slice(0, 8) + '...' : 'EMPTY',
+    },
+  })
 })
 
 // Auth gate for everything after this — the actual PDF render needs
