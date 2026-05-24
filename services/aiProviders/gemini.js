@@ -146,6 +146,17 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   return data?.candidates?.[0]?.content?.parts?.[0]?.text
 }
 
+const async = require('async')
+
+// Throttle queue: max 4 concurrent Gemini API calls.
+// With 4 API keys × 15 RPM each = 60 RPM capacity.
+// Queue ensures 50 concurrent users → only 4 hit Gemini simultaneously,
+// rest wait in memory → zero 429 rate-limit errors.
+// Average response ~5s → queue processes ~48 scans/min (4 × 12/min).
+const geminiQueue = async.queue(async (task) => {
+  return await _chatInternal(task.params)
+}, 4) // concurrency = number of API keys
+
 // Cache quota-exhausted models so we don't waste time retrying them.
 // Key: model name, Value: timestamp when quota will reset (next day).
 const quotaExhaustedModels = {}
@@ -164,7 +175,8 @@ function isModelQuotaExhausted(model) {
 let rrCounter = 0
 const cooldowns = {}
 
-async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
+// Internal chat logic — executed by the queue worker (max 4 concurrent).
+async function _chatInternal({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
   let apiKeys = []
   if (providedKey) {
     apiKeys.push(providedKey)
@@ -258,5 +270,23 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   }
   throw lastErr || new Error('Gemini: all keys failed')
 }
+
+// Public API — pushes request to the throttle queue.
+// Returns a Promise that resolves when a queue worker picks it up.
+function chat(params) {
+  return new Promise((resolve, reject) => {
+    geminiQueue.push({ params }, (err, result) => {
+      if (err) reject(err)
+      else resolve(result)
+    })
+  })
+}
+
+// Log queue stats periodically for monitoring
+setInterval(() => {
+  if (geminiQueue.length() > 0) {
+    console.log(`[gemini] Queue: ${geminiQueue.length()} waiting, ${geminiQueue.running()} active`)
+  }
+}, 10000)
 
 module.exports = { name: 'gemini', supportsVision: true, supportsText: true, chat }
