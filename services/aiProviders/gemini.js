@@ -153,9 +153,17 @@ const async = require('async')
 // Queue ensures 50 concurrent users → only 4 hit Gemini simultaneously,
 // rest wait in memory → zero 429 rate-limit errors.
 // Average response ~5s → queue processes ~48 scans/min (4 × 12/min).
+const KEY_COUNT = [
+  process.env.GEMINI_API_KEY,
+  process.env.GEMINI_API_KEY_TWO,
+  process.env.GEMINI_API_KEY_THREE,
+  process.env.GEMINI_API_KEY_FOUR,
+  process.env.GEMINI_API_KEY_FIVE
+].filter(Boolean).length
+
 const geminiQueue = async.queue(async (task) => {
   return await _chatInternal(task.params)
-}, 4) // concurrency = number of API keys
+}, KEY_COUNT || 4)
 
 // Cache quota-exhausted models so we don't waste time retrying them.
 // Key: model name, Value: timestamp when quota will reset (next day).
@@ -185,11 +193,12 @@ async function _chatInternal({ messages, vision = false, jsonMode = false, tempe
       process.env.GEMINI_API_KEY,
       process.env.GEMINI_API_KEY_TWO,
       process.env.GEMINI_API_KEY_THREE,
-      process.env.GEMINI_API_KEY_FOUR
+      process.env.GEMINI_API_KEY_FOUR,
+      process.env.GEMINI_API_KEY_FIVE
     ].filter(Boolean)
 
     if (envKeys.length === 0) {
-      throw new Error('No GEMINI_API_KEY set (tried 1 to 4)')
+      throw new Error('No GEMINI_API_KEY set (tried 1 to 5)')
     }
 
     // Atomic round-robin: grab a slot before any async work so concurrent
@@ -220,7 +229,7 @@ async function _chatInternal({ messages, vision = false, jsonMode = false, tempe
   }
 
   if (apiKeys.length === 0) {
-    throw new Error('No GEMINI_API_KEY set (tried 1 to 4)')
+    throw new Error('No GEMINI_API_KEY set (tried 1 to 5)')
   }
 
   // system messages are now handled via systemInstruction field above
@@ -294,7 +303,7 @@ function getQueueInfo() {
   return {
     waiting: geminiQueue.length(),
     active: geminiQueue.running(),
-    concurrency: 4,
+    concurrency: KEY_COUNT || 4,
   }
 }
 

@@ -74,8 +74,8 @@ function getHedgeDelay(params) {
       const { waiting, active, concurrency } = gemini.getQueueInfo()
       if (waiting > 0) {
         const batchesAhead = Math.ceil(waiting / concurrency)
-        // ~1.5s per batch slot (avg 5s response / 4 concurrency ≈ 1.25s + buffer)
-        const extraDelay = batchesAhead * 1500
+        // ~2s per batch slot (avg 5s response / 5 concurrency ≈ 1s + buffer)
+        const extraDelay = batchesAhead * 2000
         delay += extraDelay
         console.log(`[ai] Queue-aware hedge: +${extraDelay}ms (${waiting} queued, ${active} active, ${batchesAhead} batches ahead) → hedge=${delay}ms`)
       }
