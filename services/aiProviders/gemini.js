@@ -289,4 +289,13 @@ setInterval(() => {
   }
 }, 10000)
 
-module.exports = { name: 'gemini', supportsVision: true, supportsText: true, chat }
+// Expose queue info for aiService to make queue-aware hedge decisions
+function getQueueInfo() {
+  return {
+    waiting: geminiQueue.length(),
+    active: geminiQueue.running(),
+    concurrency: 4,
+  }
+}
+
+module.exports = { name: 'gemini', supportsVision: true, supportsText: true, chat, getQueueInfo }

@@ -51,10 +51,41 @@ const HEDGE_DELAY_MS_BASE = Number(process.env.AI_HEDGE_DELAY_MS) || 8000
  * Large image (>300KB)  → 5s
  */
 function getHedgeDelay(params) {
-  // On Render (persistent server, 30s timeout) we always use the base delay.
-  // Image size no longer reduces hedge — Gemini needs time for vision calls.
-  // Only override via env var AI_HEDGE_DELAY_MS if needed.
-  return HEDGE_DELAY_MS_BASE
+  // Base hedge delay
+  let delay = HEDGE_DELAY_MS_BASE
+
+  // ── Queue-Aware Hedging (Solution 3) ──────────────────────────────
+  // When Gemini's async.queue has waiting requests, the hedge timer
+  // must NOT count queue-waiting time as "Gemini is slow". We add
+  // extra delay proportional to queue depth so the hedge only fires
+  // when Gemini is genuinely slow AFTER it starts processing.
+  //
+  // Formula: hedge = base + (queue_waiting / concurrency) × slot_time
+  //   where slot_time ≈ avg Gemini response time / concurrency
+  //
+  // Example with 50 concurrent, 4 concurrency, ~5s avg:
+  //   Queue empty → hedge = 8s (Gemini starts immediately)
+  //   4 waiting   → hedge = 8 + 1.5 = 9.5s (1 extra batch)
+  //   12 waiting  → hedge = 8 + 4.5 = 12.5s (3 extra batches)
+  //   40 waiting  → hedge = 8 + 15 = 23s (capped at timeout)
+  try {
+    const gemini = ALL_MAP['gemini']
+    if (gemini && typeof gemini.getQueueInfo === 'function') {
+      const { waiting, active, concurrency } = gemini.getQueueInfo()
+      if (waiting > 0) {
+        const batchesAhead = Math.ceil(waiting / concurrency)
+        // ~1.5s per batch slot (avg 5s response / 4 concurrency ≈ 1.25s + buffer)
+        const extraDelay = batchesAhead * 1500
+        delay += extraDelay
+        console.log(`[ai] Queue-aware hedge: +${extraDelay}ms (${waiting} queued, ${active} active, ${batchesAhead} batches ahead) → hedge=${delay}ms`)
+      }
+    }
+  } catch (_) {
+    // gemini module not loaded — use base delay
+  }
+
+  // Cap at provider timeout minus 2s safety buffer
+  return Math.min(delay, PROVIDER_TIMEOUT_MS - 2000)
 }
 
 function withTimeout(promise, ms, label) {
