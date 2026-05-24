@@ -17,12 +17,19 @@ import axios from 'axios'
 const VITE_API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || ''
 const defaultBase = VITE_API_URL ? `${VITE_API_URL}/api` : '/api'
 
-// Read cached backend URL from localStorage (set by initBackendUrl below)
+// Read cached backend URL from localStorage (set by initBackendUrl below).
+// In local dev (localhost), skip the cache — the Vite proxy handles /api
+// → localhost:5000, and a stale production URL in the cache causes 503s.
 function getCachedBackendBase() {
   try {
+    if (typeof window !== 'undefined' &&
+        (window.location.hostname === 'localhost' ||
+         window.location.hostname === '127.0.0.1')) {
+      return null
+    }
     const cached = localStorage.getItem('_backend_base')
     if (cached) return cached
-  } catch {}
+  } catch { /* localStorage unavailable (SSR, iframe sandbox) */ }
   return null
 }
 
@@ -46,11 +53,33 @@ const api = axios.create({
  *   4. Render down/slow → silently fall back to Vercel
  *   5. Cache result in localStorage for next reload
  */
+function isLocalDev() {
+  try {
+    return typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' ||
+       window.location.hostname === '127.0.0.1')
+  } catch { return false }
+}
+
 export async function initBackendUrl() {
+  // In local dev, all /api calls go through the Vite proxy to localhost:5000.
+  // Never redirect to a remote Vercel/Render URL — the proxy is the source of truth.
+  if (isLocalDev()) {
+    api.defaults.baseURL = defaultBase
+    try { localStorage.removeItem('_backend_base') } catch {}
+    console.log('[api] local dev — using Vite proxy (/api → localhost:5000)')
+    return
+  }
+
   try {
     // Always fetch config from Vercel (same-origin)
     const res = await fetch(`${defaultBase}/backend-config`)
-    if (!res.ok) return
+    if (!res.ok) {
+      console.warn('[api] backend-config fetch failed — using default /api')
+      api.defaults.baseURL = defaultBase
+      try { localStorage.removeItem('_backend_base') } catch {}
+      return
+    }
     const data = await res.json()
     const bc = data?.backendConfig
     if (!bc) return
@@ -79,7 +108,9 @@ export async function initBackendUrl() {
     api.defaults.baseURL = newBase
     try { localStorage.setItem('_backend_base', newBase) } catch {}
   } catch (err) {
-    console.warn('[api] initBackendUrl failed:', err.message)
+    console.warn('[api] initBackendUrl failed:', err.message, '— using default /api')
+    api.defaults.baseURL = defaultBase
+    try { localStorage.removeItem('_backend_base') } catch {}
   }
 }
 

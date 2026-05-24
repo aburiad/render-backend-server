@@ -1,12 +1,28 @@
-// Model cascade — tried in order per key. If the first model is rate-limited,
-// the next model is tried with the SAME key (each model has independent limits).
+// Model cascade — tried in order per key. Each model has INDEPENDENT rate
+// limits, so when one model is rate-limited we continue to the next model
+// with the SAME key before moving to the next key.
 //
 // Free tier limits per key (as of 2026-05):
 //   gemini-3.1-flash-lite  — 15 RPM, 250K TPM, 500 RPD  ← highest daily cap
+//   gemini-3.5-flash       —  5 RPM, 250K TPM,  20 RPD
+//   gemini-3-flash         —  5 RPM, 250K TPM,  20 RPD
 //   gemini-2.5-flash-lite  — 10 RPM, 250K TPM,  20 RPD
 //   gemini-2.5-flash       —  5 RPM, 250K TPM,  20 RPD
-const VISION_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
-const TEXT_MODELS = ['gemini-3.1-flash-lite', 'gemini-2.5-flash-lite', 'gemini-2.5-flash']
+//
+// Per-key total: 580 RPD × 4 keys = 2,320 scans/day on Gemini alone
+// Model cascade — ordered by speed + reliability.
+const VISION_MODELS = [
+  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
+  'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
+  'gemini-2.5-flash-lite',   // 10 RPM, 20 RPD — fast (~5.5s)
+  'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
+]
+const TEXT_MODELS = [
+  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
+  'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
+  'gemini-2.5-flash-lite',   // 10 RPM, 20 RPD — fast (~5.5s)
+  'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
+]
 
 // Translate OpenAI-style messages to Gemini-style contents
 function convertMessagesToGemini(messages) {
@@ -121,11 +137,22 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   return data?.candidates?.[0]?.content?.parts?.[0]?.text
 }
 
+// Cache quota-exhausted models so we don't waste time retrying them.
+const quotaExhaustedModels = {}
+
+function isModelQuotaExhausted(model) {
+  if (!quotaExhaustedModels[model]) return false
+  if (Date.now() > quotaExhaustedModels[model]) {
+    delete quotaExhaustedModels[model]
+    return false
+  }
+  return true
+}
+
 // Atomic round-robin counter — incremented before key selection so that
 // concurrent requests each get a different starting key (true distribution).
 let rrCounter = 0
 const cooldowns = {}
-const failureCount = {}  // Track failures per key
 
 async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
   let apiKeys = []
@@ -179,30 +206,39 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   const models = vision ? VISION_MODELS : TEXT_MODELS
 
   let lastErr
-  for (const apiKey of apiKeys) {
-    for (const model of models) {
+  // OUTER loop = models, INNER loop = keys
+  // This distributes requests evenly across all keys for each model.
+  // Round-robin already gives each request a different starting key,
+  // so concurrent requests naturally spread across keys.
+  for (const model of models) {
+    // Skip models with known exhausted quota (cached until next day)
+    if (isModelQuotaExhausted(model)) {
+      console.log(`[gemini] Skipping "${model}" — daily quota already exhausted`)
+      continue
+    }
+
+    for (const apiKey of apiKeys) {
       try {
         const text = await tryModel({ apiKey, model, messages, jsonMode, temperature, vision })
         if (text) return text
       } catch (err) {
         lastErr = err
-        if (err.modelDecommissioned) throw err // Do not retry if model doesn't exist
-
-        // If daily quota is exhausted, all keys from the same project will fail.
-        // Skip remaining keys immediately to avoid wasting time.
-        if (err.isQuotaExhausted) {
-          console.warn(`[gemini] ⚠️  Daily quota exhausted — skipping remaining keys (all share same project quota)`)
-          throw err
+        if (err.modelDecommissioned) {
+          console.warn(`[gemini] Model "${model}" not found/deprecated — skipping to next model`)
+          break
         }
 
-        // On Vercel serverless, in-memory cooldowns don't persist across
-        // instances — different concurrent requests hit different instances
-        // so cooldown set in one instance is invisible to others.
-        // Strategy: on 429, skip this key immediately and try the next one.
-        // Don't set cooldown (it's useless cross-instance); just move on.
+        if (err.isQuotaExhausted) {
+          const tomorrow = new Date()
+          tomorrow.setUTCHours(24, 0, 0, 0)
+          quotaExhaustedModels[model] = tomorrow.getTime()
+          console.warn(`[gemini] Daily quota exhausted for model "${model}" — cached until reset`)
+          break
+        }
+
         if (err.isRateLimit) {
-          console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." rate-limited — trying next key`)
-          break // break inner model loop, try next key
+          console.warn(`[gemini] Key "${apiKey.slice(0, 8)}..." model "${model}" rate-limited — trying next key`)
+          continue
         }
       }
     }
