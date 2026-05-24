@@ -139,7 +139,8 @@ function buildEffectiveProviders(chain, userKeys) {
           process.env.GEMINI_API_KEY ||
           process.env.GEMINI_API_KEY_TWO ||
           process.env.GEMINI_API_KEY_THREE ||
-          process.env.GEMINI_API_KEY_FOUR
+          process.env.GEMINI_API_KEY_FOUR ||
+          process.env.GEMINI_API_KEY_FIVE
         )
         if (!userKey && !hasSystemKey) return null
         // Pass userKey if set, otherwise undefined → gemini.js uses its pool
