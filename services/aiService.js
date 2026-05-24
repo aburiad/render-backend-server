@@ -34,7 +34,10 @@ function parseQuestionsJson(raw) {
 // Vercel Hobby plan hard limit is 10s per function invocation.
 // We give each provider up to 8s so there is still headroom for
 // HTTP overhead. Gemini vision calls on flash-lite typically take 3-7s.
-const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 8000 : 30000
+// Render free tier: 5-min HTTP timeout (300s). Our scans take 10-60s.
+// Setting 90s gives enough room for queue processing (50 users ÷ 5 concurrency
+// = 10 batches × ~10s = ~100s max). Falls back to other providers at 90s.
+const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 8000 : 90000
 const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || DEFAULT_TIMEOUT
 
 // Hedging: fire fallbacks after this delay if preferred hasn't responded.
@@ -74,8 +77,8 @@ function getHedgeDelay(params) {
       const { waiting, active, concurrency } = gemini.getQueueInfo()
       if (waiting > 0) {
         const batchesAhead = Math.ceil(waiting / concurrency)
-        // ~2s per batch slot (avg 5s response / 5 concurrency ≈ 1s + buffer)
-        const extraDelay = batchesAhead * 2000
+        // Realistic slot time: each batch takes ~10-15s (Gemini vision + queue processing)
+        const extraDelay = batchesAhead * 12000
         delay += extraDelay
         console.log(`[ai] Queue-aware hedge: +${extraDelay}ms (${waiting} queued, ${active} active, ${batchesAhead} batches ahead) → hedge=${delay}ms`)
       }
