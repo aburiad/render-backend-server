@@ -232,26 +232,28 @@ export default function Dashboard() {
       animate="show"
       className="flex flex-col gap-3 sm:gap-6 pb-6"
     >
-      {/* ── Welcome Area + Stats ─────────────────────────────── */}
+      {/* ── Welcome Area + Stats (side by side) ──────────────── */}
       <motion.div variants={item}>
-        <div style={{ marginBottom: 4 }}>
-          <span
-            className="text-[14px] sm:text-xs"
-            style={{ fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}
-          >
-            {hub.title}
-          </span>
-          <h1
-            className="text-[18px] sm:text-[26px]"
-            style={{ fontWeight: 800, color: '#0f172a', margin: '2px 0 0' }}
-          >
-            হ্যালো, {firstName}! 👋
-          </h1>
-        </div>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3">
-          <StatCard label="মোট পেপার" value={totalPapers} color="var(--primary)" />
-          <StatCard label="এই মাসে" value={thisMonthPapers} color="#10b981" />
-          <StatCard label="মোট প্রশ্ন" value={totalQuestions} color="#8b5cf6" />
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex-shrink-0">
+            <span
+              className="text-[14px] sm:text-xs"
+              style={{ fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}
+            >
+              {hub.title}
+            </span>
+            <h1
+              className="text-[18px] sm:text-[26px]"
+              style={{ fontWeight: 800, color: '#0f172a', margin: '2px 0 0' }}
+            >
+              হ্যালো, {firstName}! 👋
+            </h1>
+          </div>
+          <div className="flex-1 grid grid-cols-3 gap-1.5 sm:gap-2">
+            <StatCard label="মোট পেপার" value={totalPapers} color="var(--primary)" />
+            <StatCard label="এই মাসে" value={thisMonthPapers} color="#10b981" />
+            <StatCard label="মোট প্রশ্ন" value={totalQuestions} color="#8b5cf6" />
+          </div>
         </div>
       </motion.div>
 
