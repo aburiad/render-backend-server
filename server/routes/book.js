@@ -276,29 +276,30 @@ router.post(
 
 Output format (শুধুমাত্র JSON, কোনো ব্যাখ্যা নয়):
 {
-  "classNum": 8,
+  "classNum": 9,
   "subject": "math",
-  "chapterId": "ch-2",
-  "questionTypes": ["CQ"],
-  "count": 10
+  "chapterId": "ch-3",
+  "items": [
+    { "type": "CQ", "count": 2 },
+    { "type": "short", "count": 2 },
+    { "type": "MCQ", "count": 3 }
+  ]
 }
 
 নিয়ম:
-- chapterId যদি না বোঝা যায়, null রাখো
-- "creative"/"সৃজনশীল"/"CQ" → ["CQ"]
-- "mcq"/"বহুনির্বাচনি" → ["MCQ"]
-- "short"/"সংক্ষিপ্ত" → ["short"]
-- "broad"/"রচনামূলক" → ["broad"]
-- "fill_blank"/"শূন্যস্থান" → ["fill_blank"]
-- একাধিক ধরন থাকলো সব রাখো, না থাকলো ["MCQ"] রাখো
-- "math"/"গণিত" → subject: "math"
-- "বিজ্ঞান"/"science" → subject: "science"
-- "বাংলা"/"bangla" → subject: "bangla"
-- "english"/"ইংরেজি" → subject: "english"
-- "হিসাববিজ্ঞান"/"accounting" → subject: "accounting"
+- chapterId: chapter number বুঝলো "ch-N" format-e দাও (যেমন "3rd chapter" → "ch-3")। না বুঝলে null রাখো।
+- type mapping:
+  - "creative"/"সৃজনশীল"/"CQ"/"সজনশীল" → "CQ"
+  - "mcq"/"বহুনির্বাচনি"/"বহুনির্বাচনী" → "MCQ"
+  - "short"/"সংক্ষিপ্ত"/"সংক্ষপ্ত" → "short"
+  - "broad"/"রচনামূলক"/"রচনামুলক" → "broad"
+  - "fill_blank"/"শূন্যস্থান"/"শুন্যস্থান" → "fill_blank"
+- যদি prompt-এ per-type count থাকে (যেমন "2ta CQ, 3ta MCQ") → items array-তে আলাদা করে দাও
+- যদি শুধু overall count থাকে (যেমন "10 ta question") → items = [{ "type": "MCQ", "count": 10 }]
+- যদি কোনো count না থাকে → প্রতিটির count: 5 রাখো
+- subject mapping: "math"/"গণিত"→"math", "বিজ্ঞান"/"science"→"science", "বাংলা"/"bangla"→"bangla", "english"/"ইংরেজি"→"english", "হিসাববিজ্ঞান"/"accounting"→"accounting"
 - যদি prompt-এ ক্লাস না থাকে, classNum: null রাখো
 - যদি subject বোঝা না যায়, subject: null রাখো
-- count যদি না থাকে, 5 রাখো
 
 User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
 
@@ -328,8 +329,25 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
       const classNum = parsed.classNum
       const subject = parsed.subject
       const chapterId = parsed.chapterId
-      const questionTypes = parsed.questionTypes || ['MCQ']
-      const requestedCount = Math.min(parsed.count || 5, 20)
+
+      // Support both new `items` format and legacy `questionTypes`/`count`
+      // items: [{ type: "CQ", count: 2 }, { type: "MCQ", count: 3 }]
+      let items = []
+      if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+        items = parsed.items.map((it) => ({
+          type: it.type || 'MCQ',
+          count: Math.min(it.count || 5, 20),
+        }))
+      } else if (Array.isArray(parsed.questionTypes) && parsed.questionTypes.length > 0) {
+        // Legacy: single count split across types
+        const total = Math.min(parsed.count || 5, 20)
+        const perType = Math.max(1, Math.ceil(total / parsed.questionTypes.length))
+        items = parsed.questionTypes.map((t) => ({ type: t, count: perType }))
+      } else {
+        items = [{ type: 'MCQ', count: 5 }]
+      }
+
+      const requestedCount = items.reduce((s, it) => s + it.count, 0)
 
       if (!classNum || !subject) {
         throw new AppError(
@@ -370,105 +388,114 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
         sourceChapters = allChapters.map((ch) => ch.title)
       }
 
-      // ── Step 3: Fetch existing questions from DB ────────────────────────
-      const dbQuestions = await bookService.getExistingQuestions(
-        classNum,
-        subject,
-        selections,
-        { types: questionTypes.map((t) => t.toLowerCase()) },
-      )
+      // ── Step 3: Per-type DB fetch + AI fill ─────────────────────────────
+      // For each item type, fetch from DB first. If shortfall, AI generates.
+      const allQuestions = []
+      let totalDbCount = 0
+      let totalAiCount = 0
 
-      console.log(`[smart-prompt] DB: ${dbQuestions.length}/${requestedCount} questions found`)
-
-      // Take as many DB questions as available (up to requestedCount)
-      const dbPart = dbQuestions.slice(0, requestedCount)
-      const shortfall = requestedCount - dbPart.length
-      let aiQuestions = []
-
-      // ── Step 4: If shortfall, AI generates the rest from chapter content ─
-      if (shortfall > 0) {
-        console.log(`[smart-prompt] shortfall: ${shortfall} — generating via AI from chapter content`)
-
-        // Fetch chapter content for AI context
-        const contentBlocks = await bookService.getContentForSelections(classNum, subject, selections)
-
-        let combinedContext = ''
-        if (contentBlocks.length > 0) {
-          combinedContext = contentBlocks
-            .map((b) => {
-              const head = b.subchapterId ? `## ${b.subchapterId} ${b.title}` : `## ${b.title}`
-              return `${head}\n\n${b.content}`
-            })
-            .join('\n\n---\n\n')
-        }
-
-        // Also include existing DB questions as style reference (no hallucination)
-        if (dbPart.length > 0) {
-          const styleRef = dbPart.slice(0, 3).map((q, i) =>
-            `Style Example ${i + 1} (${q.type.toUpperCase()}):\n${JSON.stringify(q.data, null, 2)}`
-          ).join('\n\n')
-          combinedContext += `\n\n---\nSTYLE REFERENCES (use similar format, do NOT copy):\n${styleRef}`
-        }
-
-        if (combinedContext.trim()) {
-          const aiResult = await generateFromBook(
-            combinedContext,
-            { subject, classNum, questionTypes, count: shortfall },
-            req.user.uid,
-          )
-          aiQuestions = aiResult.questions || []
-          console.log(`[smart-prompt] AI generated: ${aiQuestions.length} questions via ${aiResult.provider}`)
-        }
+      // Fetch chapter content once (shared across all types for AI)
+      let combinedContext = ''
+      const contentBlocks = await bookService.getContentForSelections(classNum, subject, selections)
+      if (contentBlocks.length > 0) {
+        combinedContext = contentBlocks
+          .map((b) => {
+            const head = b.subchapterId ? `## ${b.subchapterId} ${b.title}` : `## ${b.title}`
+            return `${head}\n\n${b.content}`
+          })
+          .join('\n\n---\n\n')
       }
 
-      // ── Step 5: Merge DB + AI results ───────────────────────────────────
-      // DB questions are in the raw book_questions shape — normalize them
-      const normalizedDb = dbPart.map((q) => {
-        const d = q.data || {}
-        if (q.type === 'mcq') {
-          return {
-            type: 'MCQ',
-            question: d.question,
-            option_a: d.options?.['ক'] || d.options?.['i'],
-            option_b: d.options?.['খ'] || d.options?.['ii'],
-            option_c: d.options?.['গ'] || d.options?.['iii'],
-            option_d: d.options?.['ঘ'],
-            _source: q.source,
-            _id: q.id,
+      for (const item of items) {
+        const typeLower = item.type.toLowerCase() === 'cq' ? 'cq'
+          : item.type.toLowerCase() === 'mcq' ? 'mcq'
+          : item.type.toLowerCase() === 'short' ? 'saq'
+          : item.type.toLowerCase()
+        const typeDbFilter = item.type.toLowerCase() === 'short' ? 'saq' : item.type.toLowerCase()
+
+        // 3a: Fetch from DB for this specific type
+        const dbQs = await bookService.getExistingQuestions(
+          classNum,
+          subject,
+          selections,
+          { types: [typeDbFilter] },
+        )
+
+        // Normalize DB questions
+        const normalizedDb = dbQs.slice(0, item.count).map((q) => {
+          const d = q.data || {}
+          if (q.type === 'mcq') {
+            return {
+              type: 'MCQ',
+              question: d.question,
+              option_a: d.options?.['ক'] || d.options?.['i'],
+              option_b: d.options?.['খ'] || d.options?.['ii'],
+              option_c: d.options?.['গ'] || d.options?.['iii'],
+              option_d: d.options?.['ঘ'],
+              _source: q.source,
+              _id: q.id,
+            }
           }
-        }
-        if (q.type === 'cq') {
+          if (q.type === 'cq') {
+            return {
+              type: 'CQ',
+              stimulus: d.scenario,
+              question: d.scenario,
+              sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({ label: k, text: v })),
+              _source: q.source,
+              _id: q.id,
+            }
+          }
           return {
-            type: 'CQ',
-            stimulus: d.scenario,
-            question: d.scenario,
+            type: q.type === 'saq' ? 'short' : q.type,
+            question: d.question,
             sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({ label: k, text: v })),
             _source: q.source,
             _id: q.id,
           }
-        }
-        return {
-          type: q.type === 'saq' ? 'short' : q.type,
-          question: d.question,
-          sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({ label: k, text: v })),
-          _source: q.source,
-          _id: q.id,
-        }
-      })
+        })
 
-      // AI questions are already in the normalized shape (from generateFromBook)
-      const aiNormalized = aiQuestions.map((q) => ({ ...q, _source: 'ai-generated' }))
+        allQuestions.push(...normalizedDb)
+        totalDbCount += normalizedDb.length
 
-      const allQuestions = [...normalizedDb, ...aiNormalized].slice(0, requestedCount)
+        // 3b: If shortfall for this type, AI generates the rest
+        const shortfall = item.count - normalizedDb.length
+        if (shortfall > 0 && combinedContext.trim()) {
+          console.log(`[smart-prompt] ${item.type}: DB=${normalizedDb.length}, shortfall=${shortfall}`)
+
+          // Build style reference from DB questions of this type
+          let ctx = combinedContext
+          if (normalizedDb.length > 0) {
+            const styleRef = normalizedDb.slice(0, 2).map((q, i) =>
+              `Style Example ${i + 1}:\n${JSON.stringify(q, null, 2)}`
+            ).join('\n\n')
+            ctx += `\n\n---\nSTYLE REFERENCES (use similar format, do NOT copy):\n${styleRef}`
+          }
+
+          try {
+            const aiResult = await generateFromBook(
+              ctx,
+              { subject, classNum, questionTypes: [item.type], count: shortfall },
+              req.user.uid,
+            )
+            const aiQs = (aiResult.questions || []).map((q) => ({ ...q, _source: 'ai-generated' }))
+            allQuestions.push(...aiQs)
+            totalAiCount += aiQs.length
+            console.log(`[smart-prompt] ${item.type}: AI generated ${aiQs.length} via ${aiResult.provider}`)
+          } catch (err) {
+            console.warn(`[smart-prompt] ${item.type}: AI generation failed:`, err.message)
+          }
+        }
+      }
 
       res.json({
         success: true,
         questions: allQuestions,
         count: allQuestions.length,
-        dbCount: normalizedDb.length,
-        aiCount: aiNormalized.length,
+        dbCount: totalDbCount,
+        aiCount: totalAiCount,
         source: 'smart',
-        parsed: { classNum, subject, chapterId, questionTypes, count: requestedCount },
+        parsed: { classNum, subject, chapterId, items, count: requestedCount },
         sourceChapters,
         creditsCharged: 1,
       })
