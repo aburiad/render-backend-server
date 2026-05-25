@@ -91,56 +91,29 @@ const item = {
 function StatCard({ label, value, color, gradient }) {
   return (
     <div
-      className="relative overflow-hidden rounded-2xl sm:rounded-3xl"
+      className="text-center rounded-2xl sm:rounded-3xl"
       style={{
         background: gradient || `linear-gradient(145deg, ${color}, ${color}dd)`,
-        padding: '6px 6px',
-        minHeight: 52,
+        padding: '10px 6px 8px',
       }}
     >
-      {/* Decorative circle */}
-      <div
+      <p
+        className="text-[20px] sm:text-2xl font-extrabold m-0"
         style={{
-          position: 'absolute',
-          top: -12,
-          right: -12,
-          width: 48,
-          height: 48,
-          borderRadius: '50%',
-          background: 'rgba(255,255,255,0.15)',
+          color: '#fff',
+          lineHeight: 1,
+          fontFamily: 'var(--font-english)',
+          letterSpacing: '-0.02em',
         }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          bottom: -8,
-          left: -8,
-          width: 32,
-          height: 32,
-          borderRadius: '50%',
-          background: 'rgba(255,255,255,0.08)',
-        }}
-      />
-      <div className="relative text-center" style={{ zIndex: 1 }}>
-        <p
-          className="text-[22px] sm:text-[28px] font-extrabold m-0"
-          style={{
-            color: '#fff',
-            lineHeight: 1,
-            fontFamily: 'var(--font-english)',
-            letterSpacing: '-0.03em',
-            textShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          }}
-        >
-          {value}
-        </p>
-        <p
-          className="text-[9px] sm:text-[10px] font-bold m-0 mt-1.5 leading-tight"
-          style={{ color: 'rgba(255,255,255,0.8)', letterSpacing: '0.02em' }}
-        >
-          {label}
-        </p>
-      </div>
+      >
+        {value}
+      </p>
+      <p
+        className="text-[8px] sm:text-[9px] font-bold m-0 mt-1 leading-tight"
+        style={{ color: 'rgba(255,255,255,0.85)', letterSpacing: '0.02em' }}
+      >
+        {label}
+      </p>
     </div>
   )
 }
