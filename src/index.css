@@ -320,6 +320,16 @@ input, select, textarea {
   position: relative;
 }
 
+@media (max-width: 640px) {
+  .bottom-sheet {
+    width: 95% !important;
+    left: 2.5% !important;
+    right: auto !important;
+    border-radius: var(--radius-xl);
+    margin-bottom: 8px;
+  }
+}
+
 .bottom-sheet-handle {
   width: 36px;
   height: 4px;
