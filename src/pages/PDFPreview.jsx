@@ -299,7 +299,7 @@ export default function PDFPreview() {
   async function handleServerDownload() {
     if (!paperRef.current || downloadingServer) return
     setDownloadingServer(true)
-    const toastId = toast.loading('সার্ভারে PDF তৈরি হচ্ছে (প্রথমবার ৩০-৬০ সেকেন্ড লাগতে পারে)…')
+    const toastId = toast.loading('সার্ভারে PDF তৈরি হচ্ছে…')
     try {
       try { await document.fonts.ready } catch { /* swallow */ }
 
@@ -309,11 +309,37 @@ export default function PDFPreview() {
         settings: { font, size, spacing, orientation, columnGap },
       })
 
-      const res = await api.post(
-        `/pdf-server/papers/${paper.id}`,
-        { html, filename: `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}` },
-        { responseType: 'blob', timeout: 120000 },
-      )
+      // Retry logic: if the PDF server queue is full (503), we retry
+      // up to 3 times with a short delay so the user eventually gets
+      // their PDF even when multiple users press download together.
+      const MAX_RETRIES = 3
+      let lastErr = null
+      let res = null
+
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          if (attempt > 1) {
+            const delayMs = attempt * 3000 // 3s, 6s, 9s backoff
+            toast.loading(`অপেক্ষা করুন, আবার চেষ্টা হচ্ছে (${attempt}/${MAX_RETRIES})…`, { id: toastId })
+            await new Promise((r) => setTimeout(r, delayMs))
+          }
+          res = await api.post(
+            `/pdf-server/papers/${paper.id}`,
+            { html, filename: `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}` },
+            { responseType: 'blob', timeout: 120000 },
+          )
+          break // success — exit retry loop
+        } catch (err) {
+          lastErr = err
+          const status = err?.response?.status
+          // Only retry on 503 (queue full/timeout) or network errors
+          if (status !== 503 && err?.code !== 'ECONNABORTED') break
+          if (attempt === MAX_RETRIES) break
+          // Will retry...
+        }
+      }
+
+      if (!res) throw lastErr
 
       const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' })
       const url = URL.createObjectURL(blob)
@@ -327,8 +353,6 @@ export default function PDFPreview() {
       toast.success('সার্ভার PDF ডাউনলোড সম্পন্ন', { id: toastId })
     } catch (err) {
       console.error('[PDFPreview] server download failed:', err)
-      // axios + blob responseType still gives us err.response.data as a Blob;
-      // try to extract the JSON error message for the toast.
       let msg = 'সার্ভার PDF তৈরি করা যায়নি'
       const blob = err?.response?.data
       if (blob instanceof Blob && blob.type.includes('json')) {
@@ -338,7 +362,7 @@ export default function PDFPreview() {
           if (json?.error || json?.message) msg = json.error || json.message
         } catch { /* swallow */ }
       } else if (err?.response?.status === 503) {
-        msg = 'PDF সার্ভার এখনও কনফিগার হয়নি'
+        msg = 'PDF সার্ভারে এখন অনেক রিকোয়েস্ট — কিছুক্ষণ পর আবার চেষ্টা করুন'
       } else if (err?.code === 'ECONNABORTED') {
         msg = 'সার্ভার সাড়া দিচ্ছে না — পরে আবার চেষ্টা করুন'
       }
