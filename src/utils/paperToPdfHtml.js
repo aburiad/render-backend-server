@@ -126,12 +126,14 @@ export function buildPaperHtmlForServerPdf({ paperNode, paper, settings = {} }) 
   const lang = document.documentElement.lang || 'bn'
 
   // Page-size CSS — `preferCSSPageSize: true` on the server picks this up.
-  // Margin is set to 0 here because the Puppeteer pdf() `margin` option
-  // (via mapPrintSettings → pdfServerClient.js) already provides the
-  // 14mm vertical margin. Including margin in BOTH @page CSS and the
-  // Puppeteer option causes double-margin and shifts pre-paginated
-  // multi-column page wrappers out of alignment with page boundaries.
-  const pageSizeCss = `@page { size: ${pageFormat} ${isLandscape ? 'landscape' : 'portrait'}; margin: 0; }`
+  // Both size AND margin go into @page so that EVERY page (not just the
+  // first) gets the same 14 mm top/bottom whitespace.  If we leave margin
+  // at 0 here and rely only on the Puppeteer pdf() `margin` option, the
+  // CSS `@page { margin: 0 }` in DEFAULT_HEAD_INJECT takes precedence
+  // after the first page break, so pages 2+ lose their top margin.
+  // Horizontal margin stays 0 because the paper template already bakes
+  // in 12 mm left+right padding.
+  const pageSizeCss = `@page { size: ${pageFormat} ${isLandscape ? 'landscape' : 'portrait'}; margin: 14mm 0; }`
 
   const html = `<!doctype html>
 <html lang="${lang}">

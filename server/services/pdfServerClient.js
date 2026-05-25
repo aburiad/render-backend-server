@@ -103,9 +103,10 @@ function mapPrintSettings(settings = {}) {
       }
     }
   } else {
-    // Legacy default matches the html2pdf.js path: vertical 14mm, horizontal 0mm
-    // (horizontal padding is baked into the paper template at 12mm).
-    opts.margin = { top: '14mm', right: '0mm', bottom: '14mm', left: '0mm' }
+    // Margin is handled by @page CSS in the HTML (paperToPdfHtml.js sets
+    // `margin: 14mm 0`) so every page gets consistent top/bottom margin.
+    // Setting Puppeteer margin to 0 avoids double-margin on page 1.
+    opts.margin = { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' }
   }
 
   if (typeof settings.scale === 'number') {
