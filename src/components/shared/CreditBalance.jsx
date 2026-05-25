@@ -117,7 +117,7 @@ export default function CreditBalance({ compact = false, showTopUp = true }) {
               }}
             />
           </div>
-          <p className="text-[10px] sm:text-[11px] text-gray-400 mt-1 m-0">
+          <p className="text-[11px] sm:text-xs text-gray-500 mt-1 m-0">
             মাত্র <span className="font-bold text-gray-600">{data.bdtPerPaper || 10} ৳</span>-এ <span className="font-bold text-gray-600">{data.opsPerPaper || 20}</span>টি স্ক্যান পাবেন
           </p>
         </div>
