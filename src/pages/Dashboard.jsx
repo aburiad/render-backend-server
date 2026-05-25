@@ -263,20 +263,6 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
-      {/* ── Stats ─────────────────────────────────────────── */}
-      <motion.div variants={item}>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <StatCard label="মোট পেপার" value={totalPapers} color="var(--primary)" />
-          <StatCard label="এই মাসে" value={thisMonthPapers} color="#10b981" />
-          <StatCard label="মোট প্রশ্ন" value={totalQuestions} color="#8b5cf6" />
-        </div>
-      </motion.div>
-
-      {/* ── Credit Balance ────────────────────────────────── */}
-      <motion.div variants={item}>
-        <CreditBalance compact={false} showTopUp />
-      </motion.div>
-
       {/* ── Quick Actions ──────────────────────────────────── */}
       <motion.div variants={item}>
         <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 12px', paddingLeft: 4 }}>
@@ -286,6 +272,20 @@ export default function Dashboard() {
           {hub.quickActions.map((action, i) => (
             <QuickActionCard key={i} action={action} />
           ))}
+        </div>
+      </motion.div>
+
+      {/* ── Credit Balance ────────────────────────────────── */}
+      <motion.div variants={item}>
+        <CreditBalance compact={false} showTopUp />
+      </motion.div>
+
+      {/* ── Stats ─────────────────────────────────────────── */}
+      <motion.div variants={item}>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+          <StatCard label="মোট পেপার" value={totalPapers} color="var(--primary)" />
+          <StatCard label="এই মাসে" value={thisMonthPapers} color="#10b981" />
+          <StatCard label="মোট প্রশ্ন" value={totalQuestions} color="#8b5cf6" />
         </div>
       </motion.div>
 
