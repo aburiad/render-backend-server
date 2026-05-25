@@ -265,8 +265,9 @@ export default function Dashboard() {
     >
       {/* ── Welcome Area + Stats (side by side) ──────────────── */}
       <motion.div variants={item}>
-        <div className="flex items-center gap-3 sm:gap-4">
-          <div className="flex-shrink-0">
+        {/* Desktop: side-by-side | Mobile: stacked */}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="sm:flex-shrink-0">
             <span
               className="text-[14px] sm:text-xs"
               style={{ fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}
@@ -280,7 +281,7 @@ export default function Dashboard() {
               হ্যালো, {firstName}! 👋
             </h1>
           </div>
-          <div className="flex-1 grid grid-cols-3 gap-1.5 sm:gap-2">
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2 sm:flex-1">
             <StatCard label="মোট পেপার" value={totalPapers} gradient="linear-gradient(145deg, #2563eb, #3b82f6)" />
             <StatCard label="এই মাসে" value={thisMonthPapers} gradient="linear-gradient(145deg, #059669, #10b981)" />
             <StatCard label="মোট প্রশ্ন" value={totalQuestions} gradient="linear-gradient(145deg, #7c3aed, #a855f7)" />
