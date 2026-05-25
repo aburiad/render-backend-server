@@ -323,11 +323,11 @@ export default function PDFPreview() {
             toast.loading(`অপেক্ষা করুন, আবার চেষ্টা হচ্ছে (${attempt}/${MAX_RETRIES})…`, { id: toastId })
             await new Promise((r) => setTimeout(r, delayMs))
           }
-          res = await api.post(
+            res = await api.post(
             `/pdf-server/papers/${paper.id}`,
             { html, filename: `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}` },
-            { responseType: 'blob', timeout: 120000 },
-          )
+            { responseType: 'blob', timeout: 200000 },
+            )
           break // success — exit retry loop
         } catch (err) {
           lastErr = err
