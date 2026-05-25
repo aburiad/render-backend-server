@@ -44,6 +44,10 @@ export default function BookGenerateModal({ onClose }) {
   const [sourceChapters, setSourceChapters] = useState([])
   const [resultMeta, setResultMeta] = useState(null)
 
+  // Smart prompt state
+  const [smartPrompt, setSmartPrompt] = useState('')
+  const [smartLoading, setSmartLoading] = useState(false)
+
   const addQuestion = usePaperStore((s) => s.addQuestion)
 
   // Fetch subjects when class changes
@@ -288,6 +292,73 @@ export default function BookGenerateModal({ onClose }) {
     toast.success('প্রশ্নটি পেপারে যোগ হয়েছে')
   }
 
+  // --- Smart prompt handler ---
+  const handleSmartPrompt = async () => {
+    if (!smartPrompt.trim()) return
+    setSmartLoading(true)
+    setStep('review')
+    setLoading(true)
+    setGeneratedQuestions([])
+    setResultMeta(null)
+
+    try {
+      const { data } = await api.post('/book/smart-prompt', {
+        prompt: smartPrompt.trim(),
+      })
+      window.dispatchEvent(new CustomEvent('credits-changed'))
+      const normalized = (data.questions || []).map((q) => {
+        const d = q.data || {}
+        if (q.type === 'mcq') {
+          return {
+            type: 'MCQ',
+            question: d.question,
+            option_a: d.options?.['ক'] || d.options?.['i'],
+            option_b: d.options?.['খ'] || d.options?.['ii'],
+            option_c: d.options?.['গ'] || d.options?.['iii'],
+            option_d: d.options?.['ঘ'],
+            _source: q.source,
+            _id: q.id,
+          }
+        }
+        if (q.type === 'cq') {
+          return {
+            type: 'CQ',
+            stimulus: d.scenario,
+            question: d.scenario,
+            sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({
+              label: k,
+              text: v,
+            })),
+            _source: q.source,
+            _id: q.id,
+          }
+        }
+        return {
+          type: 'short',
+          question: d.question,
+          sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({
+            label: k,
+            text: v,
+          })),
+          _source: q.source,
+          _id: q.id,
+        }
+      })
+      setGeneratedQuestions(normalized)
+      setSourceChapters(data.sourceChapters || [])
+      setResultMeta({ source: 'smart', count: data.count })
+      if (normalized.length === 0) {
+        toast('কোনো প্রশ্ন পাওয়া যায়নি', { icon: 'ℹ️' })
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'স্মার্ট প্রশ্ন তৈরি করতে ব্যর্থ')
+      setStep('select')
+    } finally {
+      setLoading(false)
+      setSmartLoading(false)
+    }
+  }
+
   const canProceed = classNum && selectedSubject && totalSelected > 0
 
   return (
@@ -371,6 +442,50 @@ export default function BookGenerateModal({ onClose }) {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* ✨ Smart Prompt */}
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    ✨ স্মার্ট প্রশ্ন
+                    <span className="normal-case tracking-normal font-medium text-gray-300 ml-1.5">
+                      — অথবা নিচে থেকে সিলেক্ট করুন
+                    </span>
+                  </label>
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      value={smartPrompt}
+                      onChange={(e) => setSmartPrompt(e.target.value)}
+                      placeholder="যেমন: class 8 er 2 no chapter theke 10 ta creative question daw"
+                      rows={2}
+                      className="w-full px-3 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none placeholder:text-gray-300"
+                    />
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-gray-400">
+                        💡 বাংলা বা ইংরেজিতে লিখুন — AI বুঝে নেবে
+                      </p>
+                      <button
+                        onClick={handleSmartPrompt}
+                        disabled={!smartPrompt.trim() || smartLoading}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg font-bold shadow-lg shadow-purple-600/25 btn-press disabled:opacity-40 disabled:shadow-none transition-all text-xs flex items-center gap-1.5"
+                      >
+                        {smartLoading ? (
+                          <>
+                            <Spinner size={12} color="#fff" />
+                            আনছি...
+                          </>
+                        ) : (
+                          <>🤖 প্রশ্ন আনো</>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-gray-200" />
+                  <span className="text-[10px] font-bold text-gray-300 uppercase">অথবা</span>
+                  <div className="flex-1 h-px bg-gray-200" />
                 </div>
 
                 {/* Subject */}
