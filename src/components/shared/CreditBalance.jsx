@@ -102,7 +102,7 @@ export default function CreditBalance({ compact = false, showTopUp = true }) {
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[11px] sm:text-xs font-semibold text-gray-500">ব্যালেন্স</span>
-            <span className="text-[11px] sm:text-xs font-bold text-blue-600">{data.aiOps} প্রশ্ন বাকি</span>
+            <span className="text-[11px] sm:text-xs font-bold text-blue-600">{data.aiOps} স্ক্যান বাকি</span>
           </div>
           <div className="h-2.5 sm:h-3 bg-gray-100 rounded-full overflow-hidden">
             <div
@@ -118,7 +118,7 @@ export default function CreditBalance({ compact = false, showTopUp = true }) {
             />
           </div>
           <p className="text-[10px] sm:text-[11px] text-gray-400 mt-1 m-0">
-            প্রতি পেপারে গড়ে {data.opsPerPaper}টি প্রশ্ন তৈরি লাগে
+            প্রতি পেপারে গড়ে {data.opsPerPaper}টি AI স্ক্যান লাগে
           </p>
         </div>
 

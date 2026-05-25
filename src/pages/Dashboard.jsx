@@ -257,7 +257,7 @@ export default function Dashboard() {
             border: '1px solid #e2e8f0',
           }}>
             <span style={{ fontSize: 11, fontWeight: 800, color: '#2563eb' }}>
-              ⚡ {user?.credits?.aiOps ?? 0} AI · {user?.credits?.papersEquivalent ?? 0} পেপার
+              ⚡ {user?.credits?.aiOps ?? 0} স্ক্যান · {user?.credits?.papersEquivalent ?? 0} পেপার
             </span>
           </div>
         </div>
