@@ -306,49 +306,24 @@ export default function BookGenerateModal({ onClose }) {
         prompt: smartPrompt.trim(),
       })
       window.dispatchEvent(new CustomEvent('credits-changed'))
-      const normalized = (data.questions || []).map((q) => {
-        const d = q.data || {}
-        if (q.type === 'mcq') {
-          return {
-            type: 'MCQ',
-            question: d.question,
-            option_a: d.options?.['ক'] || d.options?.['i'],
-            option_b: d.options?.['খ'] || d.options?.['ii'],
-            option_c: d.options?.['গ'] || d.options?.['iii'],
-            option_d: d.options?.['ঘ'],
-            _source: q.source,
-            _id: q.id,
-          }
-        }
-        if (q.type === 'cq') {
-          return {
-            type: 'CQ',
-            stimulus: d.scenario,
-            question: d.scenario,
-            sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({
-              label: k,
-              text: v,
-            })),
-            _source: q.source,
-            _id: q.id,
-          }
-        }
-        return {
-          type: 'short',
-          question: d.question,
-          sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({
-            label: k,
-            text: v,
-          })),
-          _source: q.source,
-          _id: q.id,
-        }
-      })
-      setGeneratedQuestions(normalized)
+      // Backend returns pre-normalized questions (DB + AI merged)
+      const questions = data.questions || []
+      setGeneratedQuestions(questions)
       setSourceChapters(data.sourceChapters || [])
-      setResultMeta({ source: 'smart', count: data.count })
-      if (normalized.length === 0) {
+      setResultMeta({
+        source: 'smart',
+        count: data.count,
+        dbCount: data.dbCount || 0,
+        aiCount: data.aiCount || 0,
+        parsed: data.parsed,
+      })
+      if (questions.length === 0) {
         toast('কোনো প্রশ্ন পাওয়া যায়নি', { icon: 'ℹ️' })
+      } else if (data.aiCount > 0) {
+        toast(
+          `📚 DB: ${data.dbCount}টি + 🤖 AI: ${data.aiCount}টি = ${data.count}টি প্রশ্ন`,
+          { icon: '✨', duration: 4000 },
+        )
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'স্মার্ট প্রশ্ন তৈরি করতে ব্যর্থ')

@@ -237,12 +237,18 @@ router.post(
 
 /**
  * POST /api/book/smart-prompt
- * Accept natural-language prompt (Bangla/Banglish/English), use AI to parse
- * it into structured params, then fetch existing questions from the DB.
+ * Hybrid: DB first → AI fills the gap.
+ *
+ * Flow:
+ *   1. AI parses the Bangla/Banglish/English prompt → { classNum, subject, chapterId, questionTypes, count }
+ *   2. Fetch existing questions from DB (book_questions table)
+ *   3. If DB has fewer than requested → fetch chapter content → AI generates the rest
+ *   4. Merge & return
+ *
+ * Uses Gemini text model (high RPM/RPD) for both parsing & generation.
  *
  * Body: { prompt: "class 8 er 2 no chapter theke 10 ta creative question daw" }
- *
- * Returns: { questions, count, parsed: { classNum, subject, chapterId, questionTypes, count } }
+ * Returns: { questions, count, parsed, sourceChapters, dbCount, aiCount }
  */
 router.post(
   '/smart-prompt',
@@ -254,8 +260,7 @@ router.post(
         throw new AppError('প্রম্পট লিখুন', 400)
       }
 
-      // Step 1: Use AI to parse the natural-language prompt into structured params
-      const { callWithFallback } = require('../services/aiService')
+      const { callWithFallback, generateFromBook, parseQuestionsJson } = require('../services/aiService')
       const { TEXT_CHAIN: DEFAULT_TEXT, ALL_MAP } = require('../services/aiProviders')
       const configService = require('../services/configService')
 
@@ -263,6 +268,7 @@ router.post(
       const providerNames = configData?.aiProviderConfig?.text_chain || DEFAULT_TEXT.map(p => p.name)
       const textChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
 
+      // ── Step 1: Parse prompt with AI ────────────────────────────────────
       const parsePrompt = `তুমি একটি JSON parser। ইউজারের বাংলা/Banglish/ইংরেজি prompt থেকে শুধুমাত্র JSON output দাও।
 
 উপলব্ধ subjects: bangla, english, math, science, accounting
@@ -274,8 +280,7 @@ Output format (শুধুমাত্র JSON, কোনো ব্যাখ্
   "subject": "math",
   "chapterId": "ch-2",
   "questionTypes": ["CQ"],
-  "count": 10,
-  "mode": "existing"
+  "count": 10
 }
 
 নিয়ম:
@@ -283,24 +288,23 @@ Output format (শুধুমাত্র JSON, কোনো ব্যাখ্
 - "creative"/"সৃজনশীল"/"CQ" → ["CQ"]
 - "mcq"/"বহুনির্বাচনি" → ["MCQ"]
 - "short"/"সংক্ষিপ্ত" → ["short"]
+- "broad"/"রচনামূলক" → ["broad"]
+- "fill_blank"/"শূন্যস্থান" → ["fill_blank"]
+- একাধিক ধরন থাকলো সব রাখো, না থাকলো ["MCQ"] রাখো
 - "math"/"গণিত" → subject: "math"
 - "বিজ্ঞান"/"science" → subject: "science"
 - "বাংলা"/"bangla" → subject: "bangla"
 - "english"/"ইংরেজি" → subject: "english"
 - "হিসাববিজ্ঞান"/"accounting" → subject: "accounting"
-- mode: "existing" (default) — DB থেকে আনবে
 - যদি prompt-এ ক্লাস না থাকে, classNum: null রাখো
 - যদি subject বোঝা না যায়, subject: null রাখো
 - count যদি না থাকে, 5 রাখো
-- questionTypes যদি না থাকে, ["MCQ"] রাখো
 
 User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
 
-      const messages = [{ role: 'user', content: parsePrompt }]
-
       const parseResult = await callWithFallback(
         textChain,
-        { messages, vision: false, jsonMode: true, temperature: 0 },
+        { messages: [{ role: 'user', content: parsePrompt }], vision: false, jsonMode: true, temperature: 0 },
         'smart-parse',
         req.user.uid,
       )
@@ -309,12 +313,9 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
       let parsed = {}
       try {
         const raw = parseResult.questions?.[0] || {}
-        // AI returns parsed JSON as the "question" — extract it
         if (raw.classNum || raw.subject) {
           parsed = raw
         } else {
-          // Try parsing from the raw text response
-          const { parseQuestionsJson } = require('../services/aiService')
           const arr = parseQuestionsJson(JSON.stringify(parseResult.questions))
           parsed = arr[0] || {}
         }
@@ -328,7 +329,7 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
       const subject = parsed.subject
       const chapterId = parsed.chapterId
       const questionTypes = parsed.questionTypes || ['MCQ']
-      const count = Math.min(parsed.count || 5, 20)
+      const requestedCount = Math.min(parsed.count || 5, 20)
 
       if (!classNum || !subject) {
         throw new AppError(
@@ -337,51 +338,140 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
         )
       }
 
-      // Step 2: Build selections — if chapterId provided, use it; otherwise fetch all chapters
+      // ── Step 2: Build selections ────────────────────────────────────────
       let selections = []
+      let sourceChapters = []
+      const allChapters = await bookService.getChapters(classNum, subject)
+
       if (chapterId) {
-        selections = [{ chapterId, subchapterIds: ['all'] }]
+        // Try exact match first, then try partial/numeric match
+        let found = allChapters.find((c) => c.id === chapterId)
+        if (!found) {
+          // Try: "ch-2" or "2" → match chapterNumber or id containing the number
+          const num = parseInt(String(chapterId).replace(/\D/g, ''))
+          if (num) {
+            found = allChapters.find((c) => c.chapterNumber === num)
+              || allChapters.find((c) => String(c.id).includes(String(num)))
+          }
+        }
+        if (found) {
+          selections = [{ chapterId: found.id, subchapterIds: ['all'] }]
+          sourceChapters.push(found.title)
+        } else if (allChapters.length > 0) {
+          // Fallback: use all chapters
+          selections = allChapters.map((ch) => ({ chapterId: ch.id, subchapterIds: ['all'] }))
+          sourceChapters = allChapters.map((ch) => ch.title)
+        }
       } else {
-        // No specific chapter — get all chapters for the subject
-        const chapters = await bookService.getChapters(classNum, subject)
-        if (chapters.length === 0) {
+        if (allChapters.length === 0) {
           throw new AppError(`${classNum} শ্রেণির ${subject} বিষয়ে কোনো অধ্যায় পাওয়া যায়নি`, 404)
         }
-        selections = chapters.map((ch) => ({ chapterId: ch.id, subchapterIds: ['all'] }))
+        selections = allChapters.map((ch) => ({ chapterId: ch.id, subchapterIds: ['all'] }))
+        sourceChapters = allChapters.map((ch) => ch.title)
       }
 
-      // Step 3: Fetch existing questions from DB
-      const questions = await bookService.getExistingQuestions(
+      // ── Step 3: Fetch existing questions from DB ────────────────────────
+      const dbQuestions = await bookService.getExistingQuestions(
         classNum,
         subject,
         selections,
         { types: questionTypes.map((t) => t.toLowerCase()) },
       )
 
-      // Step 4: Limit to requested count
-      const limited = questions.slice(0, count)
+      console.log(`[smart-prompt] DB: ${dbQuestions.length}/${requestedCount} questions found`)
 
-      // Charge credit for the operation
-      const sourceChapters = []
-      if (chapterId) {
-        const chapters = await bookService.getChapters(classNum, subject)
-        const found = chapters.find((c) => c.id === chapterId)
-        if (found) sourceChapters.push(found.title)
+      // Take as many DB questions as available (up to requestedCount)
+      const dbPart = dbQuestions.slice(0, requestedCount)
+      const shortfall = requestedCount - dbPart.length
+      let aiQuestions = []
+
+      // ── Step 4: If shortfall, AI generates the rest from chapter content ─
+      if (shortfall > 0) {
+        console.log(`[smart-prompt] shortfall: ${shortfall} — generating via AI from chapter content`)
+
+        // Fetch chapter content for AI context
+        const contentBlocks = await bookService.getContentForSelections(classNum, subject, selections)
+
+        let combinedContext = ''
+        if (contentBlocks.length > 0) {
+          combinedContext = contentBlocks
+            .map((b) => {
+              const head = b.subchapterId ? `## ${b.subchapterId} ${b.title}` : `## ${b.title}`
+              return `${head}\n\n${b.content}`
+            })
+            .join('\n\n---\n\n')
+        }
+
+        // Also include existing DB questions as style reference (no hallucination)
+        if (dbPart.length > 0) {
+          const styleRef = dbPart.slice(0, 3).map((q, i) =>
+            `Style Example ${i + 1} (${q.type.toUpperCase()}):\n${JSON.stringify(q.data, null, 2)}`
+          ).join('\n\n')
+          combinedContext += `\n\n---\nSTYLE REFERENCES (use similar format, do NOT copy):\n${styleRef}`
+        }
+
+        if (combinedContext.trim()) {
+          const aiResult = await generateFromBook(
+            combinedContext,
+            { subject, classNum, questionTypes, count: shortfall },
+            req.user.uid,
+          )
+          aiQuestions = aiResult.questions || []
+          console.log(`[smart-prompt] AI generated: ${aiQuestions.length} questions via ${aiResult.provider}`)
+        }
       }
+
+      // ── Step 5: Merge DB + AI results ───────────────────────────────────
+      // DB questions are in the raw book_questions shape — normalize them
+      const normalizedDb = dbPart.map((q) => {
+        const d = q.data || {}
+        if (q.type === 'mcq') {
+          return {
+            type: 'MCQ',
+            question: d.question,
+            option_a: d.options?.['ক'] || d.options?.['i'],
+            option_b: d.options?.['খ'] || d.options?.['ii'],
+            option_c: d.options?.['গ'] || d.options?.['iii'],
+            option_d: d.options?.['ঘ'],
+            _source: q.source,
+            _id: q.id,
+          }
+        }
+        if (q.type === 'cq') {
+          return {
+            type: 'CQ',
+            stimulus: d.scenario,
+            question: d.scenario,
+            sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({ label: k, text: v })),
+            _source: q.source,
+            _id: q.id,
+          }
+        }
+        return {
+          type: q.type === 'saq' ? 'short' : q.type,
+          question: d.question,
+          sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({ label: k, text: v })),
+          _source: q.source,
+          _id: q.id,
+        }
+      })
+
+      // AI questions are already in the normalized shape (from generateFromBook)
+      const aiNormalized = aiQuestions.map((q) => ({ ...q, _source: 'ai-generated' }))
+
+      const allQuestions = [...normalizedDb, ...aiNormalized].slice(0, requestedCount)
 
       res.json({
         success: true,
-        questions: limited,
-        count: limited.length,
+        questions: allQuestions,
+        count: allQuestions.length,
+        dbCount: normalizedDb.length,
+        aiCount: aiNormalized.length,
         source: 'smart',
-        parsed: { classNum, subject, chapterId, questionTypes, count },
+        parsed: { classNum, subject, chapterId, questionTypes, count: requestedCount },
         sourceChapters,
         creditsCharged: 1,
       })
-
-      if (limited.length === 0) {
-        // Will still return 200 but frontend shows toast
-      }
     } catch (err) {
       console.error('Smart Prompt Error:', err)
       next(err)
