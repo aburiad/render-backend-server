@@ -325,19 +325,20 @@ export default function MathLiveEditor({ inputRef, onInsert, onCustomKeyboardCha
 
   return (
     <>
-      <div className="inline-flex gap-1 sm:gap-1" style={{ flexShrink: 0 }}>
+      <div className="inline-flex gap-1.5" style={{ flexShrink: 0 }}>
         <button
           type="button"
           onClick={() => openModal(false)}
           title="গণিত লিখুন (LaTeX এডিটর)"
           className="btn-press"
           style={{
-            width: 26, height: 26, borderRadius: 8,
+            width: 32, height: 32, borderRadius: 8,
             border: '1.5px solid #e2e8f0', background: '#fff', color: '#94a3b8',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', fontSize: 11, fontWeight: 800,
+            cursor: 'pointer', fontSize: 12, fontWeight: 800,
             fontStyle: 'italic', fontFamily: 'serif', flexShrink: 0,
             transition: 'all 0.15s',
+            touchAction: 'manipulation',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.background = '#eff6ff'; e.currentTarget.style.color = '#2563eb'; e.currentTarget.style.borderColor = '#bfdbfe' }}
           onMouseLeave={(e) => { e.currentTarget.style.background = '#fff'; e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.borderColor = '#e2e8f0' }}
@@ -357,7 +358,7 @@ export default function MathLiveEditor({ inputRef, onInsert, onCustomKeyboardCha
           title="গণিত কীবোর্ড খুলুন"
           className="btn-press"
           style={{
-            width: 26, height: 26, borderRadius: 8,
+            width: 32, height: 32, borderRadius: 8,
             border: 'none',
             background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
             color: '#ffffff',
@@ -365,6 +366,7 @@ export default function MathLiveEditor({ inputRef, onInsert, onCustomKeyboardCha
             cursor: 'pointer', flexShrink: 0,
             transition: 'all 0.15s',
             boxShadow: '0 1px 4px rgba(37, 99, 235, 0.3)',
+            touchAction: 'manipulation',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(37, 99, 235, 0.45)' }}
           onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.35)' }}

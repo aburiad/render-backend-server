@@ -171,6 +171,17 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
 
   const rows = config.rows[activeTab] || config.rows.letters
 
+  // Track if a touch event just handled the action, so the
+  // follow-up click/pointerdown can be skipped (no double-fire).
+  const touchHandledRef = useRef(false)
+  const clearTouchFlag = useRef(null)
+
+  function touchHandled() {
+    touchHandledRef.current = true
+    clearTimeout(clearTouchFlag.current)
+    clearTouchFlag.current = setTimeout(() => { touchHandledRef.current = false }, 400)
+  }
+
   const modal = open && createPortal(
     <AnimatePresence>
       <motion.div
@@ -197,7 +208,7 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
           exit={{ opacity: 0, y: 24, scale: 0.98 }}
           transition={{ type: 'spring', stiffness: 360, damping: 30 }}
           onClick={(e) => e.stopPropagation()}
-          onPointerDown={swallowPointer}
+          onTouchStart={(e) => e.stopPropagation()}
           style={{
             width: '100%',
             maxWidth: 620,
@@ -206,6 +217,7 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
             boxShadow: '0 24px 60px -18px rgba(15, 23, 42, 0.36)',
             overflow: 'hidden',
             border: '1px solid #e2e8f0',
+            touchAction: 'manipulation',
           }}
         >
           <div style={{
@@ -221,14 +233,15 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
                 <button
                   key={id}
                   type="button"
-                  onPointerDown={(e) => {
-                    swallowPointer(e)
+                  onTouchStart={(e) => {
+                    e.preventDefault()
                     setActiveTab(id)
+                    touchHandled()
                   }}
-                  className="btn-press"
+                  onClick={() => { if (!touchHandledRef.current) setActiveTab(id) }}
                   style={{
-                    height: 32,
-                    padding: '0 12px',
+                    height: 36,
+                    padding: '0 14px',
                     borderRadius: 10,
                     border: activeTab === id ? `1px solid ${config.activeBorder}` : '1px solid #e2e8f0',
                     background: activeTab === id ? config.activeBg : '#ffffff',
@@ -237,6 +250,7 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
                     fontWeight: 800,
                     fontFamily: '"Noto Naskh Arabic", "Amiri", serif',
                     cursor: 'pointer',
+                    touchAction: 'manipulation',
                   }}
                 >
                   {label}
@@ -245,14 +259,15 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
             </div>
             <button
               type="button"
-              onPointerDown={(e) => {
-                swallowPointer(e)
+              onTouchStart={(e) => {
+                e.preventDefault()
                 closeKeyboard()
+                touchHandled()
               }}
-              className="btn-press"
+              onClick={() => { if (!touchHandledRef.current) closeKeyboard() }}
               style={{
-                width: 34,
-                height: 34,
+                width: 36,
+                height: 36,
                 borderRadius: 11,
                 border: 'none',
                 background: '#f1f5f9',
@@ -261,6 +276,7 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                touchAction: 'manipulation',
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
@@ -307,11 +323,12 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
                   <button
                     key={key}
                     type="button"
-                    onPointerDown={(e) => {
-                      swallowPointer(e)
+                    onTouchStart={(e) => {
+                      e.preventDefault()
                       insertText(key)
+                      touchHandled()
                     }}
-                    className="btn-press"
+                    onClick={() => { if (!touchHandledRef.current) insertText(key) }}
                     style={keyBtnStyle(key)}
                   >
                     {getKeyLabel(key)}
@@ -327,9 +344,26 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
             gridTemplateColumns: '1fr 2fr 1fr',
             gap: 8,
           }}>
-            <button type="button" onPointerDown={(e) => { swallowPointer(e); backspace() }} className="btn-press" style={actionStyle} title="Backspace">⌫</button>
-            <button type="button" onPointerDown={(e) => { swallowPointer(e); insertText(' ') }} className="btn-press" style={{ ...actionStyle, fontSize: 13, fontWeight: 800 }}>Space</button>
-            <button type="button" onPointerDown={(e) => { swallowPointer(e); insertText('\n') }} className="btn-press" style={actionStyle} title="New line">↵</button>
+            <button
+              type="button"
+              onTouchStart={(e) => { e.preventDefault(); backspace(); touchHandled() }}
+              onClick={() => { if (!touchHandledRef.current) backspace() }}
+              style={actionStyle}
+              title="Backspace"
+            >⌫</button>
+            <button
+              type="button"
+              onTouchStart={(e) => { e.preventDefault(); insertText(' '); touchHandled() }}
+              onClick={() => { if (!touchHandledRef.current) insertText(' ') }}
+              style={{ ...actionStyle, fontSize: 13, fontWeight: 800 }}
+            >Space</button>
+            <button
+              type="button"
+              onTouchStart={(e) => { e.preventDefault(); insertText('\n'); touchHandled() }}
+              onClick={() => { if (!touchHandledRef.current) insertText('\n') }}
+              style={actionStyle}
+              title="New line"
+            >↵</button>
           </div>
         </motion.div>
       </motion.div>
@@ -400,8 +434,8 @@ function keyBtnStyle(key) {
 
 function triggerStyle(cfg) {
   return {
-    width: 30,
-    height: 30,
+    width: 32,
+    height: 32,
     borderRadius: 10,
     border: 'none',
     background: cfg.gradient,
