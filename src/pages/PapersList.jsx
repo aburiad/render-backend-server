@@ -55,8 +55,8 @@ function PaperItem({ paper, onLongPress, onDelete, onDuplicate, deleting, duplic
       >
         <div
           style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '13px 16px',
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '10px 12px',
             transition: 'background 0.15s ease',
           }}
           onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-muted)'}
@@ -67,16 +67,16 @@ function PaperItem({ paper, onLongPress, onDelete, onDuplicate, deleting, duplic
             onClick={() => navigate(primaryHref)}
             className="btn-press"
             style={{
-              display: 'flex', alignItems: 'center', gap: 12,
+              display: 'flex', alignItems: 'center', gap: 10,
               flex: 1, minWidth: 0, cursor: 'pointer',
             }}
           >
             {/* Avatar */}
             <div style={{
-              width: 44, height: 44, borderRadius: 'var(--radius-md)', flexShrink: 0,
+              width: 38, height: 38, borderRadius: 'var(--radius-md)', flexShrink: 0,
               background: 'linear-gradient(135deg, var(--primary-light), var(--accent-light))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: 'var(--primary)', fontWeight: 800, fontSize: 18,
+              color: 'var(--primary)', fontWeight: 800, fontSize: 16,
             }}>
               {initial}
             </div>
@@ -84,72 +84,52 @@ function PaperItem({ paper, onLongPress, onDelete, onDuplicate, deleting, duplic
             {/* Text block */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{
-                fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--text-primary)',
-                margin: '0 0 3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                fontSize: 13, fontWeight: 600, color: 'var(--text-primary)',
+                margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>
                 {paper.exam_title || 'শিরোনামবিহীন'}
               </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                {paper.institution_name && (
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
-                    {paper.institution_name}
-                  </span>
-                )}
-                {paper.institution_name && <span style={{ color: 'var(--border)', fontSize: 10 }}>·</span>}
-                <span style={{ fontSize: 'var(--text-xs)', color: 'var(--primary)', fontWeight: 600 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                <span style={{ fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>
                   {qCount} প্রশ্ন
                 </span>
                 {marks > 0 && (
                   <>
-                    <span style={{ color: 'var(--border)', fontSize: 10 }}>·</span>
-                    <span style={{ fontSize: 'var(--text-xs)', color: '#16a34a', fontWeight: 600 }}>
+                    <span style={{ color: 'var(--border)', fontSize: 8 }}>·</span>
+                    <span style={{ fontSize: 11, color: '#16a34a', fontWeight: 600 }}>
                       {marks} নম্বর
                     </span>
                   </>
                 )}
+                {paper.updatedAt && (
+                  <>
+                    <span style={{ color: 'var(--border)', fontSize: 8 }}>·</span>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                      {formatDate(paper.updatedAt)}
+                    </span>
+                  </>
+                )}
               </div>
-              {paper.updatedAt && (
-                <p style={{ fontSize: 10, color: 'var(--text-muted)', margin: '3px 0 0' }}>
-                  {formatDate(paper.updatedAt)}
-                </p>
-              )}
             </div>
           </div>
 
-          {/* Right — sibling action buttons (no event-bubble conflict) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              title="আরো অপশন"
-              style={{
-                width: 36, height: 36, borderRadius: 'var(--radius-full)',
-                background: 'var(--bg-input)', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                color: 'var(--text-muted)',
-              }}
-              className="btn-press"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
-              </svg>
-            </button>
-            <button
-              type="button"
-              onClick={() => navigate(`/papers/${paper.id}`)}
-              title="সম্পাদনা করুন"
-              style={{
-                width: 28, height: 28, borderRadius: 'var(--radius-full)',
-                background: 'transparent', border: 'none', cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-              className="btn-press"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-              </svg>
-            </button>
-          </div>
+          {/* Right — menu button only */}
+          <button
+            type="button"
+            onClick={() => setMenuOpen(true)}
+            title="আরো অপশন"
+            style={{
+              width: 34, height: 34, borderRadius: 'var(--radius-full)',
+              background: 'transparent', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: 'var(--text-muted)',
+            }}
+            className="btn-press"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
+            </svg>
+          </button>
         </div>
       </motion.div>
 
