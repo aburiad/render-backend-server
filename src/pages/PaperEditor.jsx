@@ -532,7 +532,7 @@ export default function PaperEditor() {
             ).map((q) => q.id)}
             strategy={verticalListSortingStrategy}
           >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="flex flex-col gap-2 sm:gap-3.5">
               <AnimatePresence>
                 {(() => {
                   const sectionMode = !!currentPaper?.section_mode

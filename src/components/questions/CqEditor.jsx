@@ -85,7 +85,7 @@ export default function CqEditor({ question }) {
       </div>
 
       {/* Numbering + layout controls */}
-      <div className="flex flex-wrap items-center gap-3 px-2 py-2 bg-purple-50 border border-purple-100 rounded-xl">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-3 px-2 py-1.5 sm:py-2 bg-purple-50 border border-purple-100 rounded-xl">
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] font-semibold text-purple-700">নম্বরিং:</span>
           <select
@@ -140,10 +140,12 @@ export default function CqEditor({ question }) {
                 </div>
                 <div className="flex items-center gap-1.5 pl-9 sm:pl-0">
                   {layout === 1 && (
-                    <MathLiveEditor
-                      inputRef={{ get current() { return subRefs.current[i] } }}
-                      onInsert={(v) => handleSubChange(i, 'text', v)}
-                    />
+                    <div className="hidden sm:block">
+                      <MathLiveEditor
+                        inputRef={{ get current() { return subRefs.current[i] } }}
+                        onInsert={(v) => handleSubChange(i, 'text', v)}
+                      />
+                    </div>
                   )}
                   <input
                     type="number"
