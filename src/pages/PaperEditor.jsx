@@ -429,29 +429,6 @@ export default function PaperEditor() {
         </div>
       </div>
 
-      {/* ── Top Bar (Mobile Only) ─────────────────────────────────────────── */}
-      <div className="flex lg:hidden items-center justify-between gap-2 mb-2">
-        <button
-          onClick={() => navigate('/dashboard')}
-          style={{ background: 'none', border: 'none', padding: 0, display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', flexShrink: 0 }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth={3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-          </svg>
-          <span style={{ fontSize: 13, fontWeight: 700, color: '#64748b' }}>ড্যাশবোর্ড</span>
-        </button>
-        <div style={{ flexShrink: 0 }}>
-          <CreditBalance compact showTopUp />
-        </div>
-      </div>
-      <div className="flex lg:hidden items-baseline gap-2 mb-4" style={{ paddingLeft: 2 }}>
-        <h1 style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>
-          {id ? 'সম্পাদনা' : 'নতুন পেপার'}
-        </h1>
-        <span style={{ fontSize: 10, fontWeight: 700, color: isDirty ? '#3b82f6' : '#10b981' }}>
-          {isDirty ? (saving ? '• সেভ হচ্ছে' : '• পরিবর্তন আছে') : '• সব সেভ আছে'}
-        </span>
-      </div>
 
       {/* ── Main Content ────────────────────────────────────── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -471,7 +448,10 @@ export default function PaperEditor() {
                 </svg>
               </div>
               <span style={{ fontSize: 12, fontWeight: 900, color: '#1e293b' }}>
-                {totalMarks} / {targetMarks || '—'} Marks
+                {totalMarks}/{targetMarks || '—'} নম্বর
+              </span>
+              <span className="lg:hidden" style={{ fontSize: 10, fontWeight: 700, color: isDirty ? '#3b82f6' : '#10b981' }}>
+                {isDirty ? (saving ? 'সেভ…' : '• অসেভ') : '✓'}
               </span>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -481,7 +461,7 @@ export default function PaperEditor() {
                   <button onClick={() => setShowPublishModal(true)} className="btn-press" style={{ padding: '6px 12px', background: '#f5f3ff', color: '#7c3aed', borderRadius: '10px', fontSize: 11, fontWeight: 800, border: '1px solid #ddd6fe' }}>Publish</button>
                 </>
               )}
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>{questions.length} Qs</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>{questions.length} প্রশ্ন</span>
             </div>
           </div>
         )}
