@@ -121,7 +121,7 @@ function StatCard({ label, value, color, gradient }) {
           background: 'rgba(255,255,255,0.08)',
         }}
       />
-      <div className="relative" style={{ zIndex: 1 }}>
+      <div className="relative text-center" style={{ zIndex: 1 }}>
         <p
           className="text-[22px] sm:text-[28px] font-extrabold m-0"
           style={{
