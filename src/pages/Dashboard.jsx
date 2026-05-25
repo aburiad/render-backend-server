@@ -91,22 +91,38 @@ const item = {
 function StatCard({ label, value, color }) {
   return (
     <div
-      className="bg-white text-center rounded-xl sm:rounded-2xl px-1.5 py-2.5 sm:px-2 sm:py-4 border border-slate-100"
-      style={{ boxShadow: 'var(--shadow-card)' }}
+      className="relative overflow-hidden rounded-xl sm:rounded-2xl"
+      style={{
+        background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+        border: '1px solid rgba(241,245,249,0.8)',
+        padding: '8px 4px',
+      }}
     >
-      <p
-        className="text-[18px] sm:text-2xl font-extrabold mb-0.5"
+      {/* Colored dot accent */}
+      <div
+        className="mx-auto mb-1 rounded-full"
         style={{
-          color: color,
+          width: 6,
+          height: 6,
+          background: color,
+          boxShadow: `0 0 8px ${color}40`,
+        }}
+      />
+      <p
+        className="text-[20px] sm:text-2xl font-extrabold m-0"
+        style={{
+          color: '#0f172a',
           lineHeight: 1,
           fontFamily: 'var(--font-english)',
+          letterSpacing: '-0.02em',
         }}
       >
         {value}
       </p>
       <p
-        className="text-[9px] sm:text-[10px] font-bold uppercase m-0 leading-tight"
-        style={{ color: '#94a3b8', letterSpacing: '0.02em' }}
+        className="text-[8px] sm:text-[9px] font-semibold m-0 mt-1 leading-tight"
+        style={{ color: '#94a3b8', letterSpacing: '0.04em' }}
       >
         {label}
       </p>
