@@ -397,34 +397,12 @@ export default function BookGenerateModal({ onClose }) {
                 exit={{ opacity: 0, x: 20 }}
                 className="space-y-3 sm:space-y-5"
               >
-                {/* Class */}
-                <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                    ক্লাস
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {CLASSES.map((c) => (
-                      <button
-                        key={c.value}
-                        onClick={() => setClassNum(c.value)}
-                        className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all ${
-                          classNum === c.value
-                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
-                            : 'bg-white text-gray-600 border border-gray-200 hover:border-emerald-300'
-                        }`}
-                      >
-                        {c.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* ✨ Smart Prompt */}
+                {/* ✨ Smart Prompt — HERO (top) */}
                 <div>
                   <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
                     ✨ স্মার্ট প্রশ্ন
                     <span className="normal-case tracking-normal font-medium text-gray-300 ml-1.5">
-                      — অথবা নিচে থেকে সিলেক্ট করুন
+                      — বাংলা/ইংরেজিতে লিখুন
                     </span>
                   </label>
                   <div className="flex flex-col gap-2">
@@ -459,8 +437,30 @@ export default function BookGenerateModal({ onClose }) {
 
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px bg-gray-200" />
-                  <span className="text-[10px] font-bold text-gray-300 uppercase">অথবা</span>
+                  <span className="text-[10px] font-bold text-gray-300 uppercase">অথবা ম্যানুয়ালি সিলেক্ট</span>
                   <div className="flex-1 h-px bg-gray-200" />
+                </div>
+
+                {/* Class */}
+                <div>
+                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                    ক্লাস
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {CLASSES.map((c) => (
+                      <button
+                        key={c.value}
+                        onClick={() => setClassNum(c.value)}
+                        className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                          classNum === c.value
+                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
+                            : 'bg-white text-gray-600 border border-gray-200 hover:border-emerald-300'
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Subject */}
