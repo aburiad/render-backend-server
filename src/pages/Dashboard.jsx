@@ -118,32 +118,32 @@ function QuickActionCard({ action }) {
   return (
     <Link
       to={action.path}
-      className="btn-press flex flex-col items-stretch text-center bg-white no-underline p-2 sm:p-3 gap-1.5 sm:gap-2 border border-slate-100 rounded-xl sm:rounded-2xl"
-      style={{ boxShadow: 'var(--shadow-card)' }}
+      className="btn-press flex items-center gap-3 bg-white no-underline p-3 sm:p-3.5 border border-slate-100 rounded-xl sm:rounded-2xl"
+      style={{ boxShadow: 'var(--shadow-card)', minHeight: 64 }}
     >
       <div
-        className="w-7 h-7 sm:w-9 sm:h-9 rounded-md sm:rounded-lg flex items-center justify-center mx-auto"
+        className="w-10 h-10 sm:w-9 sm:h-10 rounded-xl sm:rounded-lg flex items-center justify-center flex-shrink-0"
         style={{
           background: action.gradient,
           boxShadow: `0 3px 8px ${action.glow}`,
         }}
       >
         <svg
-          className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]"
+          className="w-[18px] h-[18px] sm:w-[18px] sm:h-[18px]"
           viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.2}
         >
           <path strokeLinecap="round" strokeLinejoin="round" d={action.icon} />
         </svg>
       </div>
-      <div>
+      <div className="min-w-0 text-left">
         <p
-          className="text-[11px] sm:text-xs font-semibold m-0 leading-tight"
+          className="text-[13px] sm:text-xs font-semibold m-0 leading-tight"
           style={{ color: 'var(--text-primary)' }}
         >
           {action.label}
         </p>
         <p
-          className="text-[9px] sm:text-[10px] m-0 mt-0.5 leading-tight"
+          className="text-[11px] sm:text-[10px] m-0 mt-0.5 leading-tight"
           style={{ color: 'var(--text-muted)' }}
         >
           {action.description}
@@ -282,7 +282,7 @@ export default function Dashboard() {
         <p style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 12px', paddingLeft: 4 }}>
           দ্রুত কাজ
         </p>
-        <div className="no-scrollbar grid grid-cols-3 gap-1.5 sm:gap-2.5">
+        <div className="no-scrollbar grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
           {hub.quickActions.map((action, i) => (
             <QuickActionCard key={i} action={action} />
           ))}
