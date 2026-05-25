@@ -60,11 +60,9 @@ export default function BottomNav({ className = '' }) {
 
   const isPathActive = (item) => {
     if (item.isFab) {
-      // FAB active only when on /papers/new WITHOUT scan param
       return location.pathname === '/papers/new' && !location.search.includes('scan=true')
     }
     if (item.path === '/papers') {
-      // papers active for /papers and /papers/new (non-scan)
       return location.pathname.startsWith('/papers') && !item.isFab
         && !(location.pathname === '/papers/new' && !location.search.includes('scan=true'))
     }
@@ -74,7 +72,13 @@ export default function BottomNav({ className = '' }) {
   return (
     <nav
       className={`lg:hidden fixed bottom-0 left-0 right-0 z-30 bottom-nav print:hidden ${className}`}
-      style={{ paddingBottom: 'var(--safe-bottom)' }}
+      style={{
+        paddingBottom: 'var(--safe-bottom)',
+        background: 'rgba(255,255,255,0.88)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderTop: '1px solid rgba(0,0,0,0.04)',
+      }}
     >
       <div
         style={{
@@ -100,9 +104,9 @@ export default function BottomNav({ className = '' }) {
                   whileTap={{ scale: 0.88 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                   style={{
-                    width: 52,
-                    height: 52,
-                    marginTop: -24, // raised above nav
+                    width: 50,
+                    height: 50,
+                    marginTop: -22,
                     borderRadius: 'var(--radius-full)',
                     background: isActive
                       ? 'linear-gradient(135deg, #1d4ed8, #7c3aed)'
@@ -111,8 +115,8 @@ export default function BottomNav({ className = '' }) {
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: '#fff',
-                    boxShadow: '0 6px 20px rgba(37,99,235,0.45)',
-                    border: '3px solid var(--bg-card)',
+                    boxShadow: '0 6px 20px rgba(37,99,235,0.35)',
+                    border: '2.5px solid var(--bg-card)',
                   }}
                 >
                   {item.icon}
@@ -139,15 +143,15 @@ export default function BottomNav({ className = '' }) {
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 4,
-                minWidth: 52,
-                paddingTop: 4,
+                gap: 2,
+                minWidth: 48,
+                paddingTop: 6,
                 paddingBottom: 4,
                 position: 'relative',
                 textDecoration: 'none',
               }}
             >
-              {/* Active indicator dot */}
+              {/* Active indicator pill */}
               {isActive && (
                 <motion.div
                   layoutId="nav-indicator"
@@ -155,27 +159,40 @@ export default function BottomNav({ className = '' }) {
                     position: 'absolute',
                     top: 0,
                     left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: 4,
-                    height: 4,
-                    borderRadius: 'var(--radius-full)',
+                    x: '-50%',
+                    width: 20,
+                    height: 3,
+                    borderRadius: 99,
                     background: 'var(--primary)',
                   }}
                   transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                 />
               )}
 
-              {/* Icon */}
-              <motion.span
-                animate={{
-                  color: isActive ? 'var(--primary)' : 'var(--text-muted)',
-                  scale: isActive ? 1.1 : 1,
+              {/* Icon with subtle bg highlight */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 36,
+                  height: 28,
+                  borderRadius: 14,
+                  background: isActive ? 'rgba(37,99,235,0.08)' : 'transparent',
+                  transition: 'background 0.2s',
                 }}
-                transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                style={{ display: 'flex', lineHeight: 0 }}
               >
-                {item.icon}
-              </motion.span>
+                <motion.span
+                  animate={{
+                    color: isActive ? 'var(--primary)' : 'var(--text-muted)',
+                    scale: isActive ? 1.05 : 1,
+                  }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                  style={{ display: 'flex', lineHeight: 0 }}
+                >
+                  {item.icon}
+                </motion.span>
+              </div>
 
               {/* Label */}
               <motion.span
@@ -183,7 +200,7 @@ export default function BottomNav({ className = '' }) {
                 transition={{ duration: 0.15 }}
                 style={{
                   fontSize: 'var(--text-xs)',
-                  fontWeight: isActive ? 600 : 500,
+                  fontWeight: isActive ? 700 : 500,
                   lineHeight: 1,
                 }}
               >
