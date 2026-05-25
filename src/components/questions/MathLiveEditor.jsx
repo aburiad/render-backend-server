@@ -325,17 +325,17 @@ export default function MathLiveEditor({ inputRef, onInsert, onCustomKeyboardCha
 
   return (
     <>
-      <div style={{ display: 'inline-flex', gap: 4, flexShrink: 0 }}>
+      <div className="inline-flex gap-1 sm:gap-1" style={{ flexShrink: 0 }}>
         <button
           type="button"
           onClick={() => openModal(false)}
           title="গণিত লিখুন (LaTeX এডিটর)"
           className="btn-press"
           style={{
-            width: 30, height: 30, borderRadius: 10,
+            width: 26, height: 26, borderRadius: 8,
             border: '1.5px solid #e2e8f0', background: '#fff', color: '#94a3b8',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', fontSize: 13, fontWeight: 800,
+            cursor: 'pointer', fontSize: 11, fontWeight: 800,
             fontStyle: 'italic', fontFamily: 'serif', flexShrink: 0,
             transition: 'all 0.15s',
           }}
@@ -357,14 +357,14 @@ export default function MathLiveEditor({ inputRef, onInsert, onCustomKeyboardCha
           title="গণিত কীবোর্ড খুলুন"
           className="btn-press"
           style={{
-            width: 30, height: 30, borderRadius: 10,
+            width: 26, height: 26, borderRadius: 8,
             border: 'none',
             background: 'linear-gradient(135deg, #2563eb 0%, #4f46e5 100%)',
             color: '#ffffff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             cursor: 'pointer', flexShrink: 0,
             transition: 'all 0.15s',
-            boxShadow: '0 2px 6px rgba(37, 99, 235, 0.35)',
+            boxShadow: '0 1px 4px rgba(37, 99, 235, 0.3)',
           }}
           onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 10px rgba(37, 99, 235, 0.45)' }}
           onMouseLeave={(e) => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 2px 6px rgba(37, 99, 235, 0.35)' }}

@@ -138,14 +138,12 @@ export default function CqEditor({ question }) {
                     className="flex-1 min-w-0 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
                 </div>
-                <div className="flex items-center gap-1.5 pl-9 sm:pl-0">
+                <div className="flex items-center gap-1 pl-9 sm:gap-1.5 sm:pl-0">
                   {layout === 1 && (
-                    <div className="hidden sm:block">
-                      <MathLiveEditor
-                        inputRef={{ get current() { return subRefs.current[i] } }}
-                        onInsert={(v) => handleSubChange(i, 'text', v)}
-                      />
-                    </div>
+                    <MathLiveEditor
+                      inputRef={{ get current() { return subRefs.current[i] } }}
+                      onInsert={(v) => handleSubChange(i, 'text', v)}
+                    />
                   )}
                   <input
                     type="number"
