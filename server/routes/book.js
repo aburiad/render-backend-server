@@ -235,4 +235,158 @@ router.post(
   },
 )
 
+/**
+ * POST /api/book/smart-prompt
+ * Accept natural-language prompt (Bangla/Banglish/English), use AI to parse
+ * it into structured params, then fetch existing questions from the DB.
+ *
+ * Body: { prompt: "class 8 er 2 no chapter theke 10 ta creative question daw" }
+ *
+ * Returns: { questions, count, parsed: { classNum, subject, chapterId, questionTypes, count } }
+ */
+router.post(
+  '/smart-prompt',
+  checkAiCredit(() => 1),
+  async (req, res, next) => {
+    try {
+      const { prompt } = req.body
+      if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+        throw new AppError('প্রম্পট লিখুন', 400)
+      }
+
+      // Step 1: Use AI to parse the natural-language prompt into structured params
+      const { callWithFallback } = require('../services/aiService')
+      const { TEXT_CHAIN: DEFAULT_TEXT, ALL_MAP } = require('../services/aiProviders')
+      const configService = require('../services/configService')
+
+      const configData = await configService.getConfig()
+      const providerNames = configData?.aiProviderConfig?.text_chain || DEFAULT_TEXT.map(p => p.name)
+      const textChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
+
+      const parsePrompt = `তুমি একটি JSON parser। ইউজারের বাংলা/Banglish/ইংরেজি prompt থেকে শুধুমাত্র JSON output দাও।
+
+উপলব্ধ subjects: bangla, english, math, science, accounting
+উপলব্ধ ক্লাস: 6, 7, 8, 9, 10
+
+Output format (শুধুমাত্র JSON, কোনো ব্যাখ্যা নয়):
+{
+  "classNum": 8,
+  "subject": "math",
+  "chapterId": "ch-2",
+  "questionTypes": ["CQ"],
+  "count": 10,
+  "mode": "existing"
+}
+
+নিয়ম:
+- chapterId যদি না বোঝা যায়, null রাখো
+- "creative"/"সৃজনশীল"/"CQ" → ["CQ"]
+- "mcq"/"বহুনির্বাচনি" → ["MCQ"]
+- "short"/"সংক্ষিপ্ত" → ["short"]
+- "math"/"গণিত" → subject: "math"
+- "বিজ্ঞান"/"science" → subject: "science"
+- "বাংলা"/"bangla" → subject: "bangla"
+- "english"/"ইংরেজি" → subject: "english"
+- "হিসাববিজ্ঞান"/"accounting" → subject: "accounting"
+- mode: "existing" (default) — DB থেকে আনবে
+- যদি prompt-এ ক্লাস না থাকে, classNum: null রাখো
+- যদি subject বোঝা না যায়, subject: null রাখো
+- count যদি না থাকে, 5 রাখো
+- questionTypes যদি না থাকে, ["MCQ"] রাখো
+
+User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
+
+      const messages = [{ role: 'user', content: parsePrompt }]
+
+      const parseResult = await callWithFallback(
+        textChain,
+        { messages, vision: false, jsonMode: true, temperature: 0 },
+        'smart-parse',
+        req.user.uid,
+      )
+
+      // Extract parsed params from AI response
+      let parsed = {}
+      try {
+        const raw = parseResult.questions?.[0] || {}
+        // AI returns parsed JSON as the "question" — extract it
+        if (raw.classNum || raw.subject) {
+          parsed = raw
+        } else {
+          // Try parsing from the raw text response
+          const { parseQuestionsJson } = require('../services/aiService')
+          const arr = parseQuestionsJson(JSON.stringify(parseResult.questions))
+          parsed = arr[0] || {}
+        }
+      } catch {
+        parsed = {}
+      }
+
+      console.log('[smart-prompt] parsed:', JSON.stringify(parsed))
+
+      const classNum = parsed.classNum
+      const subject = parsed.subject
+      const chapterId = parsed.chapterId
+      const questionTypes = parsed.questionTypes || ['MCQ']
+      const count = Math.min(parsed.count || 5, 20)
+
+      if (!classNum || !subject) {
+        throw new AppError(
+          'ক্লাস ও বিষয় বোঝা যায়নি। যেমন: "class 8 math er 2 no chapter theke 5 ta CQ daw"',
+          400,
+        )
+      }
+
+      // Step 2: Build selections — if chapterId provided, use it; otherwise fetch all chapters
+      let selections = []
+      if (chapterId) {
+        selections = [{ chapterId, subchapterIds: ['all'] }]
+      } else {
+        // No specific chapter — get all chapters for the subject
+        const chapters = await bookService.getChapters(classNum, subject)
+        if (chapters.length === 0) {
+          throw new AppError(`${classNum} শ্রেণির ${subject} বিষয়ে কোনো অধ্যায় পাওয়া যায়নি`, 404)
+        }
+        selections = chapters.map((ch) => ({ chapterId: ch.id, subchapterIds: ['all'] }))
+      }
+
+      // Step 3: Fetch existing questions from DB
+      const questions = await bookService.getExistingQuestions(
+        classNum,
+        subject,
+        selections,
+        { types: questionTypes.map((t) => t.toLowerCase()) },
+      )
+
+      // Step 4: Limit to requested count
+      const limited = questions.slice(0, count)
+
+      // Charge credit for the operation
+      const sourceChapters = []
+      if (chapterId) {
+        const chapters = await bookService.getChapters(classNum, subject)
+        const found = chapters.find((c) => c.id === chapterId)
+        if (found) sourceChapters.push(found.title)
+      }
+
+      res.json({
+        success: true,
+        questions: limited,
+        count: limited.length,
+        source: 'smart',
+        parsed: { classNum, subject, chapterId, questionTypes, count },
+        sourceChapters,
+        creditsCharged: 1,
+      })
+
+      if (limited.length === 0) {
+        // Will still return 200 but frontend shows toast
+      }
+    } catch (err) {
+      console.error('Smart Prompt Error:', err)
+      next(err)
+    }
+  },
+)
+
 module.exports = router
