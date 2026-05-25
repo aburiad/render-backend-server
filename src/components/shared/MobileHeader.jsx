@@ -166,29 +166,29 @@ export default function MobileHeader({ className = '' }) {
         {/* User info */}
         <div
           style={{
-            display: 'flex', alignItems: 'center', gap: 12,
-            padding: '12px 16px',
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 10px',
             background: 'var(--bg-muted)',
             borderRadius: 'var(--radius-md)',
-            marginBottom: 12,
+            marginBottom: 8,
           }}
         >
           <div
             style={{
-              width: 44, height: 44, borderRadius: 'var(--radius-full)',
+              width: 34, height: 34, borderRadius: 'var(--radius-full)',
               background: 'linear-gradient(135deg, var(--primary), var(--accent))',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              color: '#fff', fontWeight: 700, fontSize: 18,
+              color: '#fff', fontWeight: 700, fontSize: 14,
               flexShrink: 0,
             }}
           >
             {userInitial}
           </div>
-          <div style={{ minWidth: 0 }}>
-            <p style={{ fontSize: 'var(--text-base)', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>
               {user?.name}
             </p>
-            <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <p style={{ fontSize: 11, color: 'var(--text-muted)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.2 }}>
               {user?.email}
             </p>
           </div>

@@ -92,22 +92,22 @@ export function BottomSheetItem({ icon, label, onClick, danger = false, classNam
       style={{
         display: 'flex',
         alignItems: 'center',
-        gap: 10,
-        padding: '8px 4px',
+        gap: 8,
+        padding: '6px 2px',
         borderRadius: 'var(--radius-md)',
         color: danger ? 'var(--danger)' : 'var(--text-primary)',
         background: 'transparent',
         border: 'none',
         cursor: 'pointer',
-        fontSize: 14,
+        fontSize: 13,
         fontFamily: 'var(--font-bengali)',
         transition: 'background 0.15s ease',
       }}
     >
       {icon && (
         <span style={{
-          width: 32, height: 32,
-          borderRadius: 8,
+          width: 28, height: 28,
+          borderRadius: 7,
           background: danger ? '#fef2f2' : 'var(--bg-input)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
