@@ -86,30 +86,51 @@ export default function CreditBalance({ compact = false, showTopUp = true }) {
   return (
     <>
       <div className="bg-white rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-sm border border-gray-100">
-        <div className="flex items-start justify-between mb-2 sm:mb-3 gap-2">
-          <div className="min-w-0">
-            <p className="text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest">
-              আপনার ক্রেডিট
-            </p>
-            <h3 className="text-lg sm:text-2xl font-black text-gray-900 mt-0.5 sm:mt-1">
-              {data.aiOps}{' '}
-              <span className="text-[11px] sm:text-sm font-bold text-gray-400">AI prompt</span>
-            </h3>
-            <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5 sm:mt-1">
-              ≈ {data.papersEquivalent} পেপার (avg {data.opsPerPaper}/পেপার)
-            </p>
-          </div>
-          <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 text-sm sm:text-base flex-shrink-0">
+        {/* Simple header */}
+        <div className="flex items-center gap-2 mb-3 sm:mb-4">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-amber-50 flex items-center justify-center text-base sm:text-lg flex-shrink-0">
             ⚡
           </div>
+          <div className="min-w-0">
+            <p className="text-[13px] sm:text-sm font-bold text-gray-900 m-0 leading-tight">
+              আপনি আরো <span className="text-blue-600">{data.papersEquivalent}</span>টি প্রশ্নপত্র বানাতে পারবেন
+            </p>
+          </div>
         </div>
+
+        {/* Visual progress bar */}
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] sm:text-xs font-semibold text-gray-500">ব্যালেন্স</span>
+            <span className="text-[11px] sm:text-xs font-bold text-blue-600">{data.aiOps} প্রশ্ন বাকি</span>
+          </div>
+          <div className="h-2.5 sm:h-3 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all duration-700 ease-out"
+              style={{
+                width: `${Math.min(100, Math.max(5, (data.papersEquivalent / 10) * 100))}%`,
+                background: data.papersEquivalent <= 1
+                  ? 'linear-gradient(90deg, #ef4444, #f87171)'
+                  : data.papersEquivalent <= 3
+                    ? 'linear-gradient(90deg, #f59e0b, #fbbf24)'
+                    : 'linear-gradient(90deg, #2563eb, #60a5fa)',
+              }}
+            />
+          </div>
+          <p className="text-[10px] sm:text-[11px] text-gray-400 mt-1 m-0">
+            প্রতি পেপারে গড়ে {data.opsPerPaper}টি প্রশ্ন তৈরি লাগে
+          </p>
+        </div>
+
+        {/* Top-up button */}
         {showTopUp && (
           <button
             type="button"
             onClick={() => setShowModal(true)}
-            className="w-full py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg sm:rounded-xl font-bold text-xs sm:text-sm hover:bg-blue-700 transition-colors"
+            className="w-full py-2.5 sm:py-3 bg-blue-600 text-white rounded-xl font-bold text-[13px] sm:text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
           >
-            + ক্রেডিট কিনুন
+            <span>💰</span>
+            <span>আরো প্রশ্নপত্র বানাতে চান? ক্রেডিট যোগ করুন</span>
           </button>
         )}
       </div>
