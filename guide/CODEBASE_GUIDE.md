@@ -1023,6 +1023,43 @@ curl https://rongtonu.com/api/health
 **Cause:** `min_topup_bdt` or `max_topup_bdt` config issue.
 **Fix:** Admin Dashboard → Settings → Credit System → verify values.
 
+### PDF download returns 503 "PDF সার্ভার এখনও কনফিগার হয়নি"
+
+**Cause:** Render backend missing `PDF_SERVER_URL` / `PDF_SERVER_API_KEY` env vars, OR backend-config pointing to wrong Render service.
+**Fix:**
+1. Check which backend is active: `curl https://www.rongtonu.com/api/backend-config`
+2. Verify that backend's PDF status: `curl https://<render-backend>/api/pdf-server/status` → `configured: true`
+3. If `configured: false`, add these env vars on Render dashboard for that service:
+   ```
+   PDF_SERVER_URL=https://pdf-generator-server-future.onrender.com
+   PDF_SERVER_API_KEY=<shared-secret-key>
+   ```
+4. Also ensure `pdf-generator-server-future` has matching `PDF_API_KEY` env var
+5. After saving env vars, redeploy both services on Render
+6. If browser cached old backend URL: `localStorage.removeItem('_backend_base')` then reload
+
+### PDF Server Architecture (Reference)
+
+```
+Frontend (rongtonu.com)
+  → /api/backend-config → active=render, render_url=<backend>
+  → <backend>/api/pdf-server/papers/:id (auth required)
+    → pdf-generator-server-future.onrender.com/pdf/render (API key auth)
+      → Puppeteer → PDF bytes returned
+```
+
+**Required env vars on Render backend:**
+- `PDF_SERVER_URL` = `https://pdf-generator-server-future.onrender.com`
+- `PDF_SERVER_API_KEY` = `<shared secret>`
+
+**Required env vars on PDF generator server:**
+- `PDF_API_KEY` = `<same shared secret>`
+
+**Key files:**
+- `render-server/routes/pdfServer.js` — PDF proxy route
+- `render-server/services/pdfServerClient.js` — PDF server client
+- `pdf-generator-server-future/` — standalone Puppeteer service
+
 ---
 
 ## 16. AI Provider Strategy

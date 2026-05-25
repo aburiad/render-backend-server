@@ -1,14 +1,14 @@
-import { useRef } from 'react'
-import usePaperStore from '@/store/paperStore'
-import MathLiveEditor from './MathLiveEditor'
-import { MathPreview } from '@/utils/mathRender'
-import StimulusImage from '@/components/shared/StimulusImage'
 import AutoTextarea from '@/components/shared/AutoTextarea'
+import StimulusImage from '@/components/shared/StimulusImage'
+import usePaperStore from '@/store/paperStore'
+import { MathPreview } from '@/utils/mathRender'
 import {
-  NUMBERING_OPTIONS,
   LAYOUT_OPTIONS,
+  NUMBERING_OPTIONS,
   getSubLabel,
 } from '@/utils/subNumbering'
+import { useRef } from 'react'
+import MathLiveEditor from './MathLiveEditor'
 
 const DEFAULT_SUBS = [
   { label: 'ক', text: '', marks: 0 },
