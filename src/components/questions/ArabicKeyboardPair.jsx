@@ -164,7 +164,7 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
             </button>
           </div>
 
-          {/* Textarea */}
+          {/* Textarea — readOnly + inputMode=none prevents native keyboard on mobile */}
           <div style={{ padding: '14px 22px 8px' }}>
             <textarea
               ref={textareaRef}
@@ -172,7 +172,9 @@ export default function ArabicKeyboardPair({ inputRef, onInsert, onOpenChange })
               onChange={(e) => setText(e.target.value)}
               dir="rtl"
               rows={3}
-              placeholder="এখানে টাইপ করুন..."
+              readOnly
+              inputMode="none"
+              placeholder="নিচের কীবোর্ড থেকে টাইপ করুন..."
               style={{
                 width: '100%', padding: '12px 14px', fontSize: 16,
                 fontFamily: '"Noto Naskh Arabic", "Amiri", serif',
