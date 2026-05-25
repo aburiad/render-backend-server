@@ -232,34 +232,26 @@ export default function Dashboard() {
       animate="show"
       className="flex flex-col gap-3 sm:gap-6 pb-6"
     >
-      {/* ── Welcome Area ───────────────────────────────────── */}
+      {/* ── Welcome Area + Stats ─────────────────────────────── */}
       <motion.div variants={item}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div>
-            <span
-              className="text-[14px] sm:text-xs"
-              style={{ fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}
-            >
-              {hub.title}
-            </span>
-            <h1
-              className="text-[18px] sm:text-[26px]"
-              style={{ fontWeight: 800, color: '#0f172a', margin: '2px 0 0' }}
-            >
-              হ্যালো, {firstName}! 👋
-            </h1>
-          </div>
-          <div style={{
-            background: 'linear-gradient(135deg, #fff, #f8fafc)',
-            padding: '6px 14px',
-            borderRadius: 100,
-            boxShadow: 'var(--shadow-sm)',
-            border: '1px solid #e2e8f0',
-          }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#2563eb' }}>
-              ⚡ {user?.credits?.aiOps ?? 0} স্ক্যান · {user?.credits?.papersEquivalent ?? 0} পেপার
-            </span>
-          </div>
+        <div style={{ marginBottom: 4 }}>
+          <span
+            className="text-[14px] sm:text-xs"
+            style={{ fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}
+          >
+            {hub.title}
+          </span>
+          <h1
+            className="text-[18px] sm:text-[26px]"
+            style={{ fontWeight: 800, color: '#0f172a', margin: '2px 0 0' }}
+          >
+            হ্যালো, {firstName}! 👋
+          </h1>
+        </div>
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 mt-3">
+          <StatCard label="মোট পেপার" value={totalPapers} color="var(--primary)" />
+          <StatCard label="এই মাসে" value={thisMonthPapers} color="#10b981" />
+          <StatCard label="মোট প্রশ্ন" value={totalQuestions} color="#8b5cf6" />
         </div>
       </motion.div>
 
@@ -278,15 +270,6 @@ export default function Dashboard() {
       {/* ── Credit Balance ────────────────────────────────── */}
       <motion.div variants={item}>
         <CreditBalance compact={false} showTopUp />
-      </motion.div>
-
-      {/* ── Stats ─────────────────────────────────────────── */}
-      <motion.div variants={item}>
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
-          <StatCard label="মোট পেপার" value={totalPapers} color="var(--primary)" />
-          <StatCard label="এই মাসে" value={thisMonthPapers} color="#10b981" />
-          <StatCard label="মোট প্রশ্ন" value={totalQuestions} color="#8b5cf6" />
-        </div>
       </motion.div>
 
       {/* ── Recent Papers List ─────────────────────────────── */}
