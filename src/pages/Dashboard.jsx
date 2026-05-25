@@ -88,44 +88,59 @@ const item = {
 }
 
 /* ─── Sub-Components ─────────────────────────────────────── */
-function StatCard({ label, value, color }) {
+function StatCard({ label, value, color, gradient }) {
   return (
     <div
-      className="relative overflow-hidden rounded-xl sm:rounded-2xl"
+      className="relative overflow-hidden rounded-2xl sm:rounded-3xl"
       style={{
-        background: 'linear-gradient(145deg, #ffffff 0%, #f8fafc 100%)',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-        border: '1px solid rgba(241,245,249,0.8)',
-        padding: '8px 4px',
+        background: gradient || `linear-gradient(145deg, ${color}, ${color}dd)`,
+        padding: '10px 8px 10px',
+        minHeight: 68,
       }}
     >
-      {/* Colored dot accent */}
+      {/* Decorative circle */}
       <div
-        className="mx-auto mb-1 rounded-full"
         style={{
-          width: 6,
-          height: 6,
-          background: color,
-          boxShadow: `0 0 8px ${color}40`,
+          position: 'absolute',
+          top: -12,
+          right: -12,
+          width: 48,
+          height: 48,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.15)',
         }}
       />
-      <p
-        className="text-[20px] sm:text-2xl font-extrabold m-0"
+      <div
         style={{
-          color: '#0f172a',
-          lineHeight: 1,
-          fontFamily: 'var(--font-english)',
-          letterSpacing: '-0.02em',
+          position: 'absolute',
+          bottom: -8,
+          left: -8,
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          background: 'rgba(255,255,255,0.08)',
         }}
-      >
-        {value}
-      </p>
-      <p
-        className="text-[8px] sm:text-[9px] font-semibold m-0 mt-1 leading-tight"
-        style={{ color: '#94a3b8', letterSpacing: '0.04em' }}
-      >
-        {label}
-      </p>
+      />
+      <div className="relative" style={{ zIndex: 1 }}>
+        <p
+          className="text-[22px] sm:text-[28px] font-extrabold m-0"
+          style={{
+            color: '#fff',
+            lineHeight: 1,
+            fontFamily: 'var(--font-english)',
+            letterSpacing: '-0.03em',
+            textShadow: '0 2px 4px rgba(0,0,0,0.1)',
+          }}
+        >
+          {value}
+        </p>
+        <p
+          className="text-[9px] sm:text-[10px] font-bold m-0 mt-1.5 leading-tight"
+          style={{ color: 'rgba(255,255,255,0.8)', letterSpacing: '0.02em' }}
+        >
+          {label}
+        </p>
+      </div>
     </div>
   )
 }
@@ -266,9 +281,9 @@ export default function Dashboard() {
             </h1>
           </div>
           <div className="flex-1 grid grid-cols-3 gap-1.5 sm:gap-2">
-            <StatCard label="মোট পেপার" value={totalPapers} color="var(--primary)" />
-            <StatCard label="এই মাসে" value={thisMonthPapers} color="#10b981" />
-            <StatCard label="মোট প্রশ্ন" value={totalQuestions} color="#8b5cf6" />
+            <StatCard label="মোট পেপার" value={totalPapers} gradient="linear-gradient(145deg, #2563eb, #3b82f6)" />
+            <StatCard label="এই মাসে" value={thisMonthPapers} gradient="linear-gradient(145deg, #059669, #10b981)" />
+            <StatCard label="মোট প্রশ্ন" value={totalQuestions} gradient="linear-gradient(145deg, #7c3aed, #a855f7)" />
           </div>
         </div>
       </motion.div>
