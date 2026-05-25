@@ -94,8 +94,8 @@ function StatCard({ label, value, color, gradient }) {
       className="relative overflow-hidden rounded-2xl sm:rounded-3xl"
       style={{
         background: gradient || `linear-gradient(145deg, ${color}, ${color}dd)`,
-        padding: '10px 8px 10px',
-        minHeight: 68,
+        padding: '6px 6px',
+        minHeight: 52,
       }}
     >
       {/* Decorative circle */}
