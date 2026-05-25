@@ -88,21 +88,26 @@ export function BottomSheetItem({ icon, label, onClick, danger = false, classNam
   return (
     <button
       onClick={onClick}
-      className={`list-item btn-press w-full text-left rounded-xl ${className}`}
+      className={`btn-press w-full text-left ${className}`}
       style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '8px 4px',
         borderRadius: 'var(--radius-md)',
         color: danger ? 'var(--danger)' : 'var(--text-primary)',
         background: 'transparent',
         border: 'none',
         cursor: 'pointer',
-        fontSize: 'var(--text-base)',
+        fontSize: 14,
         fontFamily: 'var(--font-bengali)',
+        transition: 'background 0.15s ease',
       }}
     >
       {icon && (
         <span style={{
-          width: 36, height: 36,
-          borderRadius: 'var(--radius-sm)',
+          width: 32, height: 32,
+          borderRadius: 8,
           background: danger ? '#fef2f2' : 'var(--bg-input)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           flexShrink: 0,
