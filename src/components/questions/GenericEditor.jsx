@@ -4,15 +4,34 @@ import MathLiveEditor from './MathLiveEditor'
 import AutoTextarea from '@/components/shared/AutoTextarea'
 import { MathPreview } from '@/utils/mathRender'
 
+// Reusable textarea + math/arabic keyboard buttons — same pattern as CqEditor
+function MathTextArea({ value, onChange, placeholder, rows = 1, dir, className }) {
+  const inputRef = useRef(null)
+  return (
+    <div className="flex flex-col gap-1.5">
+      <AutoTextarea
+        ref={inputRef}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        rows={rows}
+        dir={dir}
+        className={className || 'w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent'}
+      />
+      <div className="flex justify-end">
+        <MathLiveEditor inputRef={inputRef} onInsert={onChange} />
+      </div>
+    </div>
+  )
+}
+
 export default function GenericEditor({ question }) {
   const updateQuestion = usePaperStore((s) => s.updateQuestion)
-  const mainInputRef = useRef(null)
 
   const handleUpdate = (updates) => {
     updateQuestion(question.id, updates)
   }
 
-  // 1. Render based on question type
   const renderFields = () => {
     switch (question.type) {
       case 'short_question':
@@ -25,31 +44,23 @@ export default function GenericEditor({ question }) {
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">{label}</label>
-              <div className="flex flex-col gap-2">
-                <AutoTextarea
-                  ref={mainInputRef}
-                  value={question.question || ''}
-                  onChange={(e) => handleUpdate({ question: e.target.value })}
-                  placeholder="প্রশ্ন লিখুন..."
-                  rows={2}
-                  className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                />
-                <div className="flex justify-start">
-                  <MathLiveEditor inputRef={mainInputRef} onInsert={(v) => handleUpdate({ question: v })} />
-                </div>
-              </div>
+              <MathTextArea
+                value={question.question || ''}
+                onChange={(v) => handleUpdate({ question: v })}
+                placeholder="প্রশ্ন লিখুন..."
+                rows={2}
+              />
               <MathPreview text={question.question} />
             </div>
 
             {isOneWord && (
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">উত্তর</label>
-                <AutoTextarea
+                <MathTextArea
                   value={question.answer || ''}
-                  onChange={(e) => handleUpdate({ answer: e.target.value })}
+                  onChange={(v) => handleUpdate({ answer: v })}
                   placeholder="এক কথায় উত্তর..."
                   rows={1}
-                  className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                 />
               </div>
             )}
@@ -57,23 +68,21 @@ export default function GenericEditor({ question }) {
             {question.type === 'math' && (
               <div className="flex flex-col gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">সমাধান ধাপসমূহ (লাইন অনুযায়ী)</label>
-                  <AutoTextarea
+                  <label className="block text-xs font-bold text-gray-500 mb-1">সমাধান ধাপসমূহ (লাইন অনুযায়ী)</label>
+                  <MathTextArea
                     value={Array.isArray(question.equations) ? question.equations.join('\n') : question.equations || ''}
-                    onChange={(e) => handleUpdate({ equations: e.target.value.split('\n') })}
+                    onChange={(v) => handleUpdate({ equations: v.split('\n') })}
                     placeholder="ধাপ ১: ...&#10;ধাপ ২: ..."
                     rows={3}
-                    className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">চূড়ান্ত উত্তর</label>
-                  <AutoTextarea
+                  <MathTextArea
                     value={question.answer || ''}
-                    onChange={(e) => handleUpdate({ answer: e.target.value })}
+                    onChange={(v) => handleUpdate({ answer: v })}
                     placeholder="চূড়ান্ত উত্তর..."
                     rows={1}
-                    className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
               </div>
@@ -83,28 +92,26 @@ export default function GenericEditor({ question }) {
               <div className="flex flex-col gap-3">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">সূত্র (Formula)</label>
-                  <AutoTextarea
+                  <MathTextArea
                     value={question.formula || ''}
-                    onChange={(e) => handleUpdate({ formula: e.target.value })}
+                    onChange={(v) => handleUpdate({ formula: v })}
                     placeholder="যেমন: সরল সুদ = (P * R * T) / 100"
                     rows={1}
-                    className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">মানসমূহ (JSON বা কমা-সেপারেটেড)</label>
-                  <AutoTextarea
+                  <MathTextArea
                     value={typeof question.values === 'object' ? JSON.stringify(question.values) : question.values || ''}
-                    onChange={(e) => {
+                    onChange={(v) => {
                       try {
-                        handleUpdate({ values: JSON.parse(e.target.value) })
+                        handleUpdate({ values: JSON.parse(v) })
                       } catch {
-                        handleUpdate({ values: e.target.value })
+                        handleUpdate({ values: v })
                       }
                     }}
                     placeholder='যেমন: {"আসল": 50000, "হার": "10%"}'
                     rows={1}
-                    className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
               </div>
@@ -117,13 +124,12 @@ export default function GenericEditor({ question }) {
         return (
           <div className="flex flex-col gap-3">
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">প্রবন্ধের বিষয় (Topic)</label>
-              <AutoTextarea
+              <label className="block text-xs font-bold text-gray-500 mb-1">প্রবন্ধের বিষয় (Topic)</label>
+              <MathTextArea
                 value={question.topic || ''}
-                onChange={(e) => handleUpdate({ topic: e.target.value })}
+                onChange={(v) => handleUpdate({ topic: v })}
                 placeholder="যেমন: বাংলাদেশের মুক্তিযুদ্ধ"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
@@ -144,23 +150,21 @@ export default function GenericEditor({ question }) {
         return (
           <div className="flex flex-col gap-3">
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">অনুচ্ছেদের বিষয় (Topic)</label>
-              <AutoTextarea
+              <label className="block text-xs font-bold text-gray-500 mb-1">অনুচ্ছেদের বিষয় (Topic)</label>
+              <MathTextArea
                 value={question.topic || ''}
-                onChange={(e) => handleUpdate({ topic: e.target.value })}
+                onChange={(v) => handleUpdate({ topic: v })}
                 placeholder="যেমন: My Favourite Season"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">সংকেত/হিন্টস (Hints - কমা দিয়ে লিখুন)</label>
-              <AutoTextarea
+              <label className="block text-xs font-bold text-gray-500 mb-1">সংকেত/হিন্টস (Hints - কমা দিয়ে লিখুন)</label>
+              <MathTextArea
                 value={Array.isArray(question.hints) ? question.hints.join(', ') : question.hints || ''}
-                onChange={(e) => handleUpdate({ hints: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                onChange={(v) => handleUpdate({ hints: v.split(',').map(s => s.trim()).filter(Boolean) })}
                 placeholder="weather, activities, why I like it"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -190,13 +194,12 @@ export default function GenericEditor({ question }) {
               ))}
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">বর্ণনা/दृश्यপট (Scenario)</label>
-              <AutoTextarea
+              <label className="block text-xs font-bold text-gray-500 mb-1">বর্ণনা/दृশ্যপট (Scenario)</label>
+              <MathTextArea
                 value={question.scenario || ''}
-                onChange={(e) => handleUpdate({ scenario: e.target.value })}
+                onChange={(v) => handleUpdate({ scenario: v })}
                 placeholder="Write an application to your headmaster for sick leave..."
                 rows={3}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -208,16 +211,15 @@ export default function GenericEditor({ question }) {
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">দৃশ্যপট (Scenario)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.scenario || ''}
-                onChange={(e) => handleUpdate({ scenario: e.target.value })}
+                onChange={(v) => handleUpdate({ scenario: v })}
                 placeholder="Write a dialogue between two friends asking for directions..."
                 rows={2}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">সর্বনিম্ন ডায়ালগ সংখ্যা (Turns)</label>
+              <label className="block text-xs font-bold text-gray-500 mb-1">সর্বনিম্ন ডায়ালগ সংখ্যা (Turns)</label>
               <input
                 type="number"
                 value={question.turns || ''}
@@ -235,32 +237,29 @@ export default function GenericEditor({ question }) {
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">মূল বাক্য (Sentence)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.sentence || ''}
-                onChange={(e) => handleUpdate({ sentence: e.target.value })}
+                onChange={(v) => handleUpdate({ sentence: v })}
                 placeholder="যেমন: He wrote a letter."
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">নির্দেশনা (Instruction)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.instruction || ''}
-                onChange={(e) => handleUpdate({ instruction: e.target.value })}
+                onChange={(v) => handleUpdate({ instruction: v })}
                 placeholder="যেমন: Change the voice"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">সঠিক উত্তর</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.answer || ''}
-                onChange={(e) => handleUpdate({ answer: e.target.value })}
+                onChange={(v) => handleUpdate({ answer: v })}
                 placeholder="যেমন: A letter was written by him."
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -272,32 +271,29 @@ export default function GenericEditor({ question }) {
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">চিত্রের ইউআরএল/রেফারেন্স (Diagram Ref)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.diagram_ref || ''}
-                onChange={(e) => handleUpdate({ diagram_ref: e.target.value })}
+                onChange={(v) => handleUpdate({ diagram_ref: v })}
                 placeholder="যেমন: cell_diagram.png"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">চিহ্নিত অংশসমূহ (Labels - কমা দিয়ে লিখুন)</label>
-              <AutoTextarea
+              <label className="block text-xs font-bold text-gray-500 mb-1">চিহ্নিত অংশসমূহ (Labels - কমা দিয়ে লিখুন)</label>
+              <MathTextArea
                 value={Array.isArray(question.labels) ? question.labels.join(', ') : question.labels || ''}
-                onChange={(e) => handleUpdate({ labels: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })}
+                onChange={(v) => handleUpdate({ labels: v.split(',').map(s => s.trim()).filter(Boolean) })}
                 placeholder="A, B, C, D"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">প্রশ্ন (Question)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.question || ''}
-                onChange={(e) => handleUpdate({ question: e.target.value })}
+                onChange={(v) => handleUpdate({ question: v })}
                 placeholder="চিত্রের A, B, C, D চিহ্নিত অংশের নাম লিখো..."
                 rows={2}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -311,19 +307,18 @@ export default function GenericEditor({ question }) {
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">নির্দেশনা (Instruction)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.instruction || ''}
-                onChange={(e) => handleUpdate({ instruction: e.target.value })}
-                placeholder={isHadith ? "যেমন: হাদীসটির ব্যাখ্যা করো।" : "যেমন: নিচের আয়াতটির অনুবাদ করো:"}
+                onChange={(v) => handleUpdate({ instruction: v })}
+                placeholder={isHadith ? "যেমন: হাদীসটির ব্যাখ্যা করো।" : "যেমন: নিচের আয়াতটির অনুবাদ করো:"}
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">আরবি টেক্সট (Arabic Text)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.arabic_text || ''}
-                onChange={(e) => handleUpdate({ arabic_text: e.target.value })}
+                onChange={(v) => handleUpdate({ arabic_text: v })}
                 placeholder="RTL আরবি টেক্সট লিখুন..."
                 rows={2}
                 dir="rtl"
@@ -332,28 +327,26 @@ export default function GenericEditor({ question }) {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">উৎস (Source)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.source || ''}
-                onChange={(e) => handleUpdate({ source: e.target.value })}
+                onChange={(v) => handleUpdate({ source: v })}
                 placeholder={isHadith ? "যেমন: সহীহ বুখারী, হাদীস নং ১" : "যেমন: সূরা আল-ফাতিহা, আয়াত ১"}
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">বাংলা অনুবাদ/ব্যাখ্যা</label>
-              <AutoTextarea
+              <MathTextArea
                 value={isHadith ? (question.bangla_text || '') : (question.bangla_translation || '')}
-                onChange={(e) => {
+                onChange={(v) => {
                   if (isHadith) {
-                    handleUpdate({ bangla_text: e.target.value })
+                    handleUpdate({ bangla_text: v })
                   } else {
-                    handleUpdate({ bangla_translation: e.target.value })
+                    handleUpdate({ bangla_translation: v })
                   }
                 }}
                 placeholder="বাংলা টেক্সট..."
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -365,30 +358,28 @@ export default function GenericEditor({ question }) {
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">প্রশ্ন/নির্দেশনা (Prompt)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.prompt || ''}
-                onChange={(e) => handleUpdate({ prompt: e.target.value })}
+                onChange={(v) => handleUpdate({ prompt: v })}
                 placeholder="যেমন: সূরা ইখলাস সম্পূর্ণ আরবিতে লিখো।"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">সূরার নাম (Surah Name)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.surah_name || ''}
-                onChange={(e) => handleUpdate({ surah_name: e.target.value })}
+                onChange={(v) => handleUpdate({ surah_name: v })}
                 placeholder="যেমন: সূরা আল-ইখলাস"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-gray-500 mb-1">আরবি টেক্সট (যাচাইয়ের জন্য)</label>
-              <AutoTextarea
+              <label className="block text-xs font-bold text-gray-500 mb-1">আরবি টেক্সট (যাচাইয়ের জন্য)</label>
+              <MathTextArea
                 value={question.arabic_text || ''}
-                onChange={(e) => handleUpdate({ arabic_text: e.target.value })}
-                placeholder="আরবি আয়াতসমূহ..."
+                onChange={(v) => handleUpdate({ arabic_text: v })}
+                placeholder="আরবি আয়াতসমূহ..."
                 rows={2}
                 dir="rtl"
                 className="w-full px-4 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base focus:outline-none focus:ring-2 focus:ring-green-500 text-right"
@@ -413,19 +404,18 @@ export default function GenericEditor({ question }) {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">নির্দেশনা (Instruction)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.instruction || ''}
-                onChange={(e) => handleUpdate({ instruction: e.target.value })}
+                onChange={(v) => handleUpdate({ instruction: v })}
                 placeholder="যেমন: অনুবাদ করো এবং ব্যাখ্যা দাও।"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">আরবি মাসআলা (Arabic Block)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.arabic_block || ''}
-                onChange={(e) => handleUpdate({ arabic_block: e.target.value })}
+                onChange={(v) => handleUpdate({ arabic_block: v })}
                 placeholder="আরবি ইবারত..."
                 rows={2}
                 dir="rtl"
@@ -434,12 +424,11 @@ export default function GenericEditor({ question }) {
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">বাংলা অনুবাদ (Bangla Block)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.bangla_block || ''}
-                onChange={(e) => handleUpdate({ bangla_block: e.target.value })}
+                onChange={(v) => handleUpdate({ bangla_block: v })}
                 placeholder="অনুবাদ..."
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -451,32 +440,29 @@ export default function GenericEditor({ question }) {
           <div className="flex flex-col gap-3">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">নির্দেশনা (Instruction)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.instruction || ''}
-                onChange={(e) => handleUpdate({ instruction: e.target.value })}
+                onChange={(v) => handleUpdate({ instruction: v })}
                 placeholder="যেমন: কবিতাংশটির মূলভাব লিখো।"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">কবি/লেখক (Author)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.author || ''}
-                onChange={(e) => handleUpdate({ author: e.target.value })}
+                onChange={(v) => handleUpdate({ author: v })}
                 placeholder="যেমন: রবীন্দ্রনাথ ঠাকুর"
                 rows={1}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">কবিতার লাইনসমূহ (প্রতিটি লাইনে এন্টার চাপুন)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={Array.isArray(question.lines) ? question.lines.join('\n') : question.lines || ''}
-                onChange={(e) => handleUpdate({ lines: e.target.value.split('\n').filter(Boolean) })}
+                onChange={(v) => handleUpdate({ lines: v.split('\n').filter(Boolean) })}
                 placeholder="যেমন: আমার সোনার বাংলা..."
                 rows={4}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
           </div>
@@ -502,12 +488,11 @@ export default function GenericEditor({ question }) {
           <div className="flex flex-col gap-4">
             <div>
               <label className="block text-xs font-bold text-gray-500 mb-1">প্যাসেজ টেক্সট (Passage Text)</label>
-              <AutoTextarea
+              <MathTextArea
                 value={question.passage || ''}
-                onChange={(e) => handleUpdate({ passage: e.target.value })}
+                onChange={(v) => handleUpdate({ passage: v })}
                 placeholder="Read the passage carefully..."
                 rows={4}
-                className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
             </div>
             <div className="flex flex-col gap-3">
@@ -524,9 +509,9 @@ export default function GenericEditor({ question }) {
                       ডিলিট করুন
                     </button>
                   </div>
-                  <AutoTextarea
+                  <MathTextArea
                     value={sq.text || ''}
-                    onChange={(e) => updateSubQuestion(idx, { text: e.target.value })}
+                    onChange={(v) => updateSubQuestion(idx, { text: v })}
                     placeholder="প্রশ্ন লিখুন..."
                     rows={1}
                     className="w-full px-3 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -586,9 +571,9 @@ export default function GenericEditor({ question }) {
                       ডিলিট করুন
                     </button>
                   </div>
-                  <AutoTextarea
+                  <MathTextArea
                     value={stmt.text || ''}
-                    onChange={(e) => updateStatement(idx, { text: e.target.value })}
+                    onChange={(v) => updateStatement(idx, { text: v })}
                     placeholder="বিবৃতি..."
                     rows={1}
                     className="w-full px-3 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-green-500"
@@ -631,20 +616,17 @@ export default function GenericEditor({ question }) {
         return (
           <div>
             <label className="block text-xs font-bold text-gray-500 mb-1">প্রশ্ন টেক্সট</label>
-            <AutoTextarea
-              ref={mainInputRef}
+            <MathTextArea
               value={question.question || ''}
-              onChange={(e) => handleUpdate({ question: e.target.value })}
+              onChange={(v) => handleUpdate({ question: v })}
               placeholder="প্রশ্ন লিখুন..."
               rows={2}
-              className="w-full px-3 py-3.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
             />
           </div>
         )
     }
   }
 
-  // Hide marks input for 'passage' as its marks are computed dynamically from sub-questions
   const isPassage = question.type === 'passage'
 
   return (
