@@ -50,7 +50,7 @@ export default function BottomSheet({ isOpen, onClose, title, children, classNam
 
             {/* Title */}
             {title && (
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-2">
                 <h3 style={{ fontSize: 'var(--text-lg)', fontWeight: 700, color: 'var(--text-primary)' }}>
                   {title}
                 </h3>
