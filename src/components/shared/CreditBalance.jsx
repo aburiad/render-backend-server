@@ -118,7 +118,7 @@ export default function CreditBalance({ compact = false, showTopUp = true }) {
             />
           </div>
           <p className="text-[10px] sm:text-[11px] text-gray-400 mt-1 m-0">
-            প্রতি পেপারে গড়ে {data.opsPerPaper}টি AI স্ক্যান লাগে
+            মাত্র <span className="font-bold text-gray-600">{data.bdtPerPaper || 10} ৳</span> / প্রশ্নপত্র · প্রতি পেপারে গড়ে {data.opsPerPaper}টি স্ক্যান লাগে
           </p>
         </div>
 
