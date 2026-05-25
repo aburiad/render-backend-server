@@ -323,8 +323,10 @@ input, select, textarea {
 @media (max-width: 640px) {
   .bottom-sheet {
     width: 95% !important;
-    left: 2.5% !important;
-    right: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
     border-radius: var(--radius-xl);
     margin-bottom: 8px;
   }

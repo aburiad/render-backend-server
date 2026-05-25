@@ -32,8 +32,8 @@ export default function BottomSheet({ isOpen, onClose, title, children, classNam
 
           {/* Sheet */}
           <motion.div
-            className={`fixed bottom-0 left-0 right-0 z-[70] bottom-sheet ${className}`}
-            style={{ maxWidth: 'var(--app-max-width)', margin: '0 auto' }}
+            className={`fixed bottom-0 z-[70] bottom-sheet ${className}`}
+            style={{ maxWidth: 'var(--app-max-width)', left: 0, right: 0, margin: '0 auto' }}
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
