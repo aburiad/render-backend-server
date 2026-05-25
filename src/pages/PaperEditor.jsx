@@ -1,46 +1,46 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { useParams, useNavigate, Link, useLocation } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
 import {
-  DndContext,
   closestCenter,
+  DndContext,
   PointerSensor,
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
 import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
   arrayMove,
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { AnimatePresence, motion } from 'framer-motion'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
-import usePaperStore from '@/store/paperStore'
 import api from '@/services/api'
+import usePaperStore from '@/store/paperStore'
 
+import ExamPublishModal from '@/components/paper/ExamPublishModal'
 import PaperSetupForm from '@/components/paper/PaperSetupForm'
-import MagicScanModal from '@/components/questions/MagicScanModal'
 import BookGenerateModal from '@/components/questions/BookGenerateModal'
 import ImportFromBankModal from '@/components/questions/ImportFromBankModal'
-import ExamPublishModal from '@/components/paper/ExamPublishModal'
+import MagicScanModal from '@/components/questions/MagicScanModal'
 import QuestionWrapper from '@/components/questions/QuestionWrapper'
-import Modal from '@/components/shared/Modal'
 import CreditBalance from '@/components/shared/CreditBalance'
+import Modal from '@/components/shared/Modal'
 
-import McqEditor from '@/components/questions/McqEditor'
-import CqEditor from '@/components/questions/CqEditor'
-import ShortEditor from '@/components/questions/ShortEditor'
-import BroadEditor from '@/components/questions/BroadEditor'
-import FillBlankEditor from '@/components/questions/FillBlankEditor'
-import MatchingEditor from '@/components/questions/MatchingEditor'
-import RearrangingEditor from '@/components/questions/RearrangingEditor'
-import TranslationEditor from '@/components/questions/TranslationEditor'
-import TableEditor from '@/components/questions/TableEditor'
 import AccountingEditor from '@/components/questions/AccountingEditor'
+import BroadEditor from '@/components/questions/BroadEditor'
+import CqEditor from '@/components/questions/CqEditor'
+import FillBlankEditor from '@/components/questions/FillBlankEditor'
 import GenericEditor from '@/components/questions/GenericEditor'
+import MatchingEditor from '@/components/questions/MatchingEditor'
+import McqEditor from '@/components/questions/McqEditor'
+import RearrangingEditor from '@/components/questions/RearrangingEditor'
 import SectionDivider from '@/components/questions/SectionDivider'
+import ShortEditor from '@/components/questions/ShortEditor'
+import TableEditor from '@/components/questions/TableEditor'
+import TranslationEditor from '@/components/questions/TranslationEditor'
 import {
   computeQuestionNumbers,
   defaultSectionTitle,
@@ -76,6 +76,9 @@ const QUESTION_TYPES = [
   { type: 'passage', label: 'প্যাসেজভিত্তিক', icon: '📰' },
   { type: 'true_false', label: 'সত্য/মিথ্যা', icon: '✅' },
 ]
+
+const PRIMARY_TYPES = QUESTION_TYPES.slice(0, 10)
+const MORE_TYPES = QUESTION_TYPES.slice(10)
 
 const EDITOR_MAP = {
   MCQ: McqEditor,
@@ -163,6 +166,7 @@ export default function PaperEditor() {
   const [showBookGenerate, setShowBookGenerate] = useState(false)
   const [showBankImport, setShowBankImport] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
+  const [showMoreTypes, setShowMoreTypes] = useState(false)
   const autoSaveTimer = useRef(null)
 
   const currentPaper = usePaperStore((s) => s.currentPaper)
@@ -664,7 +668,35 @@ export default function PaperEditor() {
                 <span className="text-[8px] sm:text-[9px] font-bold leading-tight" style={{ color: '#fbbf24' }}>বিভাগ</span>
               </button>
             )}
-            {QUESTION_TYPES.map(qt => (
+            {PRIMARY_TYPES.map(qt => (
+              <button
+                key={qt.type}
+                onClick={() => handleAddQuestion(qt.type)}
+                className="btn-press flex-shrink-0 flex flex-col items-center justify-center sm:justify-start w-[54px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
+                style={{
+                  border: '1px solid #f1f5f9',
+                }}
+              >
+                <span className="text-[13px] sm:text-lg leading-none">{qt.icon}</span>
+                <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 leading-tight text-center">
+                  {qt.label}
+                </span>
+              </button>
+            ))}
+            <button
+              onClick={() => setShowMoreTypes(!showMoreTypes)}
+              className="btn-press flex-shrink-0 flex flex-col items-center justify-center w-[54px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
+              style={{
+                background: showMoreTypes ? '#f8fafc' : '#f0f9ff',
+                border: showMoreTypes ? '1px solid #e2e8f0' : '1px solid #bae6fd',
+              }}
+            >
+              <span className="text-[13px] sm:text-lg leading-none">{showMoreTypes ? '▲' : '⋯'}</span>
+              <span className="text-[8px] sm:text-[9px] font-bold leading-tight" style={{ color: showMoreTypes ? '#64748b' : '#0284c7' }}>
+                {showMoreTypes ? 'কম' : 'আরও'}
+              </span>
+            </button>
+            {showMoreTypes && MORE_TYPES.map(qt => (
               <button
                 key={qt.type}
                 onClick={() => handleAddQuestion(qt.type)}
