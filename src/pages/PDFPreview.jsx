@@ -307,11 +307,11 @@ export default function PDFPreview() {
   // PDF_SERVER_API_KEY to be set on the main app. On Render's free
   // tier the first request may take 30–60s while the dyno wakes up.
   //
-  // IMPORTANT: This always calls the SAME-ORIGIN Vercel proxy
-  // (/api/pdf-server/...) instead of the dynamic `api` axios instance,
-  // because the `api` instance may point to a Render backend that does
-  // NOT have PDF_SERVER_URL / PDF_SERVER_API_KEY configured. Vercel
-  // always has them.
+  // IMPORTANT: We dynamically use the active backend's URL (e.g. Render backend
+  // if active, or same-origin Vercel proxy if Vercel is active). This avoids
+  // hitting Vercel's strict 10-second serverless execution timeout limit when
+  // the main backend is hosted on Render.com. Note that PDF_SERVER_URL and
+  // PDF_SERVER_API_KEY must be configured on whichever backend is active.
   async function handleServerDownload() {
     if (!paperRef.current || downloadingServer) return
     setDownloadingServer(true)
@@ -349,7 +349,10 @@ export default function PDFPreview() {
         }
 
         try {
-          const pdfUrl = `/api/pdf-server/papers/${paper.id}`
+          const baseUrl = api.defaults.baseURL || '/api'
+          const pdfUrl = baseUrl.startsWith('http')
+            ? `${baseUrl}/pdf-server/papers/${paper.id}`
+            : `/api/pdf-server/papers/${paper.id}`
           const token = useAuthStore.getState().token
           const headers = { 'Content-Type': 'application/json' }
           if (token) headers['Authorization'] = `Bearer ${token}`

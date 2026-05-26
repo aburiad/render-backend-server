@@ -64,9 +64,11 @@ router.post('/papers/:id', async (req, res, next) => {
       html,
       css,
       filename,
-      // Wait for KaTeX fonts to settle — the editor marks the wrapper
-      // with `data-paper-ready="true"` once `document.fonts.ready` resolves.
+      // Wait for the readiness marker (set in paperToPdfHtml.js) instead
+      // of networkidle0. Render's proxy has a 30s timeout; real paper HTML
+      // pulls external CSS/fonts that keep the network alive well past 30s.
       waitForSelector: '[data-paper-ready="true"]',
+      waitForNetworkIdle: false,
       options,
     })
 
