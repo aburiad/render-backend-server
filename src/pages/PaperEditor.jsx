@@ -675,7 +675,7 @@ export default function PaperEditor() {
                 className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
               >
                 <div
-                  className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center"
                   style={{
                     background: `linear-gradient(145deg, ${qt.from}, ${qt.to})`,
                     boxShadow: `0 4px 12px ${qt.shadow}`,
@@ -708,7 +708,7 @@ export default function PaperEditor() {
                 className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
               >
                 <div
-                  className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center"
                   style={{
                     background: `linear-gradient(145deg, ${qt.from}, ${qt.to})`,
                     boxShadow: `0 4px 12px ${qt.shadow}`,
