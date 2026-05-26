@@ -78,6 +78,10 @@ router.post('/papers/:id', async (req, res, next) => {
     res.setHeader('Cache-Control', 'no-store')
     return res.end(buffer)
   } catch (err) {
+    console.error('[pdfServerRoute] PDF generation error:', err)
+    if (err.status) {
+      return next(new AppError(err.message, err.status))
+    }
     return next(err)
   }
 })
