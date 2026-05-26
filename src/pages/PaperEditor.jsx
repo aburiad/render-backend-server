@@ -678,7 +678,7 @@ export default function PaperEditor() {
                 }}
               >
                 <span className="text-[13px] sm:text-lg leading-none">{qt.icon}</span>
-                <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 leading-tight text-center">
+                <span className="text-[10px] sm:text-[9px] font-bold text-slate-500 leading-tight text-center">
                   {qt.label}
                 </span>
               </button>
@@ -700,13 +700,13 @@ export default function PaperEditor() {
               <button
                 key={qt.type}
                 onClick={() => handleAddQuestion(qt.type)}
-                className="btn-press flex-shrink-0 flex flex-col items-center justify-center sm:justify-start w-[54px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
+                className="btn-press flex-shrink-0 flex flex-col items-center justify-center sm:justify-start w-[58px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
                 style={{
                   border: '1px solid #f1f5f9',
                 }}
               >
                 <span className="text-[13px] sm:text-lg leading-none">{qt.icon}</span>
-                <span className="text-[8px] sm:text-[9px] font-bold text-slate-500 leading-tight text-center">
+                <span className="text-[10px] sm:text-[9px] font-bold text-slate-500 leading-tight text-center">
                   {qt.label}
                 </span>
               </button>
