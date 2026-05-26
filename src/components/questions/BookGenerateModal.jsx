@@ -399,12 +399,13 @@ export default function BookGenerateModal({ onClose }) {
               >
                 {/* ✨ Smart Prompt — HERO (top) */}
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                    ✨ স্মার্ট প্রশ্ন
-                    <span className="normal-case tracking-normal font-medium text-gray-300 ml-1.5">
-                      — বাংলা/ইংরেজিতে লিখুন
-                    </span>
-                  </label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-amber-500 text-lg">auto_awesome</span>
+                    <h3 className="text-sm font-semibold text-gray-700">
+                      স্মার্ট প্রশ্ন
+                      <span className="text-xs font-normal text-gray-400 ml-1.5">— বাংলা/ইংরেজিতে লিখুন</span>
+                    </h3>
+                  </div>
                   <div className="flex flex-col gap-2">
                     <textarea
                       value={smartPrompt}
@@ -443,18 +444,19 @@ export default function BookGenerateModal({ onClose }) {
 
                 {/* Class */}
                 <div>
-                  <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
-                    ক্লাস
-                  </label>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-slate-400 text-lg">school</span>
+                    <label className="text-sm font-semibold text-gray-700">ক্লাস</label>
+                  </div>
                   <div className="flex flex-wrap gap-2">
                     {CLASSES.map((c) => (
                       <button
                         key={c.value}
                         onClick={() => setClassNum(c.value)}
-                        className={`px-3 py-2 sm:px-4 sm:py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold transition-all ${
+                        className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                           classNum === c.value
-                            ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/25'
-                            : 'bg-white text-gray-600 border border-gray-200 hover:border-emerald-300'
+                            ? 'border-2 border-emerald-500 text-emerald-600 bg-emerald-50 font-bold'
+                            : 'border border-gray-200 text-gray-600 bg-white hover:border-emerald-300 hover:text-emerald-500'
                         }`}
                       >
                         {c.label}
