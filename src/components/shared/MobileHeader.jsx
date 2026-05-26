@@ -53,6 +53,7 @@ export default function MobileHeader({ className = '' }) {
   // Get page title
   let title = PAGE_TITLES[location.pathname] || 'AI Question Hub'
   if (isEditor) title = location.search.includes('scan=true') ? 'AI স্ক্যান' : 'প্রশ্নপত্র সম্পাদক'
+  if (location.pathname.endsWith('/preview')) title = 'PDF প্রিভিউ'
   if (location.pathname.startsWith('/notices/') && location.pathname !== '/notices/new') {
     title = location.pathname.endsWith('/preview') ? 'নোটিশ প্রিভিউ' : 'নোটিশ সম্পাদনা'
   }
