@@ -1,17 +1,11 @@
-import AuthBootstrap from '@/components/AuthBootstrap'
+import AppInitializer from '@/components/AppInitializer'
 import { supabase } from '@/lib/supabase'
 import useAuthStore from '@/store/authStore'
-import { initBackendUrl } from '@/services/api'
 import { createRoot } from 'react-dom/client'
 import { Toaster } from 'react-hot-toast'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App.jsx'
 import './index.css'
-
-// Fetch active backend URL (Vercel or Render) before any API calls.
-// Non-blocking — app renders immediately, API calls after this resolves
-// will use the correct backend.
-initBackendUrl()
 
 function isOAuthCallbackRoute() {
   return typeof window !== 'undefined' && window.location.pathname.includes('/auth/callback')
@@ -38,11 +32,15 @@ supabase.auth.getSession().then(({ data: { session } }) => {
   if (session) void useAuthStore.getState().applySession(session)
 })
 
+// NOTE: initBackendUrl() is NO LONGER called here.
+// AppInitializer awaits it before rendering the app tree,
+// so all API calls use the correct backend URL from the start.
+
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
-    <AuthBootstrap>
+    <AppInitializer>
       <App />
-    </AuthBootstrap>
+    </AppInitializer>
     <Toaster
       position="top-center"
       toastOptions={{
