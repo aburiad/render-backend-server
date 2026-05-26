@@ -170,44 +170,65 @@ export default function MagicScanModal({ onClose }) {
               <div className="max-h-[55vh] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin' }}>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-2 sm:gap-3 pb-4">
                   {[
-                    { id: 'mcq', label: 'MCQ', desc: 'বহুনির্বাচনী (A B C D)', icon: '📝' },
-                    { id: 'cq', label: 'CQ', desc: 'সৃজনশীল (ক খ গ ঘ)', icon: '🧠' },
-                    { id: 'creative', label: 'Creative', desc: 'রচনামূলক/সাধারণ', icon: '✍️' },
-                    { id: 'short', label: 'Short Q', desc: 'সংক্ষিপ্ত প্রশ্ন', icon: '⚡' },
-                    { id: 'fill_blank', label: 'Fill in Blank', desc: 'শূন্যস্থান পূরণ', icon: '🕳️' },
-                    { id: 'matching', label: 'Matching', desc: 'বাম-ডান মিলকরণ', icon: '🔗' },
-                    { id: 'true_false', label: 'True / False', desc: 'সত্য/মিথ্যা নির্ণয়', icon: '✅' },
-                    { id: 'math', label: 'Math', desc: 'গাণিতিক সমস্যা', icon: '➗' },
-                    { id: 'passage', label: 'Passage', desc: 'অনুচ্ছেদ ভিত্তিক', icon: '📖' },
-                    { id: 'accounting', label: 'Accounting', desc: 'হিসাববিজ্ঞান ছক', icon: '📊' },
-                    { id: 'grammar', label: 'Grammar', desc: 'ব্যাকরণ / গ্রামার', icon: '🔤' },
-                    { id: 'poem', label: 'Poem', desc: 'কবিতা / সাহিত্য', icon: '✒️' },
-                    { id: 'essay', label: 'Essay', desc: 'প্রবন্ধ / রচনা', icon: '📚' },
-                    { id: 'paragraph', label: 'Paragraph', desc: 'অনুচ্ছেদ লিখন', icon: '📄' },
-                    { id: 'translation', label: 'Translation', desc: 'অনুবাদ (En-Bn)', icon: '🔄' },
-                    { id: 'arabic', label: 'Arabic', desc: 'আরবি ইবারত / নস', icon: '🕌' },
-                    { id: 'hadith', label: 'Hadith/Tafseer', desc: 'হাদিস ও তাফসীর', icon: '📖' },
-                    { id: 'fiqh', label: 'Fiqh/Aqaid', desc: 'ফিকহ ও মাসআলা', icon: '🕋' },
-                    { id: 'letter_app', label: 'Letter/App', desc: 'চিঠি বা দরখাস্ত', icon: '✉️' },
-                    { id: 'rearrange', label: 'Rearrange', desc: 'বাক্য সাজানো', icon: '🧩' },
-                    { id: 'graph_chart', label: 'Graph/Chart', desc: 'গ্রাফ বা চার্ট', icon: '📈' },
-                    { id: 'summary', label: 'Summary', desc: 'সারাংশ / সারমর্ম', icon: '📋' },
-                    { id: 'dialogue', label: 'Dialogue/Story', desc: 'সংলাপ / গল্প', icon: '💬' }
-                  ].map((t) => (
-                  <button 
-                    key={t.id} 
+                    { id: 'mcq', label: 'MCQ', desc: 'বহুনির্বাচনী (A B C D)', icon: 'edit_note', color: 'amber' },
+                    { id: 'cq', label: 'CQ', desc: 'সৃজনশীল (ক খ গ ঘ)', icon: 'psychology', color: 'rose' },
+                    { id: 'creative', label: 'Creative', desc: 'রচনামূলক/সাধারণ', icon: 'draw', color: 'orange' },
+                    { id: 'short', label: 'Short Q', desc: 'সংক্ষিপ্ত প্রশ্ন', icon: 'bolt', color: 'yellow' },
+                    { id: 'fill_blank', label: 'Fill in Blank', desc: 'শূন্যস্থান পূরণ', icon: 'space_bar', color: 'slate' },
+                    { id: 'matching', label: 'Matching', desc: 'বাম-ডান মিলকরণ', icon: 'link', color: 'blue' },
+                    { id: 'true_false', label: 'True / False', desc: 'সত্য/মিথ্যা নির্ণয়', icon: 'task_alt', color: 'emerald' },
+                    { id: 'math', label: 'Math', desc: 'গাণিতিক সমস্যা', icon: 'calculate', color: 'cyan' },
+                    { id: 'passage', label: 'Passage', desc: 'অনুচ্ছেদ ভিত্তিক', icon: 'menu_book', color: 'violet' },
+                    { id: 'accounting', label: 'Accounting', desc: 'হিসাববিজ্ঞান ছক', icon: 'analytics', color: 'teal' },
+                    { id: 'grammar', label: 'Grammar', desc: 'ব্যাকরণ / গ্রামার', icon: 'spellcheck', color: 'sky' },
+                    { id: 'poem', label: 'Poem', desc: 'কবিতা / সাহিত্য', icon: 'ink_pen', color: 'purple' },
+                    { id: 'essay', label: 'Essay', desc: 'প্রবন্ধ / রচনা', icon: 'history_edu', color: 'red' },
+                    { id: 'paragraph', label: 'Paragraph', desc: 'অনুচ্ছেদ লিখন', icon: 'format_align_left', color: 'lime' },
+                    { id: 'translation', label: 'Translation', desc: 'অনুবাদ (En-Bn)', icon: 'translate', color: 'indigo' },
+                    { id: 'arabic', label: 'Arabic', desc: 'আরবি ইবারত / নস', icon: 'auto_stories', color: 'teal' },
+                    { id: 'hadith', label: 'Hadith/Tafseer', desc: 'হাদিস ও তাফসীর', icon: 'book_4', color: 'amber' },
+                    { id: 'fiqh', label: 'Fiqh/Aqaid', desc: 'ফিকহ ও মাসআলা', icon: 'quiz', color: 'blue' },
+                    { id: 'letter_app', label: 'Letter/App', desc: 'চিঠি বা দরখাস্ত', icon: 'mail', color: 'sky' },
+                    { id: 'rearrange', label: 'Rearrange', desc: 'বাক্য সাজানো', icon: 'low_priority', color: 'pink' },
+                    { id: 'graph_chart', label: 'Graph/Chart', desc: 'গ্রাফ বা চার্ট', icon: 'bar_chart', color: 'emerald' },
+                    { id: 'summary', label: 'Summary', desc: 'সারাংশ / সারমর্ম', icon: 'summarize', color: 'gray' },
+                    { id: 'dialogue', label: 'Dialogue/Story', desc: 'সংলাপ / গল্প', icon: 'forum', color: 'violet' }
+                  ].map((t) => {
+                    const colorMap = {
+                      amber: 'bg-amber-50 border-amber-100 text-amber-600',
+                      rose: 'bg-rose-50 border-rose-100 text-rose-600',
+                      orange: 'bg-orange-50 border-orange-100 text-orange-600',
+                      yellow: 'bg-yellow-50 border-yellow-100 text-yellow-600',
+                      slate: 'bg-slate-50 border-slate-100 text-slate-600',
+                      blue: 'bg-blue-50 border-blue-100 text-blue-600',
+                      emerald: 'bg-emerald-50 border-emerald-100 text-emerald-600',
+                      cyan: 'bg-cyan-50 border-cyan-100 text-cyan-600',
+                      violet: 'bg-violet-50 border-violet-100 text-violet-600',
+                      teal: 'bg-teal-50 border-teal-100 text-teal-600',
+                      sky: 'bg-sky-50 border-sky-100 text-sky-600',
+                      purple: 'bg-purple-50 border-purple-100 text-purple-600',
+                      red: 'bg-red-50 border-red-100 text-red-600',
+                      lime: 'bg-lime-50 border-lime-100 text-lime-600',
+                      indigo: 'bg-indigo-50 border-indigo-100 text-indigo-600',
+                      pink: 'bg-pink-50 border-pink-100 text-pink-600',
+                      gray: 'bg-gray-50 border-gray-100 text-gray-600',
+                    }
+                    return (
+                  <button
+                    key={t.id}
                     onClick={() => setQuestionType(t.id)}
-                    className="w-full text-left p-2 bg-white rounded-xl border border-gray-200 hover:border-blue-500 hover:bg-blue-50 shadow-sm hover:shadow-md transition-all flex items-center gap-2.5 group"
+                    className="w-full text-left p-2.5 sm:p-3 rounded-2xl border shadow-sm hover:shadow-md hover:scale-[1.02] transition-all flex items-center gap-2.5"
+                    style={{ background: `var(--color-${t.color}-50, #fff)`, borderColor: `var(--color-${t.color}-100, #e5e7eb)` }}
                   >
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 shrink-0 bg-gray-50 rounded-lg border border-gray-100 group-hover:bg-blue-100 group-hover:border-blue-200 flex items-center justify-center text-base sm:text-xl transition-all shadow-inner">
-                      {t.icon}
+                    <div className={`w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-xl flex items-center justify-center ${colorMap[t.color]}`}>
+                      <span className="material-symbols-outlined text-xl sm:text-2xl">{t.icon}</span>
                     </div>
-                    <div className="flex flex-col min-w-0 flex-1">
-                      <strong className="text-gray-900 text-[11px] sm:text-xs font-bold truncate">{t.label}</strong>
-                      <span className="text-gray-500 text-[9px] sm:text-[10px] truncate leading-tight mt-0.5">{t.desc}</span>
+                    <div className="flex flex-col min-w-0 flex-1 overflow-hidden">
+                      <strong className="text-gray-900 text-[11px] sm:text-sm font-bold truncate">{t.label}</strong>
+                      <span className="text-gray-500 text-[9px] sm:text-[11px] truncate leading-tight mt-0.5">{t.desc}</span>
                     </div>
                   </button>
-                ))}
+                  )})}
               </div>
             </div>
           </div>
