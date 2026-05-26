@@ -458,8 +458,9 @@ export default function PDFPreview() {
       animate={{ opacity: 1 }}
       className="max-w-4xl mx-auto"
     >
-      {/* Top bar — hidden on print */}
-      <div className="flex items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-4 no-print">
+      {/* Top bar — sticky header, hidden on print */}
+      <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-100 -mx-4 px-4 py-2 sm:py-3 mb-3 sm:mb-4 no-print">
+        <div className="flex items-center justify-between gap-1.5 sm:gap-2">
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
           <Link
             to={`/papers/${id}`}
@@ -542,6 +543,7 @@ export default function PDFPreview() {
             </svg>
             <span>Print</span>
           </button>
+        </div>
         </div>
       </div>
 
