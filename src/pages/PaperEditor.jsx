@@ -48,33 +48,33 @@ import {
 } from '@/utils/sectionNumbering'
 
 const QUESTION_TYPES = [
-  { type: 'MCQ', label: 'MCQ', icon: '○' },
-  { type: 'CQ', label: 'সৃজনশীল (CQ)', icon: '✎' },
-  { type: 'accounting', label: 'হিসাববিজ্ঞান', icon: '৳' },
-  { type: 'short', label: 'সংক্ষিপ্ত', icon: '—' },
-  { type: 'broad', label: 'রচনামূলক', icon: '¶' },
-  { type: 'fill_blank', label: 'শূন্যস্থান', icon: '___' },
-  { type: 'matching', label: 'মিলকরণ', icon: '⟷' },
-  { type: 'rearranging', label: 'পুনর্বিন্যাস', icon: '↕' },
-  { type: 'translation', label: 'অনুবাদ', icon: 'অ' },
-  { type: 'table', label: 'টেবিল', icon: '▦' },
-  { type: 'short_question', label: 'সংক্ষিপ্ত প্রশ্ন (Scan)', icon: '✏️' },
-  { type: 'one_word', label: 'এক কথায় উত্তর', icon: '☝️' },
-  { type: 'essay', label: 'প্রবন্ধ/রচনা', icon: '📝' },
-  { type: 'paragraph', label: 'অনুচ্ছেদ', icon: '📖' },
-  { type: 'letter', label: 'চিঠি/দরখাস্ত', icon: '✉️' },
-  { type: 'dialogue', label: 'কথোপকথন', icon: '💬' },
-  { type: 'grammar', label: 'ব্যাকরণ', icon: '🔤' },
-  { type: 'math', label: 'গণিত সমাধান', icon: '➕' },
-  { type: 'finance', label: 'ফিন্যান্স সমস্যা', icon: '📊' },
-  { type: 'diagram_question', label: 'চিত্রভিত্তিক', icon: '🖼️' },
-  { type: 'arabic', label: 'আরবি অনুবাদ', icon: '🕌' },
-  { type: 'hifz', label: 'হিফজুল কুরআন', icon: '📖' },
-  { type: 'hadith', label: 'আল-হাদীস', icon: '📜' },
-  { type: 'ebtedayi', label: 'এবতেদায়ী মাসআলা', icon: '🕋' },
-  { type: 'poem', label: 'কবিতা/মূলভাব', icon: '🎭' },
-  { type: 'passage', label: 'প্যাসেজভিত্তিক', icon: '📰' },
-  { type: 'true_false', label: 'সত্য/মিথ্যা', icon: '✅' },
+  { type: 'MCQ', label: 'MCQ', icon: '○', color: '#3b82f6' },
+  { type: 'CQ', label: 'সৃজনশীল (CQ)', icon: '✎', color: '#8b5cf6' },
+  { type: 'accounting', label: 'হিসাববিজ্ঞান', icon: '৳', color: '#f59e0b' },
+  { type: 'short', label: 'সংক্ষিপ্ত', icon: '—', color: '#10b981' },
+  { type: 'broad', label: 'রচনামূলক', icon: '¶', color: '#06b6d4' },
+  { type: 'fill_blank', label: 'শূন্যস্থান', icon: '___', color: '#ec4899' },
+  { type: 'matching', label: 'মিলকরণ', icon: '⟷', color: '#f97316' },
+  { type: 'rearranging', label: 'পুনর্বিন্যাস', icon: '↕', color: '#14b8a6' },
+  { type: 'translation', label: 'অনুবাদ', icon: 'অ', color: '#6366f1' },
+  { type: 'table', label: 'টেবিল', icon: '▦', color: '#64748b' },
+  { type: 'short_question', label: 'সংক্ষিপ্ত প্রশ্ন (Scan)', icon: '✏️', color: '#0ea5e9' },
+  { type: 'one_word', label: 'এক কথায় উত্তর', icon: '☝️', color: '#a855f7' },
+  { type: 'essay', label: 'প্রবন্ধ/রচনা', icon: '📝', color: '#e11d48' },
+  { type: 'paragraph', label: 'অনুচ্ছেদ', icon: '📖', color: '#059669' },
+  { type: 'letter', label: 'চিঠি/দরখাস্ত', icon: '✉️', color: '#2563eb' },
+  { type: 'dialogue', label: 'কথোপকথন', icon: '💬', color: '#7c3aed' },
+  { type: 'grammar', label: 'ব্যাকরণ', icon: '🔤', color: '#db2777' },
+  { type: 'math', label: 'গণিত সমাধান', icon: '➕', color: '#ea580c' },
+  { type: 'finance', label: 'ফিন্যান্স সমস্যা', icon: '📊', color: '#0891b2' },
+  { type: 'diagram_question', label: 'চিত্রভিত্তিক', icon: '🖼️', color: '#65a30d' },
+  { type: 'arabic', label: 'আরবি অনুবাদ', icon: '🕌', color: '#0d9488' },
+  { type: 'hifz', label: 'হিফজুল কুরআন', icon: '📖', color: '#16a34a' },
+  { type: 'hadith', label: 'আল-হাদীস', icon: '📜', color: '#b45309' },
+  { type: 'ebtedayi', label: 'এবতেদায়ী মাসআলা', icon: '🕋', color: '#1d4ed8' },
+  { type: 'poem', label: 'কবিতা/মূলভাব', icon: '🎭', color: '#9333ea' },
+  { type: 'passage', label: 'প্যাসেজভিত্তিক', icon: '📰', color: '#0284c7' },
+  { type: 'true_false', label: 'সত্য/মিথ্যা', icon: '✅', color: '#15803d' },
 ]
 
 const PRIMARY_TYPES = QUESTION_TYPES.slice(0, 10)
@@ -674,13 +674,13 @@ export default function PaperEditor() {
                 onClick={() => handleAddQuestion(qt.type)}
                 className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
                 style={{
-                  background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)',
-                  border: '1px solid #e2e8f0',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  background: `linear-gradient(135deg, ${qt.color}15, ${qt.color}25)`,
+                  border: `1px solid ${qt.color}35`,
+                  boxShadow: `0 2px 6px ${qt.color}15`,
                 }}
               >
-                <span className="text-[13px] sm:text-lg leading-none">{qt.icon}</span>
-                <span className="text-[10px] sm:text-[9px] font-bold text-slate-600 leading-tight text-center">
+                <span className="text-[13px] sm:text-lg leading-none" style={{ color: qt.color }}>{qt.icon}</span>
+                <span className="text-[10px] sm:text-[9px] font-bold leading-tight text-center" style={{ color: `${qt.color}` }}>
                   {qt.label}
                 </span>
               </button>
@@ -704,13 +704,13 @@ export default function PaperEditor() {
                 onClick={() => handleAddQuestion(qt.type)}
                 className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
                 style={{
-                  background: 'linear-gradient(135deg, #faf5ff, #f5f3ff)',
-                  border: '1px solid #ede9fe',
-                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                  background: `linear-gradient(135deg, ${qt.color}15, ${qt.color}25)`,
+                  border: `1px solid ${qt.color}35`,
+                  boxShadow: `0 2px 6px ${qt.color}15`,
                 }}
               >
-                <span className="text-[13px] sm:text-lg leading-none">{qt.icon}</span>
-                <span className="text-[10px] sm:text-[9px] font-bold text-slate-600 leading-tight text-center">
+                <span className="text-[13px] sm:text-lg leading-none" style={{ color: qt.color }}>{qt.icon}</span>
+                <span className="text-[10px] sm:text-[9px] font-bold leading-tight text-center" style={{ color: qt.color }}>
                   {qt.label}
                 </span>
               </button>
