@@ -125,15 +125,33 @@ export function buildPaperHtmlForServerPdf({ paperNode, paper, settings = {} }) 
   const pageFormat = String(settings.pageFormat || 'A4').toUpperCase()
   const lang = document.documentElement.lang || 'bn'
 
+  // Page margin — defaults to 14mm top/bottom, 0 left/right (horizontal
+  // padding is baked into the paper template at 12mm). Users can override
+  // via the settings modal. The value is stored as a single string like
+  // "14mm" (applied to all 4 sides) or as an object { top, right, bottom, left }.
+  const pm = settings.pageMargin
+  let marginTop = '14mm'
+  let marginRight = '0mm'
+  let marginBottom = '14mm'
+  let marginLeft = '0mm'
+  if (pm) {
+    if (typeof pm === 'string') {
+      marginTop = pm; marginBottom = pm
+    } else {
+      if (pm.top) marginTop = pm.top
+      if (pm.right) marginRight = pm.right
+      if (pm.bottom) marginBottom = pm.bottom
+      if (pm.left) marginLeft = pm.left
+    }
+  }
+
   // Page-size CSS — `preferCSSPageSize: true` on the server picks this up.
   // Both size AND margin go into @page so that EVERY page (not just the
-  // first) gets the same 14 mm top/bottom whitespace.  If we leave margin
-  // at 0 here and rely only on the Puppeteer pdf() `margin` option, the
-  // CSS `@page { margin: 0 }` in DEFAULT_HEAD_INJECT takes precedence
-  // after the first page break, so pages 2+ lose their top margin.
-  // Horizontal margin stays 0 because the paper template already bakes
-  // in 12 mm left+right padding.
-  const pageSizeCss = `@page { size: ${pageFormat} ${isLandscape ? 'landscape' : 'portrait'}; margin: 14mm 0; }`
+  // first) gets consistent whitespace. If we leave margin at 0 here and
+  // rely only on the Puppeteer pdf() `margin` option, the CSS
+  // `@page { margin: 0 }` in DEFAULT_HEAD_INJECT takes precedence after
+  // the first page break, so pages 2+ lose their top margin.
+  const pageSizeCss = `@page { size: ${pageFormat} ${isLandscape ? 'landscape' : 'portrait'}; margin: ${marginTop} ${marginRight} ${marginBottom} ${marginLeft}; }`
 
   const html = `<!doctype html>
 <html lang="${lang}">

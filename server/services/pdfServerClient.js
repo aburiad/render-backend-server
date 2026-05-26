@@ -9,13 +9,16 @@
  *
  * If either is missing, `isConfigured()` returns false. Callers should
  * surface a friendly error before invoking renderHtml/renderUrl.
+ *
+ * IMPORTANT: No server-side retries. The Vercel serverless function has
+ * a 60s maxDuration. If we retry here, we burn through that budget.
+ * Instead, the frontend retries with fresh Vercel calls — each gets a
+ * full 60s budget.
  */
 
 const BASE = (process.env.PDF_SERVER_URL || '').replace(/\/+$/, '')
 const API_KEY = process.env.PDF_SERVER_API_KEY || ''
-// Render free tier sleeps after 15min idle → first request can take 30-60s
-// to spin Chromium back up. Give it room. Subsequent requests are fast.
-const REQUEST_TIMEOUT_MS = Number(process.env.PDF_SERVER_TIMEOUT_MS || 90000)
+const REQUEST_TIMEOUT_MS = Number(process.env.PDF_SERVER_TIMEOUT_MS || 55_000)
 
 function isConfigured() {
   return Boolean(BASE && API_KEY)
@@ -103,9 +106,6 @@ function mapPrintSettings(settings = {}) {
       }
     }
   } else {
-    // Margin is handled by @page CSS in the HTML (paperToPdfHtml.js sets
-    // `margin: 14mm 0`) so every page gets consistent top/bottom margin.
-    // Setting Puppeteer margin to 0 avoids double-margin on page 1.
     opts.margin = { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' }
   }
 

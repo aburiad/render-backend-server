@@ -35,3 +35,4 @@ proshno-shala-v1-server
 .env
 .env.local
 .env.*.local
+.env*

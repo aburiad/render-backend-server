@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import useAuthStore from '@/store/authStore'
 
 export default function PDFPreview() {
   const { id } = useParams()
@@ -37,6 +38,10 @@ export default function PDFPreview() {
   // empty string => let PaperTemplate fall back to its per-layout default
   // (5mm for 2-col, 4mm for 3-col). Otherwise this value (e.g. '8mm') is used.
   const [columnGap, setColumnGap] = useState('')
+  const [pageFormat, setPageFormat] = useState('A4')
+  const [pageMargin, setPageMargin] = useState('normal')
+  const [showHeader, setShowHeader] = useState(false)
+  const [showPageNumbers, setShowPageNumbers] = useState(false)
   const [savingSettings, setSavingSettings] = useState(false)
 
   const isLandscape = orientation === 'landscape'
@@ -53,6 +58,10 @@ export default function PDFPreview() {
     if (s.spacing) setSpacing(s.spacing)
     if (s.orientation) setOrientation(s.orientation)
     if (typeof s.columnGap === 'string') setColumnGap(s.columnGap)
+    if (s.pageFormat) setPageFormat(s.pageFormat)
+    if (s.pageMargin) setPageMargin(s.pageMargin)
+    if (typeof s.showHeader === 'boolean') setShowHeader(s.showHeader)
+    if (typeof s.showPageNumbers === 'boolean') setShowPageNumbers(s.showPageNumbers)
   }, [paper?.id])
 
   async function saveSettingsAndClose() {
@@ -63,7 +72,7 @@ export default function PDFPreview() {
     setSavingSettings(true)
     try {
       const { data } = await api.put(`/papers/${paper.id}`, {
-        print_settings: { ...(paper.print_settings || {}), font, size, spacing, orientation, columnGap },
+        print_settings: { ...(paper.print_settings || {}), font, size, spacing, orientation, columnGap, pageFormat, pageMargin, showHeader, showPageNumbers },
       })
       if (data?.paper) setPaper(data.paper)
       toast.success('সেটিংস সেভ হয়েছে')
@@ -297,75 +306,101 @@ export default function PDFPreview() {
   // requires the PDF server to be deployed and PDF_SERVER_URL +
   // PDF_SERVER_API_KEY to be set on the main app. On Render's free
   // tier the first request may take 30–60s while the dyno wakes up.
+  //
+  // IMPORTANT: This always calls the SAME-ORIGIN Vercel proxy
+  // (/api/pdf-server/...) instead of the dynamic `api` axios instance,
+  // because the `api` instance may point to a Render backend that does
+  // NOT have PDF_SERVER_URL / PDF_SERVER_API_KEY configured. Vercel
+  // always has them.
   async function handleServerDownload() {
     if (!paperRef.current || downloadingServer) return
     setDownloadingServer(true)
-    const toastId = toast.loading('সার্ভারে PDF তৈরি হচ্ছে…')
+    const toastId = toast.loading('PDF তৈরি হচ্ছে…')
     try {
       try { await document.fonts.ready } catch { /* swallow */ }
 
+      const marginMap = {
+        none: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
+        narrow: { top: '8mm', right: '8mm', bottom: '8mm', left: '8mm' },
+        normal: { top: '14mm', right: '0mm', bottom: '14mm', left: '0mm' },
+        wide: { top: '20mm', right: '15mm', bottom: '20mm', left: '15mm' },
+      }
       const { html, filename } = buildPaperHtmlForServerPdf({
         paperNode: paperRef.current,
         paper,
-        settings: { font, size, spacing, orientation, columnGap },
+        settings: {
+          font, size, spacing, orientation, columnGap,
+          pageFormat,
+          pageMargin: marginMap[pageMargin] || marginMap.normal,
+          showHeader, showPageNumbers,
+        },
       })
 
-      // Retry logic: if the PDF server queue is full (503), we retry
-      // up to 3 times with a short delay so the user eventually gets
-      // their PDF even when multiple users press download together.
+      // Client-side retry: each attempt is a FRESH Vercel serverless call
+      // with its own 60s budget. This is better than server-side retries
+      // which would burn through a single function's timeout.
       const MAX_RETRIES = 3
       let lastErr = null
-      let res = null
 
       for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        if (attempt > 1) {
+          toast.loading(`আবার চেষ্টা হচ্ছে (${attempt}/${MAX_RETRIES})…`, { id: toastId })
+          await new Promise((r) => setTimeout(r, 3000))
+        }
+
         try {
-          if (attempt > 1) {
-            const delayMs = attempt * 3000 // 3s, 6s, 9s backoff
-            toast.loading(`অপেক্ষা করুন, আবার চেষ্টা হচ্ছে (${attempt}/${MAX_RETRIES})…`, { id: toastId })
-            await new Promise((r) => setTimeout(r, delayMs))
+          const pdfUrl = `/api/pdf-server/papers/${paper.id}`
+          const token = useAuthStore.getState().token
+          const headers = { 'Content-Type': 'application/json' }
+          if (token) headers['Authorization'] = `Bearer ${token}`
+
+          const fetchRes = await fetch(pdfUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+              html,
+              filename: `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}`,
+            }),
+          })
+
+          if (!fetchRes.ok) {
+            const errText = await fetchRes.text().catch(() => '')
+            const err = new Error(`PDF server failed (${fetchRes.status}): ${errText.slice(0, 200)}`)
+            err.status = fetchRes.status
+            lastErr = err
+            // Only retry on 503 (Render waking up) or network errors
+            if (fetchRes.status === 503 && attempt < MAX_RETRIES) continue
+            throw err
           }
-            res = await api.post(
-            `/pdf-server/papers/${paper.id}`,
-            { html, filename: `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}` },
-            { responseType: 'blob', timeout: 200000 },
-            )
-          break // success — exit retry loop
+
+          const blob = await fetchRes.blob()
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = filename
+          document.body.appendChild(a)
+          a.click()
+          a.remove()
+          URL.revokeObjectURL(url)
+          toast.success('সার্ভার PDF ডাউনলোড সম্পন্ন', { id: toastId })
+          return // success
         } catch (err) {
           lastErr = err
-          const status = err?.response?.status
-          // Only retry on 503 (queue full/timeout) or network errors
-          if (status !== 503 && err?.code !== 'ECONNABORTED') break
-          if (attempt === MAX_RETRIES) break
-          // Will retry...
+          // Retry on 503 or network errors
+          const isRetryable = String(err?.message || '').includes('503') ||
+            err?.name === 'TypeError' || err?.name === 'AbortError'
+          if (isRetryable && attempt < MAX_RETRIES) continue
+          throw err
         }
       }
-
-      if (!res) throw lastErr
-
-      const blob = res.data instanceof Blob ? res.data : new Blob([res.data], { type: 'application/pdf' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = filename
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-      toast.success('সার্ভার PDF ডাউনলোড সম্পন্ন', { id: toastId })
+      throw lastErr
     } catch (err) {
       console.error('[PDFPreview] server download failed:', err)
       let msg = 'সার্ভার PDF তৈরি করা যায়নি'
-      const blob = err?.response?.data
-      if (blob instanceof Blob && blob.type.includes('json')) {
-        try {
-          const text = await blob.text()
-          const json = JSON.parse(text)
-          if (json?.error || json?.message) msg = json.error || json.message
-        } catch { /* swallow */ }
-      } else if (err?.response?.status === 503) {
-        msg = 'PDF সার্ভারে এখন অনেক রিকোয়েস্ট — কিছুক্ষণ পর আবার চেষ্টা করুন'
-      } else if (err?.code === 'ECONNABORTED') {
-        msg = 'সার্ভার সাড়া দিচ্ছে না — পরে আবার চেষ্টা করুন'
+      if (String(err?.message || '').includes('503')) {
+        msg = 'PDF সার্ভার স্টার্ট হচ্ছে — কয়েক মিনিট পর আবার চেষ্টা করুন'
+      } else if (String(err?.message || '').includes('504') || String(err?.message || '').includes('timed out')) {
+        msg = 'সার্ভার সাড়া দিচ্ছে না — কয়েক মিনিট পর আবার চেষ্টা করুন'
       }
       toast.error(msg, { id: toastId })
     } finally {
@@ -626,7 +661,12 @@ export default function PDFPreview() {
             spacing={spacing} setSpacing={setSpacing}
             orientation={orientation} setOrientation={setOrientation}
             columnGap={columnGap} setColumnGap={setColumnGap}
+            pageFormat={pageFormat} setPageFormat={setPageFormat}
+            pageMargin={pageMargin} setPageMargin={setPageMargin}
+            showHeader={showHeader} setShowHeader={setShowHeader}
+            showPageNumbers={showPageNumbers} setShowPageNumbers={setShowPageNumbers}
             paperLayout={paper?.layout || '1-column'}
+            examTitle={paper?.exam_title || ''}
           />
         )}
       </AnimatePresence>
@@ -634,16 +674,30 @@ export default function PDFPreview() {
   )
 }
 
-function PDFSettingsModal({ onClose, onApply, saving = false, font, setFont, size, setSize, spacing, setSpacing, orientation, setOrientation, columnGap, setColumnGap, paperLayout = '1-column' }) {
+function PDFSettingsModal({
+  onClose, onApply, saving = false,
+  font, setFont, size, setSize, spacing, setSpacing,
+  orientation, setOrientation, columnGap, setColumnGap,
+  pageFormat, setPageFormat, pageMargin, setPageMargin,
+  showHeader, setShowHeader, showPageNumbers, setShowPageNumbers,
+  paperLayout = '1-column', examTitle = '',
+}) {
   const isMultiColumn = paperLayout === '2-column' || paperLayout === '3-column'
   const defaultGapLabel = paperLayout === '3-column' ? '৪ মিমি (ডিফল্ট)' : '৫ মিমি (ডিফল্ট)'
+
+  // Dimensions for each page format (mm) — used for the mini preview icon
+  const formatDims = {
+    A3: { w: 297, h: 420 }, A4: { w: 210, h: 297 }, A5: { w: 148, h: 210 },
+    Legal: { w: 216, h: 356 }, Letter: { w: 216, h: 279 },
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 bg-gray-900/40 backdrop-blur-sm overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl relative"
+        className="bg-white rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl relative my-4"
       >
         <button
           onClick={onClose}
@@ -652,11 +706,43 @@ function PDFSettingsModal({ onClose, onApply, saving = false, font, setFont, siz
           ✕
         </button>
 
-        <h3 className="text-xl font-black mb-6">প্রিন্ট সেটিংস</h3>
+        <h3 className="text-lg sm:text-xl font-black mb-5 flex items-center gap-2">
+          <span>⚙️</span> প্রিন্ট সেটিংস
+        </h3>
 
-        <div className="space-y-4">
+        <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
+
+          {/* ─── Page Format ─── */}
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">পেজ লেআউট</label>
+            <SectionLabel>পেজ সাইজ</SectionLabel>
+            <div className="grid grid-cols-5 gap-1.5">
+              {['A3', 'A4', 'A5', 'Legal', 'Letter'].map((fmt) => {
+                const active = pageFormat === fmt
+                const dims = formatDims[fmt] || formatDims.A4
+                const scaleIcon = 32 / Math.max(dims.w, dims.h)
+                return (
+                  <button
+                    key={fmt}
+                    type="button"
+                    onClick={() => setPageFormat(fmt)}
+                    className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl border-2 transition-all btn-press ${
+                      active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                    }`}
+                  >
+                    <span
+                      className={`block border-2 rounded-[2px] ${active ? 'border-blue-600' : 'border-gray-300'}`}
+                      style={{ width: Math.round(dims.w * scaleIcon * 0.45), height: Math.round(dims.h * scaleIcon * 0.45) }}
+                    />
+                    <span className="text-[10px] font-bold leading-none">{fmt}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ─── Orientation ─── */}
+          <div>
+            <SectionLabel>পেজ লেআউট</SectionLabel>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { val: 'portrait', label: 'পোর্ট্রেট', sub: 'Portrait' },
@@ -670,17 +756,12 @@ function PDFSettingsModal({ onClose, onApply, saving = false, font, setFont, siz
                     type="button"
                     onClick={() => setOrientation(opt.val)}
                     className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all btn-press ${
-                      active
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                      active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
                     }`}
                   >
                     <span
                       className={`block border-2 rounded-sm ${active ? 'border-blue-600' : 'border-gray-400'}`}
-                      style={{
-                        width: isPortrait ? 18 : 26,
-                        height: isPortrait ? 26 : 18,
-                      }}
+                      style={{ width: isPortrait ? 18 : 26, height: isPortrait ? 26 : 18 }}
                     />
                     <span className="text-[12px] font-bold leading-none">{opt.label}</span>
                     <span className="text-[9px] uppercase tracking-wider opacity-60 leading-none">{opt.sub}</span>
@@ -690,8 +771,35 @@ function PDFSettingsModal({ onClose, onApply, saving = false, font, setFont, siz
             </div>
           </div>
 
+          {/* ─── Page Margin ─── */}
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">ফন্ট পরিবার</label>
+            <SectionLabel>পেজ মার্জিন</SectionLabel>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { val: 'none', label: 'কোনো না', icon: '∅' },
+                { val: 'narrow', label: 'সরু', icon: '◂▸' },
+                { val: 'normal', label: 'স্বাভাবিক', icon: '◀▶' },
+                { val: 'wide', label: 'প্রশস্ত', icon: '◁▷' },
+              ].map((opt) => (
+                <button
+                  key={opt.val}
+                  type="button"
+                  onClick={() => setPageMargin(opt.val)}
+                  className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 transition-all btn-press ${
+                    pageMargin === opt.val ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                  }`}
+                >
+                  <span className="text-[11px] font-bold">{opt.icon}</span>
+                  <span className="text-[10px] font-bold leading-none">{opt.label}</span>
+                </button>
+              ))}
+            </div>
+            <p className="text-[9px] text-gray-400 mt-1">পেজের চারধারের ফাঁকা জায়গা নিয়ন্ত্রণ করে</p>
+          </div>
+
+          {/* ─── Font Family ─── */}
+          <div>
+            <SectionLabel>ফন্ট পরিবার</SectionLabel>
             <select
               value={font}
               onChange={(e) => setFont(e.target.value)}
@@ -704,39 +812,40 @@ function PDFSettingsModal({ onClose, onApply, saving = false, font, setFont, siz
             </select>
           </div>
 
+          {/* ─── Font Size ─── */}
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">ফন্ট সাইজ</label>
+            <SectionLabel>ফন্ট সাইজ</SectionLabel>
             <select
               value={size}
               onChange={(e) => setSize(e.target.value)}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold text-sm outline-none"
             >
-              <option value="10pt">Small (10pt)</option>
-              <option value="11pt">Normal (11pt)</option>
-              <option value="12pt">Medium (12pt)</option>
-              <option value="13pt">Large (13pt)</option>
-              <option value="14pt">Extra Large (14pt)</option>
+              <option value="10pt">ছোট (10pt)</option>
+              <option value="11pt">স্বাভাবিক (11pt)</option>
+              <option value="12pt">মিডিয়াম (12pt)</option>
+              <option value="13pt">বড় (13pt)</option>
+              <option value="14pt">অতিরিক্ত বড় (14pt)</option>
             </select>
           </div>
 
+          {/* ─── Line Spacing ─── */}
           <div>
-            <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">লাইন স্পেসিং</label>
+            <SectionLabel>লাইন স্পেসিং</SectionLabel>
             <select
               value={spacing}
               onChange={(e) => setSpacing(e.target.value)}
               className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold text-sm outline-none"
             >
-              <option value="1.2">Compact (1.2)</option>
-              <option value="1.6">Normal (1.6)</option>
-              <option value="2.0">Relaxed (2.0)</option>
+              <option value="1.2">কমপ্যাক্ট (1.2)</option>
+              <option value="1.6">স্বাভাবিক (1.6)</option>
+              <option value="2.0">আরামদায়ক (2.0)</option>
             </select>
           </div>
 
+          {/* ─── Column Gap (multi-column only) ─── */}
           {isMultiColumn && (
             <div>
-              <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
-                কলাম গ্যাপ
-              </label>
+              <SectionLabel>কলাম গ্যাপ</SectionLabel>
               <select
                 value={columnGap || ''}
                 onChange={(e) => setColumnGap(e.target.value)}
@@ -749,23 +858,61 @@ function PDFSettingsModal({ onClose, onApply, saving = false, font, setFont, siz
                 <option value="12mm">আরও প্রশস্ত (১২ মিমি)</option>
                 <option value="16mm">সর্বোচ্চ (১৬ মিমি)</option>
               </select>
-              <p className="text-[10px] text-gray-400 mt-1.5 leading-snug">
-                দুই কলামের মাঝখানের ফাঁকা জায়গা। বড় গ্যাপে অপশন overlap কমে।
-              </p>
+              <p className="text-[9px] text-gray-400 mt-1">দুই কলামের মাঝখানের ফাঁকা জায়গা</p>
             </div>
           )}
 
-          <div className="pt-4">
+          {/* ─── Header & Footer ─── */}
+          <div>
+            <SectionLabel>হেডার ও ফুটার</SectionLabel>
+            <div className="space-y-2">
+              <label className="flex items-center gap-3 py-2.5 px-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showHeader}
+                  onChange={(e) => setShowHeader(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div>
+                  <span className="text-sm font-bold">হেডার দেখান</span>
+                  <p className="text-[9px] text-gray-400 truncate max-w-[200px]">প্রতি পেজের উপরে: {examTitle || 'পরীক্ষার শিরোনাম'}</p>
+                </div>
+              </label>
+              <label className="flex items-center gap-3 py-2.5 px-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showPageNumbers}
+                  onChange={(e) => setShowPageNumbers(e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <div>
+                  <span className="text-sm font-bold">পেজ নম্বর</span>
+                  <p className="text-[9px] text-gray-400">প্রতি পেজের নিচে ১, ২, ৩… দেখাবে</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* ─── Apply Button ─── */}
+          <div className="pt-2 pb-1">
             <button
               onClick={onApply || onClose}
               disabled={saving}
               className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/30 btn-press text-sm disabled:opacity-50"
             >
-              {saving ? 'সেভ হচ্ছে...' : 'প্রয়োগ ও সেভ করুন'}
+              {saving ? 'সেভ হচ্ছে...' : '✅ প্রয়োগ ও সেভ করুন'}
             </button>
           </div>
         </div>
       </motion.div>
     </div>
+  )
+}
+
+function SectionLabel({ children }) {
+  return (
+    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+      {children}
+    </label>
   )
 }

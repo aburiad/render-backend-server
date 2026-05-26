@@ -1,9 +1,12 @@
 function errorHandler(err, req, res, next) {
-  console.error('Error:', err.message)
-  console.error(err.stack)
+  console.error('[errorHandler]', err.message)
+  if (err.stack) console.error(err.stack)
 
-  const statusCode = err.statusCode || 500
-  const message = statusCode === 500
+  // Both `statusCode` (AppError) and `status` (pdfServerClient / http errors)
+  const statusCode = err.statusCode || err.status || 500
+  // For 500, hide internal details in production. For everything else
+  // (400, 401, 404, 503…) the specific message is safe to return.
+  const message = statusCode === 500 && process.env.NODE_ENV === 'production'
     ? 'Internal server error'
     : err.message
 

@@ -21,6 +21,7 @@ router.get('/status', (_req, res) => {
   res.json({ success: true, configured: pdfServerClient.isConfigured() })
 })
 
+
 // Auth gate for everything after this — the actual PDF render needs
 // a logged-in user (paper ownership check).
 router.use(requireAuth)

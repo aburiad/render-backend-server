@@ -17,24 +17,15 @@ import axios from 'axios'
 const VITE_API_URL = import.meta.env.VITE_API_URL?.replace(/\/$/, '') || ''
 const defaultBase = VITE_API_URL ? `${VITE_API_URL}/api` : '/api'
 
-// Read cached backend URL from localStorage (set by initBackendUrl below).
-// In local dev (localhost), skip the cache — the Vite proxy handles /api
-// → localhost:5000, and a stale production URL in the cache causes 503s.
-function getCachedBackendBase() {
-  try {
-    if (typeof window !== 'undefined' &&
-        (window.location.hostname === 'localhost' ||
-         window.location.hostname === '127.0.0.1')) {
-      return null
-    }
-    const cached = localStorage.getItem('_backend_base')
-    if (cached) return cached
-  } catch { /* localStorage unavailable (SSR, iframe sandbox) */ }
-  return null
-}
-
+// IMPORTANT: Always start with same-origin /api (Vercel) as the base URL.
+// Previously we read localStorage cache synchronously, which pointed to
+// a Render backend that may be sleeping (free tier). The first API calls
+// then went to Render → ERR_CONNECTION_CLOSED → broken first-load UX.
+// Now initBackendUrl() health-checks Render first and only switches if
+// it's actually healthy. The cache is only used as a hint inside
+// initBackendUrl, not as the initial baseURL.
 const api = axios.create({
-  baseURL: getCachedBackendBase() || defaultBase,
+  baseURL: defaultBase,
   timeout: 30_000,
   withCredentials: true,
   headers: {
@@ -161,6 +152,24 @@ api.interceptors.response.use(
     return response
   },
   (error) => {
+    // Network error to a remote backend (Render) → auto-fall back to
+    // same-origin Vercel proxy so the user is not stuck with a broken
+    // app. This handles ERR_CONNECTION_CLOSED, ERR_CONNECTION_REFUSED,
+    // and general network failures when Render's free tier is sleeping.
+    if (!error.response && api.defaults.baseURL && !api.defaults.baseURL.startsWith('/')) {
+      const failedUrl = error.config?.baseURL || api.defaults.baseURL
+      if (failedUrl.includes('onrender.com')) {
+        console.warn('[api] Render backend unreachable — falling back to Vercel')
+        api.defaults.baseURL = '/api'
+        try { localStorage.removeItem('_backend_base') } catch {}
+        // Retry the original request against Vercel
+        if (error.config) {
+          error.config.baseURL = '/api'
+          return api.request(error.config)
+        }
+      }
+    }
+
     // Don't auto-logout on every 401 — that creates a redirect loop with Supabase auto-login.
     // Logging out aggressively also masks real backend bugs (bad service-role key, RLS, etc.).
     // Just surface the error to the caller; the user can manually log out if their session truly expired.
