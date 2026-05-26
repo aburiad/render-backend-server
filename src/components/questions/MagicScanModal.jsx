@@ -255,9 +255,8 @@ export default function MagicScanModal({ onClose }) {
                 <div className="border-2 border-dashed border-blue-200/40 bg-blue-50/30 rounded-2xl p-4 flex flex-col items-center">
                   <div className="grid grid-cols-2 gap-3 w-full">
                     {/* Camera Card */}
-                    <button
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="group relative overflow-hidden flex flex-col items-center justify-center py-5 px-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                    <label
+                      className="group relative overflow-hidden flex flex-col items-center justify-center py-5 px-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
                       style={{ background: 'linear-gradient(135deg, #4648d4 0%, #6063ee 100%)', boxShadow: '0 6px 16px -4px rgba(70,72,212,0.35)' }}
                     >
                       <div className="absolute -top-4 -right-4 w-16 h-16 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500" />
@@ -271,12 +270,12 @@ export default function MagicScanModal({ onClose }) {
                       <input
                         type="file"
                         ref={cameraInputRef}
-                        hidden
                         accept="image/*"
                         capture="environment"
                         onChange={handleFileChange}
+                        className="hidden"
                       />
-                    </button>
+                    </label>
 
                     {/* Upload Card */}
                     <button
