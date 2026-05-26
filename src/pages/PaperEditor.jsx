@@ -672,13 +672,15 @@ export default function PaperEditor() {
               <button
                 key={qt.type}
                 onClick={() => handleAddQuestion(qt.type)}
-                className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
+                className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
                 style={{
-                  border: '1px solid #f1f5f9',
+                  background: 'linear-gradient(135deg, #f8fafc, #f1f5f9)',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 }}
               >
                 <span className="text-[13px] sm:text-lg leading-none">{qt.icon}</span>
-                <span className="text-[10px] sm:text-[9px] font-bold text-slate-500 leading-tight text-center">
+                <span className="text-[10px] sm:text-[9px] font-bold text-slate-600 leading-tight text-center">
                   {qt.label}
                 </span>
               </button>
@@ -700,13 +702,15 @@ export default function PaperEditor() {
               <button
                 key={qt.type}
                 onClick={() => handleAddQuestion(qt.type)}
-                className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
+                className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
                 style={{
-                  border: '1px solid #f1f5f9',
+                  background: 'linear-gradient(135deg, #faf5ff, #f5f3ff)',
+                  border: '1px solid #ede9fe',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
                 }}
               >
                 <span className="text-[13px] sm:text-lg leading-none">{qt.icon}</span>
-                <span className="text-[10px] sm:text-[9px] font-bold text-slate-500 leading-tight text-center">
+                <span className="text-[10px] sm:text-[9px] font-bold text-slate-600 leading-tight text-center">
                   {qt.label}
                 </span>
               </button>
