@@ -144,8 +144,9 @@ export default function RoutinePreview() {
       URL.revokeObjectURL(url)
       toast.success('সার্ভার PDF ডাউনলোড সম্পন্ন', { id: toastId })
     } catch (serverErr) {
-      console.warn('[RoutinePreview] server PDF failed:', serverErr.message)
-      toast.error('সার্ভার PDF তৈরি হচ্ছে — কিছুক্ষণ পর আবার চেষ্টা করুন অথবা "PDF" বাটনে ক্লিক করুন', { id: toastId, duration: 6000 })
+      console.warn('[RoutinePreview] server PDF failed, falling back to client-side:', serverErr.message)
+      toast.error('সার্ভার PDF অফলাইন — ক্লায়েন্ট PDF দিয়ে তৈরি হচ্ছে...', { id: toastId, duration: 3000 })
+      try { await handleDownload() } catch { /* handleDownload shows its own error toast */ }
     } finally {
       setDownloadingServer(false)
     }

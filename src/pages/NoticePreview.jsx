@@ -138,8 +138,14 @@ export default function NoticePreview() {
       URL.revokeObjectURL(url)
       toast.success('সার্ভার PDF ডাউনলোড সম্পন্ন', { id: toastId })
     } catch (serverErr) {
-      console.warn('[NoticePreview] server PDF failed:', serverErr.message)
-      toast.error('সার্ভার PDF তৈরি হচ্ছে — কিছুক্ষণ পর আবার চেষ্টা করুন অথবা "PDF" বাটনে ক্লিক করুন', { id: toastId, duration: 6000 })
+      console.warn('[NoticePreview] server PDF failed, falling back to client-side:', serverErr.message)
+      // Server route not deployed yet (separate repo) — fall back to client-side html2pdf
+      try {
+        await handleDownload()
+        toast.success('PDF ডাউনলোড সম্পন্ন (ক্লায়েন্ট)', { id: toastId })
+      } catch {
+        toast.error('PDF তৈরি করতে সমস্যা হয়েছে', { id: toastId, duration: 6000 })
+      }
     } finally {
       setDownloadingServer(false)
     }
