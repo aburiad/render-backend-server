@@ -690,14 +690,18 @@ export default function PaperEditor() {
             ))}
             <button
               onClick={() => setShowMoreTypes(!showMoreTypes)}
-              className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
-              style={{
-                background: showMoreTypes ? '#f8fafc' : '#f0f9ff',
-                border: showMoreTypes ? '1px solid #e2e8f0' : '1px solid #bae6fd',
-              }}
+              className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
             >
-              <span className="text-[13px] sm:text-lg leading-none">{showMoreTypes ? '▲' : '⋯'}</span>
-              <span className="text-[10px] sm:text-[9px] font-bold leading-tight" style={{ color: showMoreTypes ? '#64748b' : '#0284c7' }}>
+              <div
+                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center"
+                style={{
+                  background: showMoreTypes ? 'linear-gradient(145deg, #94a3b8, #64748b)' : 'linear-gradient(145deg, #38bdf8, #0284c7)',
+                  boxShadow: showMoreTypes ? '0 4px 14px rgba(100,116,139,0.25)' : '0 4px 14px rgba(14,165,233,0.25)',
+                }}
+              >
+                <span className="material-symbols-outlined text-white text-xl sm:text-3xl leading-none">{showMoreTypes ? 'expand_less' : 'more_horiz'}</span>
+              </div>
+              <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 leading-tight text-center">
                 {showMoreTypes ? 'কম' : 'আরও'}
               </span>
             </button>
