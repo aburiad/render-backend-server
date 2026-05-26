@@ -97,6 +97,12 @@ export async function initBackendUrl() {
     }
 
     api.defaults.baseURL = newBase
+    // Always store Render URL for PDF requests (even when Vercel is active)
+    // because PDF rendering needs Render's longer 90s timeout.
+    if (bc.render_url) {
+      setRenderPdfUrl(`${bc.render_url}/api`)
+      console.log('[api] PDF requests → Render (dedicated)')
+    }
     try { localStorage.setItem('_backend_base', newBase) } catch {}
   } catch (err) {
     console.warn('[api] initBackendUrl failed:', err.message, '— using default /api')
@@ -195,4 +201,19 @@ api.interceptors.response.use(
   },
 )
 
+// ─── Render URL for PDF requests ─────────────────────────────────────────────
+// PDF rendering via Puppeteer can take 30-60 seconds. Render backend has a 90s
+// timeout and works reliably. When Vercel is active, PDF requests still need
+// to go through Render — Vercel's 60s function limit is too tight for PDF.
+let _renderPdfUrl = null
+
+function setRenderPdfUrl(url) {
+  _renderPdfUrl = url
+}
+
+function getRenderPdfUrl() {
+  return _renderPdfUrl
+}
+
+export { setRenderPdfUrl, getRenderPdfUrl }
 export default api

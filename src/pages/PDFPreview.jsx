@@ -1,5 +1,5 @@
 import PaperTemplate from '@/components/paper/PaperTemplate'
-import api from '@/services/api'
+import api, { getRenderPdfUrl } from '@/services/api'
 import Loader from '@/components/shared/Loader'
 import { buildPaperHtmlForServerPdf } from '@/utils/paperToPdfHtml'
 // eslint-disable-next-line no-unused-vars
@@ -328,9 +328,13 @@ export default function PDFPreview() {
         },
       })
 
-      // ── Attempt 1: server-side PDF (one try, no retries) ──────────
+      // ── Attempt 1: server-side PDF via Render (longer timeout) ────
+      // PDF rendering via Puppeteer needs 30-60s. Always route through
+      // Render backend which has 90s timeout. Vercel's 60s function
+      // limit is too tight and causes 503 errors.
       try {
-        const baseUrl = api.defaults.baseURL || '/api'
+        const renderPdfUrl = getRenderPdfUrl()
+        const baseUrl = renderPdfUrl || api.defaults.baseURL || '/api'
         const pdfUrl = baseUrl.startsWith('http')
           ? `${baseUrl}/pdf-server/papers/${paper.id}`
           : `/api/pdf-server/papers/${paper.id}`
