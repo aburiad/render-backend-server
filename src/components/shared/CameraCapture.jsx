@@ -332,16 +332,14 @@ export default function CameraCapture({ onCapture, onCancel }) {
           style={{ transform: facingMode === 'user' ? 'scaleX(-1)' : 'none' }}
         />
 
-        {/* Document framing guide */}
+        {/* Document framing guide - simple corner brackets */}
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <div className="w-[85%] max-w-lg aspect-[3/4] relative">
-            {/* Semi-transparent overlay outside frame */}
-            <div className="absolute inset-0 -inset-[200%] border-[200vw] border-black/40" style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 7.5% 10%, 7.5% 90%, 92.5% 90%, 92.5% 10%, 7.5% 10%)' }} />
+          <div className="w-[85%] max-w-lg aspect-[3/4] relative border-2 border-white/20 rounded-xl">
             {/* Corner guides */}
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-2 border-l-2 border-white/60 rounded-tl-lg" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-2 border-r-2 border-white/60 rounded-tr-lg" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-white/60 rounded-bl-lg" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-2 border-r-2 border-white/60 rounded-br-lg" />
+            <div className="absolute -top-0.5 -left-0.5 w-10 h-10 border-t-[3px] border-l-[3px] border-white/80 rounded-tl-xl" />
+            <div className="absolute -top-0.5 -right-0.5 w-10 h-10 border-t-[3px] border-r-[3px] border-white/80 rounded-tr-xl" />
+            <div className="absolute -bottom-0.5 -left-0.5 w-10 h-10 border-b-[3px] border-l-[3px] border-white/80 rounded-bl-xl" />
+            <div className="absolute -bottom-0.5 -right-0.5 w-10 h-10 border-b-[3px] border-r-[3px] border-white/80 rounded-br-xl" />
             {/* Center text hint */}
             {status === 'ready' && !isGood && (
               <div className="absolute inset-0 flex items-center justify-center">
