@@ -48,33 +48,33 @@ import {
 } from '@/utils/sectionNumbering'
 
 const QUESTION_TYPES = [
-  { type: 'MCQ', label: 'MCQ', icon: '○', color: '#3b82f6' },
-  { type: 'CQ', label: 'সৃজনশীল (CQ)', icon: '✎', color: '#8b5cf6' },
-  { type: 'accounting', label: 'হিসাববিজ্ঞান', icon: '৳', color: '#f59e0b' },
-  { type: 'short', label: 'সংক্ষিপ্ত', icon: '—', color: '#10b981' },
-  { type: 'broad', label: 'রচনামূলক', icon: '¶', color: '#06b6d4' },
-  { type: 'fill_blank', label: 'শূন্যস্থান', icon: '___', color: '#ec4899' },
-  { type: 'matching', label: 'মিলকরণ', icon: '⟷', color: '#f97316' },
-  { type: 'rearranging', label: 'পুনর্বিন্যাস', icon: '↕', color: '#14b8a6' },
-  { type: 'translation', label: 'অনুবাদ', icon: 'অ', color: '#6366f1' },
-  { type: 'table', label: 'টেবিল', icon: '▦', color: '#64748b' },
-  { type: 'short_question', label: 'সংক্ষিপ্ত প্রশ্ন (Scan)', icon: '✏️', color: '#0ea5e9' },
-  { type: 'one_word', label: 'এক কথায় উত্তর', icon: '☝️', color: '#a855f7' },
-  { type: 'essay', label: 'প্রবন্ধ/রচনা', icon: '📝', color: '#e11d48' },
-  { type: 'paragraph', label: 'অনুচ্ছেদ', icon: '📖', color: '#059669' },
-  { type: 'letter', label: 'চিঠি/দরখাস্ত', icon: '✉️', color: '#2563eb' },
-  { type: 'dialogue', label: 'কথোপকথন', icon: '💬', color: '#7c3aed' },
-  { type: 'grammar', label: 'ব্যাকরণ', icon: '🔤', color: '#db2777' },
-  { type: 'math', label: 'গণিত সমাধান', icon: '➕', color: '#ea580c' },
-  { type: 'finance', label: 'ফিন্যান্স সমস্যা', icon: '📊', color: '#0891b2' },
-  { type: 'diagram_question', label: 'চিত্রভিত্তিক', icon: '🖼️', color: '#65a30d' },
-  { type: 'arabic', label: 'আরবি অনুবাদ', icon: '🕌', color: '#0d9488' },
-  { type: 'hifz', label: 'হিফজুল কুরআন', icon: '📖', color: '#16a34a' },
-  { type: 'hadith', label: 'আল-হাদীস', icon: '📜', color: '#b45309' },
-  { type: 'ebtedayi', label: 'এবতেদায়ী মাসআলা', icon: '🕋', color: '#1d4ed8' },
-  { type: 'poem', label: 'কবিতা/মূলভাব', icon: '🎭', color: '#9333ea' },
-  { type: 'passage', label: 'প্যাসেজভিত্তিক', icon: '📰', color: '#0284c7' },
-  { type: 'true_false', label: 'সত্য/মিথ্যা', icon: '✅', color: '#15803d' },
+  { type: 'MCQ', label: 'MCQ', icon: '○', from: '#60a5fa', to: '#2563eb', shadow: 'rgba(59,130,246,0.25)' },
+  { type: 'CQ', label: 'সৃজনশীল (CQ)', icon: '✎', from: '#a78bfa', to: '#7c3aed', shadow: 'rgba(139,92,246,0.25)' },
+  { type: 'accounting', label: 'হিসাববিজ্ঞান', icon: '৳', from: '#fb923c', to: '#ea580c', shadow: 'rgba(249,115,22,0.25)' },
+  { type: 'short', label: 'সংক্ষিপ্ত', icon: '—', from: '#34d399', to: '#059669', shadow: 'rgba(16,185,129,0.25)' },
+  { type: 'broad', label: 'রচনামূলক', icon: '¶', from: '#22d3ee', to: '#0891b2', shadow: 'rgba(6,182,212,0.25)' },
+  { type: 'fill_blank', label: 'শূন্যস্থান', icon: '___', from: '#f472b6', to: '#db2777', shadow: 'rgba(236,72,153,0.25)' },
+  { type: 'matching', label: 'মিলকরণ', icon: '⟷', from: '#f87171', to: '#dc2626', shadow: 'rgba(248,113,113,0.25)' },
+  { type: 'rearranging', label: 'পুনর্বিন্যাস', icon: '↕', from: '#2dd4bf', to: '#0d9488', shadow: 'rgba(20,184,166,0.25)' },
+  { type: 'translation', label: 'অনুবাদ', icon: 'অ', from: '#818cf8', to: '#4f46e5', shadow: 'rgba(99,102,241,0.25)' },
+  { type: 'table', label: 'টেবিল', icon: '▦', from: '#94a3b8', to: '#475569', shadow: 'rgba(100,116,139,0.25)' },
+  { type: 'short_question', label: 'সংক্ষিপ্ত প্রশ্ন (Scan)', icon: '✏️', from: '#38bdf8', to: '#0284c7', shadow: 'rgba(14,165,233,0.25)' },
+  { type: 'one_word', label: 'এক কথায় উত্তর', icon: '☝️', from: '#a78bfa', to: '#7c3aed', shadow: 'rgba(168,85,247,0.25)' },
+  { type: 'essay', label: 'প্রবন্ধ/রচনা', icon: '📝', from: '#fb7185', to: '#e11d48', shadow: 'rgba(225,29,72,0.25)' },
+  { type: 'paragraph', label: 'অনুচ্ছেদ', icon: '📖', from: '#34d399', to: '#047857', shadow: 'rgba(5,150,105,0.25)' },
+  { type: 'letter', label: 'চিঠি/দরখাস্ত', icon: '✉️', from: '#3b82f6', to: '#4338ca', shadow: 'rgba(37,99,235,0.25)' },
+  { type: 'dialogue', label: 'কথোপকথন', icon: '💬', from: '#a78bfa', to: '#6d28d9', shadow: 'rgba(124,58,237,0.25)' },
+  { type: 'grammar', label: 'ব্যাকরণ', icon: '🔤', from: '#f472b6', to: '#be185d', shadow: 'rgba(219,39,119,0.25)' },
+  { type: 'math', label: 'গণিত সমাধান', icon: '➕', from: '#fb923c', to: '#c2410c', shadow: 'rgba(234,88,12,0.25)' },
+  { type: 'finance', label: 'ফিন্যান্স সমস্যা', icon: '📊', from: '#22d3ee', to: '#0e7490', shadow: 'rgba(8,145,178,0.25)' },
+  { type: 'diagram_question', label: 'চিত্রভিত্তিক', icon: '🖼️', from: '#a3e635', to: '#4d7c0f', shadow: 'rgba(101,163,13,0.25)' },
+  { type: 'arabic', label: 'আরবি অনুবাদ', icon: '🕌', from: '#2dd4bf', to: '#0f766e', shadow: 'rgba(13,148,136,0.25)' },
+  { type: 'hifz', label: 'হিফজুল কুরআন', icon: '📖', from: '#22c55e', to: '#15803d', shadow: 'rgba(22,163,74,0.25)' },
+  { type: 'hadith', label: 'আল-হাদীস', icon: '📜', from: '#fbbf24', to: '#b45309', shadow: 'rgba(180,83,9,0.25)' },
+  { type: 'ebtedayi', label: 'এবতেদায়ী মাসআলা', icon: '🕋', from: '#60a5fa', to: '#1d4ed8', shadow: 'rgba(29,78,216,0.25)' },
+  { type: 'poem', label: 'কবিতা/মূলভাব', icon: '🎭', from: '#c084fc', to: '#7e22ce', shadow: 'rgba(147,51,234,0.25)' },
+  { type: 'passage', label: 'প্যাসেজভিত্তিক', icon: '📰', from: '#38bdf8', to: '#0369a1', shadow: 'rgba(2,132,199,0.25)' },
+  { type: 'true_false', label: 'সত্য/মিথ্যা', icon: '✅', from: '#4ade80', to: '#15803d', shadow: 'rgba(21,128,61,0.25)' },
 ]
 
 const PRIMARY_TYPES = QUESTION_TYPES.slice(0, 10)
@@ -672,15 +672,18 @@ export default function PaperEditor() {
               <button
                 key={qt.type}
                 onClick={() => handleAddQuestion(qt.type)}
-                className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
-                style={{
-                  background: `linear-gradient(145deg, ${qt.color}f2, ${qt.color}cc)`,
-                  border: 'none',
-                  boxShadow: `0 3px 10px ${qt.color}50`,
-                }}
+                className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
               >
-                <span className="text-[13px] sm:text-lg leading-none text-white drop-shadow-sm">{qt.icon}</span>
-                <span className="text-[9px] sm:text-[9px] font-bold leading-tight text-center text-white drop-shadow-sm">
+                <div
+                  className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center"
+                  style={{
+                    background: `linear-gradient(145deg, ${qt.from}, ${qt.to})`,
+                    boxShadow: `0 4px 12px ${qt.shadow}`,
+                  }}
+                >
+                  <span className="text-white text-base sm:text-xl leading-none drop-shadow-sm">{qt.icon}</span>
+                </div>
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 leading-tight text-center">
                   {qt.label}
                 </span>
               </button>
@@ -702,15 +705,18 @@ export default function PaperEditor() {
               <button
                 key={qt.type}
                 onClick={() => handleAddQuestion(qt.type)}
-                className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
-                style={{
-                  background: `linear-gradient(145deg, ${qt.color}f2, ${qt.color}cc)`,
-                  border: 'none',
-                  boxShadow: `0 3px 10px ${qt.color}50`,
-                }}
+                className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
               >
-                <span className="text-[13px] sm:text-lg leading-none text-white drop-shadow-sm">{qt.icon}</span>
-                <span className="text-[9px] sm:text-[9px] font-bold leading-tight text-center text-white drop-shadow-sm">
+                <div
+                  className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl flex items-center justify-center"
+                  style={{
+                    background: `linear-gradient(145deg, ${qt.from}, ${qt.to})`,
+                    boxShadow: `0 4px 12px ${qt.shadow}`,
+                  }}
+                >
+                  <span className="text-white text-base sm:text-xl leading-none drop-shadow-sm">{qt.icon}</span>
+                </div>
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 leading-tight text-center">
                   {qt.label}
                 </span>
               </button>
