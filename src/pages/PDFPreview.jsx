@@ -286,6 +286,28 @@ export default function PDFPreview() {
                   pinStyles(oDesc[i], cDesc[i])
                 }
               }
+
+              // ─── Strip oklch() colors ──────────────────────────
+              // Tailwind v4 uses oklch() which html2canvas cannot parse.
+              // Replace all oklch() with 'inherit' in the cloned doc.
+              try {
+                const cloneEl = clonedDoc.documentElement || clonedDoc
+                cloneEl.querySelectorAll('[style]').forEach(el => {
+                  if (el.style.cssText && el.style.cssText.includes('oklch')) {
+                    el.style.cssText = el.style.cssText.replace(/oklch\([^)]*\)/g, 'inherit')
+                  }
+                })
+                const doc = cloneEl.ownerDocument || document
+                for (const sheet of doc.styleSheets) {
+                  try {
+                    for (const rule of sheet.cssRules) {
+                      if (rule.cssText && rule.cssText.includes('oklch')) {
+                        rule.style.cssText = rule.style.cssText.replace(/oklch\([^)]*\)/g, 'inherit')
+                      }
+                    }
+                  } catch { /* cross-origin */ }
+                }
+              } catch { /* non-critical */ }
             },
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation },
