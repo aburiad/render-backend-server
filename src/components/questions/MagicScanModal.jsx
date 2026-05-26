@@ -235,38 +235,89 @@ export default function MagicScanModal({ onClose }) {
           )}
 
           {step === 'upload' && questionType && (
-            <div className="max-w-2xl mx-auto">
-              <div className="flex justify-between items-center mb-4">
-                <button 
-                  onClick={() => { setQuestionType(null); setImagePreview(null) }} 
-                  className="text-sm font-bold text-gray-500 hover:text-gray-900 flex items-center gap-1"
+            <div className="max-w-md mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <button
+                  onClick={() => { setQuestionType(null); setImagePreview(null) }}
+                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-800 transition-all font-bold text-sm"
                 >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  <svg className="w-[18px] h-[18px]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m15 18-6-6 6-6" />
+                  </svg>
                   পেছনে যান
                 </button>
-                <div className="text-sm font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-100">
+                <span className="px-4 py-1.5 bg-purple-100 text-purple-700 text-xs font-black rounded-full tracking-wider shadow-sm">
                   {questionType.toUpperCase()}
-                </div>
+                </span>
               </div>
               {!imagePreview ? (
-                <div 
-                  onClick={() => fileInputRef.current.click()}
-                  className="border-2 border-dashed border-gray-200 rounded-3xl p-12 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-all group"
-                >
-                  <input 
-                    type="file" 
-                    ref={fileInputRef} 
-                    hidden 
-                    accept="image/*" 
-                    onChange={handleFileChange}
-                  />
-                  <div className="w-16 h-16 bg-blue-50 text-blue-500 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
-                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
+                <div className="border-2 border-dashed border-blue-200/40 bg-blue-50/30 rounded-[2rem] p-6 flex flex-col items-center min-h-[380px]">
+                  <div className="grid grid-cols-1 gap-5 w-full flex-1">
+                    {/* Camera Card */}
+                    <button
+                      onClick={() => {
+                        const inp = document.createElement('input')
+                        inp.type = 'file'
+                        inp.accept = 'image/*'
+                        inp.capture = 'environment'
+                        inp.onchange = (e) => {
+                          const file = e.target.files[0]
+                          if (!file) return
+                          setImageFile(file)
+                          const reader = new FileReader()
+                          reader.onloadend = () => setImagePreview(reader.result)
+                          reader.readAsDataURL(file)
+                        }
+                        inp.click()
+                      }}
+                      className="group relative overflow-hidden flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #4648d4 0%, #6063ee 100%)', boxShadow: '0 10px 25px -5px rgba(70,72,212,0.4)' }}
+                    >
+                      <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+                      <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-3 group-hover:bg-white/30 transition-all duration-300 shadow-inner">
+                        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 4h-5L7 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2h-3l-2.5-3z" />
+                          <circle cx="12" cy="13" r="3" />
+                        </svg>
+                      </div>
+                      <span className="text-white font-extrabold text-lg tracking-tight">ক্যামেরা দিয়ে স্ক্যান</span>
+                    </button>
+
+                    {/* Divider */}
+                    <div className="flex items-center gap-4 my-1">
+                      <div className="h-[2px] flex-1 bg-blue-200/50" />
+                      <span className="text-[12px] uppercase font-black text-blue-300 tracking-[0.2em]">অথবা</span>
+                      <div className="h-[2px] flex-1 bg-blue-200/50" />
+                    </div>
+
+                    {/* Upload Card */}
+                    <button
+                      onClick={() => fileInputRef.current.click()}
+                      className="group relative overflow-hidden flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #8127cf 0%, #9c48ea 100%)', boxShadow: '0 10px 25px -5px rgba(129,39,207,0.4)' }}
+                    >
+                      <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
+                      <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-3 group-hover:bg-white/30 transition-all duration-300 shadow-inner">
+                        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h7" />
+                          <line x1="16" y1="5" x2="22" y2="5" />
+                          <line x1="19" y1="2" x2="19" y2="8" />
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m21 15-3.086-3.086a2 2 0 00-2.828 0L6 21" />
+                        </svg>
+                      </div>
+                      <span className="text-white font-extrabold text-lg tracking-tight">ছবি আপলোড করুন</span>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        hidden
+                        accept="image/*"
+                        onChange={handleFileChange}
+                      />
+                    </button>
                   </div>
-                  <p className="text-sm font-semibold text-gray-700">ছবি আপলোড করুন</p>
-                  <p className="text-xs text-gray-400 mt-1">ক্যামেরা বা গ্যালারি থেকে প্রশ্নপত্রের ছবি দিন</p>
+                  <p className="text-center text-gray-500 font-medium text-xs mt-6 px-4 leading-relaxed opacity-80">
+                    ক্যামেরা বা গ্যালারি থেকে প্রশ্নপত্রের স্পষ্ট ছবি দিন যাতে AI সহজে স্ক্যান করতে পারে
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-4">
