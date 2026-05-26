@@ -251,8 +251,8 @@ export default function MagicScanModal({ onClose }) {
                 </span>
               </div>
               {!imagePreview ? (
-                <div className="border-2 border-dashed border-blue-200/40 bg-blue-50/30 rounded-[2rem] p-6 flex flex-col items-center min-h-[380px]">
-                  <div className="grid grid-cols-1 gap-5 w-full flex-1">
+                <div className="border-2 border-dashed border-blue-200/40 bg-blue-50/30 rounded-2xl p-4 flex flex-col items-center">
+                  <div className="grid grid-cols-2 gap-3 w-full">
                     {/* Camera Card */}
                     <button
                       onClick={() => {
@@ -270,42 +270,35 @@ export default function MagicScanModal({ onClose }) {
                         }
                         inp.click()
                       }}
-                      className="group relative overflow-hidden flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
-                      style={{ background: 'linear-gradient(135deg, #4648d4 0%, #6063ee 100%)', boxShadow: '0 10px 25px -5px rgba(70,72,212,0.4)' }}
+                      className="group relative overflow-hidden flex flex-col items-center justify-center py-5 px-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #4648d4 0%, #6063ee 100%)', boxShadow: '0 6px 16px -4px rgba(70,72,212,0.35)' }}
                     >
-                      <div className="absolute -top-6 -right-6 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
-                      <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-3 group-hover:bg-white/30 transition-all duration-300 shadow-inner">
-                        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <div className="absolute -top-4 -right-4 w-16 h-16 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500" />
+                      <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mb-2 group-hover:bg-white/30 transition-all duration-300 shadow-inner">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M14.5 4h-5L7 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2h-3l-2.5-3z" />
                           <circle cx="12" cy="13" r="3" />
                         </svg>
                       </div>
-                      <span className="text-white font-extrabold text-lg tracking-tight">ক্যামেরা দিয়ে স্ক্যান</span>
+                      <span className="text-white font-extrabold text-sm tracking-tight">ক্যামেরা</span>
                     </button>
-
-                    {/* Divider */}
-                    <div className="flex items-center gap-4 my-1">
-                      <div className="h-[2px] flex-1 bg-blue-200/50" />
-                      <span className="text-[12px] uppercase font-black text-blue-300 tracking-[0.2em]">অথবা</span>
-                      <div className="h-[2px] flex-1 bg-blue-200/50" />
-                    </div>
 
                     {/* Upload Card */}
                     <button
                       onClick={() => fileInputRef.current.click()}
-                      className="group relative overflow-hidden flex flex-col items-center justify-center p-6 rounded-2xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
-                      style={{ background: 'linear-gradient(135deg, #8127cf 0%, #9c48ea 100%)', boxShadow: '0 10px 25px -5px rgba(129,39,207,0.4)' }}
+                      className="group relative overflow-hidden flex flex-col items-center justify-center py-5 px-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
+                      style={{ background: 'linear-gradient(135deg, #8127cf 0%, #9c48ea 100%)', boxShadow: '0 6px 16px -4px rgba(129,39,207,0.35)' }}
                     >
-                      <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500" />
-                      <div className="w-14 h-14 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center mb-3 group-hover:bg-white/30 transition-all duration-300 shadow-inner">
-                        <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500" />
+                      <div className="w-10 h-10 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center mb-2 group-hover:bg-white/30 transition-all duration-300 shadow-inner">
+                        <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h7" />
                           <line x1="16" y1="5" x2="22" y2="5" />
                           <line x1="19" y1="2" x2="19" y2="8" />
                           <path strokeLinecap="round" strokeLinejoin="round" d="m21 15-3.086-3.086a2 2 0 00-2.828 0L6 21" />
                         </svg>
                       </div>
-                      <span className="text-white font-extrabold text-lg tracking-tight">ছবি আপলোড করুন</span>
+                      <span className="text-white font-extrabold text-sm tracking-tight">আপলোড</span>
                       <input
                         type="file"
                         ref={fileInputRef}
@@ -315,8 +308,8 @@ export default function MagicScanModal({ onClose }) {
                       />
                     </button>
                   </div>
-                  <p className="text-center text-gray-500 font-medium text-xs mt-6 px-4 leading-relaxed opacity-80">
-                    ক্যামেরা বা গ্যালারি থেকে প্রশ্নপত্রের স্পষ্ট ছবি দিন যাতে AI সহজে স্ক্যান করতে পারে
+                  <p className="text-center text-gray-400 font-medium text-[10px] mt-3 px-2 leading-relaxed">
+                    প্রশ্নপত্রের স্পষ্ট ছবি দিন — AI স্ক্যান করবে
                   </p>
                 </div>
               ) : (
