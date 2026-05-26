@@ -675,13 +675,13 @@ export default function PaperEditor() {
                 className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
               >
                 <div
-                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center"
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center"
                   style={{
                     background: `linear-gradient(145deg, ${qt.from}, ${qt.to})`,
-                    boxShadow: `0 4px 12px ${qt.shadow}`,
+                    boxShadow: `0 4px 14px ${qt.shadow}`,
                   }}
                 >
-                  <span className="text-white text-base sm:text-xl leading-none drop-shadow-sm">{qt.icon}</span>
+                  <span className="text-white text-lg sm:text-2xl leading-none drop-shadow-sm">{qt.icon}</span>
                 </div>
                 <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 leading-tight text-center">
                   {qt.label}
@@ -708,13 +708,13 @@ export default function PaperEditor() {
                 className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
               >
                 <div
-                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center"
+                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center"
                   style={{
                     background: `linear-gradient(145deg, ${qt.from}, ${qt.to})`,
-                    boxShadow: `0 4px 12px ${qt.shadow}`,
+                    boxShadow: `0 4px 14px ${qt.shadow}`,
                   }}
                 >
-                  <span className="text-white text-base sm:text-xl leading-none drop-shadow-sm">{qt.icon}</span>
+                  <span className="text-white text-lg sm:text-2xl leading-none drop-shadow-sm">{qt.icon}</span>
                 </div>
                 <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 leading-tight text-center">
                   {qt.label}
