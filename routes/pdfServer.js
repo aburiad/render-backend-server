@@ -107,7 +107,8 @@ router.post('/render', async (req, res, next) => {
     const buffer = await pdfServerClient.renderHtml({
       html,
       filename,
-      waitForSelector: '[data-paper-ready="true"]',
+      // No waitForSelector — notices/routines/OMR don't set data-paper-ready.
+      // Puppeteer will render immediately after network idle.
       options: {},
     })
 
