@@ -680,7 +680,7 @@ export default function PaperEditor() {
                 }}
               >
                 <span className="text-[13px] sm:text-lg leading-none" style={{ color: qt.color }}>{qt.icon}</span>
-                <span className="text-[10px] sm:text-[9px] font-bold leading-tight text-center" style={{ color: `${qt.color}` }}>
+                <span className="text-[10px] sm:text-[9px] font-bold leading-tight text-center" style={{ color: '#334155' }}>
                   {qt.label}
                 </span>
               </button>
@@ -710,7 +710,7 @@ export default function PaperEditor() {
                 }}
               >
                 <span className="text-[13px] sm:text-lg leading-none" style={{ color: qt.color }}>{qt.icon}</span>
-                <span className="text-[10px] sm:text-[9px] font-bold leading-tight text-center" style={{ color: qt.color }}>
+                <span className="text-[10px] sm:text-[9px] font-bold leading-tight text-center" style={{ color: '#334155' }}>
                   {qt.label}
                 </span>
               </button>
