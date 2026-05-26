@@ -8,29 +8,44 @@ import toast from 'react-hot-toast'
 
 /**
  * html2pdf.js uses html2canvas which cannot parse oklch() colors
- * (Tailwind v4 default). This onclone callback strips oklch from
- * all inline styles and stylesheet rules in the cloned document.
+ * (Tailwind v4 default). We must temporarily replace oklch() in the
+ * MAIN document's stylesheets BEFORE calling html2pdf, then restore.
+ *
+ * onclone is too late — html2canvas already parsed the colors by then.
  */
-function stripOklch(_doc, clone) {
-  // Fix inline styles on the clone tree
-  clone.querySelectorAll('[style]').forEach(el => {
-    if (el.style.cssText && el.style.cssText.includes('oklch')) {
-      el.style.cssText = el.style.cssText.replace(/oklch\([^)]*\)/g, 'inherit')
-    }
-  })
-  // Fix stylesheet rules in the cloned document
-  const doc = clone.ownerDocument || document
-  try {
-    for (const sheet of doc.styleSheets) {
-      try {
-        for (const rule of sheet.cssRules) {
-          if (rule.cssText && rule.cssText.includes('oklch')) {
-            rule.style.cssText = rule.style.cssText.replace(/oklch\([^)]*\)/g, 'inherit')
-          }
+function temporarilyStripOklch() {
+  const saved = []
+  for (let si = 0; si < document.styleSheets.length; si++) {
+    const sheet = document.styleSheets[si]
+    try {
+      for (let ri = 0; ri < sheet.cssRules.length; ri++) {
+        const rule = sheet.cssRules[ri]
+        if (rule.cssText && rule.cssText.includes('oklch')) {
+          saved.push({ si, ri, text: rule.cssText })
         }
-      } catch { /* cross-origin stylesheet */ }
-    }
-  } catch { /* no styleSheets access */ }
+      }
+    } catch { continue } // cross-origin stylesheet
+  }
+  // Patch in reverse order so indices stay stable
+  for (let i = saved.length - 1; i >= 0; i--) {
+    const { si, ri, text } = saved[i]
+    try {
+      const safe = text.replace(/oklch\([^)]*\)/g, '#333')
+      document.styleSheets[si].deleteRule(ri)
+      document.styleSheets[si].insertRule(safe, ri)
+    } catch { /* skip */ }
+  }
+  return saved
+}
+
+function restoreOklch(saved) {
+  for (let i = saved.length - 1; i >= 0; i--) {
+    const { si, ri, text } = saved[i]
+    try {
+      document.styleSheets[si].deleteRule(ri)
+      document.styleSheets[si].insertRule(text, ri)
+    } catch { /* skip */ }
+  }
 }
 
 export default function OmrPreview() {
@@ -62,6 +77,7 @@ export default function OmrPreview() {
   async function handleDownload() {
     if (!omrRef.current || downloading) return
     setDownloading(true)
+    const saved = temporarilyStripOklch()
     try {
       const html2pdf = (await import('html2pdf.js')).default
 
@@ -81,7 +97,6 @@ export default function OmrPreview() {
             useCORS: true,
             backgroundColor: '#ffffff',
             windowWidth: omrRef.current.offsetWidth,
-            onclone: stripOklch,
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css'] },
@@ -92,6 +107,7 @@ export default function OmrPreview() {
       console.error('[OmrPreview] download failed:', err)
       toast.error('PDF তৈরি করতে সমস্যা হয়েছে')
     } finally {
+      restoreOklch(saved)
       setDownloading(false)
     }
   }
