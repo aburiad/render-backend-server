@@ -8,17 +8,19 @@ import Spinner from '@/components/shared/Spinner'
 import ReactCrop from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import { processExamImage, detectBlur } from '@/lib/imageProcessor'
+import CameraCapture from '@/components/shared/CameraCapture'
 
 export default function MagicScanModal({ onClose }) {
   const [step, setStep] = useState('upload') // upload, processing, review
-  const [imageFile, setImageFile] = useState(null)
+  const [, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
   const [extractedQuestions, setExtractedQuestions] = useState([])
   const [croppedImagePreview, setCroppedImagePreview] = useState(null)
   const [editingIndex, setEditingIndex] = useState(null)
-  const [loading, setLoading] = useState(false)
+  const [, setLoading] = useState(false)
   const [savingBankIdx, setSavingBankIdx] = useState(null)
   
+  const [showCamera, setShowCamera] = useState(false)
   const [questionType, setQuestionType] = useState(null)
   const [crop, setCrop] = useState({ unit: '%', width: 90, x: 5, y: 5, height: 90 })
   const [completedCrop, setCompletedCrop] = useState(null)
@@ -40,7 +42,6 @@ export default function MagicScanModal({ onClose }) {
     return 'text-red-600 bg-red-50 border-red-100'
   }
   const fileInputRef = useRef(null)
-  const cameraInputRef = useRef(null)
   
   const addQuestion = usePaperStore(s => s.addQuestion)
 
@@ -254,9 +255,10 @@ export default function MagicScanModal({ onClose }) {
               {!imagePreview ? (
                 <div className="border-2 border-dashed border-blue-200/40 bg-blue-50/30 rounded-2xl p-4 flex flex-col items-center">
                   <div className="grid grid-cols-2 gap-3 w-full">
-                    {/* Camera Card */}
-                    <label
-                      className="group relative overflow-hidden flex flex-col items-center justify-center py-5 px-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95 cursor-pointer"
+                    {/* Camera Card - Opens in-app camera */}
+                    <button
+                      onClick={() => setShowCamera(true)}
+                      className="group relative overflow-hidden flex flex-col items-center justify-center py-5 px-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
                       style={{ background: 'linear-gradient(135deg, #4648d4 0%, #6063ee 100%)', boxShadow: '0 6px 16px -4px rgba(70,72,212,0.35)' }}
                     >
                       <div className="absolute -top-4 -right-4 w-16 h-16 bg-white/10 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500" />
@@ -267,15 +269,7 @@ export default function MagicScanModal({ onClose }) {
                         </svg>
                       </div>
                       <span className="text-white font-extrabold text-sm tracking-tight">ক্যামেরা</span>
-                      <input
-                        type="file"
-                        ref={cameraInputRef}
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleFileChange}
-                        className="hidden"
-                      />
-                    </label>
+                    </button>
 
                     {/* Upload Card */}
                     <button
@@ -666,6 +660,17 @@ export default function MagicScanModal({ onClose }) {
           )}
         </div>
       </motion.div>
+
+      {/* In-App Camera Overlay */}
+      {showCamera && (
+        <CameraCapture
+          onCapture={(dataUrl) => {
+            setImagePreview(dataUrl)
+            setShowCamera(false)
+          }}
+          onCancel={() => setShowCamera(false)}
+        />
+      )}
     </div>
   )
 }
