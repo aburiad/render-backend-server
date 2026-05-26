@@ -79,4 +79,46 @@ router.post('/papers/:id', async (req, res, next) => {
   }
 })
 
+/**
+ * POST /api/pdf-server/render
+ *
+ * Generic PDF render — accepts any HTML and returns a PDF.
+ * Used by notice, routine, OMR and other non-paper previews.
+ * Requires auth but no ownership check (no DB lookup needed).
+ *
+ * Body: { html: string, filename?: string }
+ */
+router.post('/render', async (req, res, next) => {
+  try {
+    if (!pdfServerClient.isConfigured()) {
+      throw new AppError('PDF সার্ভার এখনও কনফিগার হয়নি (অ্যাডমিনকে জানান)', 503)
+    }
+
+    const { html, filename: clientFilename } = req.body || {}
+    if (!html || typeof html !== 'string') {
+      throw new AppError('Body field `html` is required', 400)
+    }
+    if (html.length > 11 * 1024 * 1024) {
+      throw new AppError('HTML payload too large (max 11 MB)', 413)
+    }
+
+    const filename = safeFilename(clientFilename || 'document')
+
+    const buffer = await pdfServerClient.renderHtml({
+      html,
+      filename,
+      waitForSelector: '[data-paper-ready="true"]',
+      options: {},
+    })
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Length', buffer.length)
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.setHeader('Cache-Control', 'no-store')
+    return res.end(buffer)
+  } catch (err) {
+    return next(err)
+  }
+})
+
 module.exports = router
