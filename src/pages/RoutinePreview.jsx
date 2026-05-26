@@ -3,6 +3,45 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import api, { getRenderPdfUrl } from '@/services/api'
+
+/**
+ * Strip oklch() from main document stylesheets before html2pdf call.
+ * html2canvas cannot parse oklch() (Tailwind v4 default).
+ */
+function temporarilyStripOklch() {
+  const saved = []
+  for (let si = 0; si < document.styleSheets.length; si++) {
+    const sheet = document.styleSheets[si]
+    try {
+      for (let ri = 0; ri < sheet.cssRules.length; ri++) {
+        const rule = sheet.cssRules[ri]
+        if (rule.cssText && rule.cssText.includes('oklch')) {
+          saved.push({ si, ri, text: rule.cssText })
+        }
+      }
+    } catch { continue }
+  }
+  for (let i = saved.length - 1; i >= 0; i--) {
+    const { si, ri, text } = saved[i]
+    try {
+      const safe = text.replace(/oklch\([^)]*\)/g, '#333')
+      document.styleSheets[si].deleteRule(ri)
+      document.styleSheets[si].insertRule(safe, ri)
+    } catch { /* skip */ }
+  }
+  return saved
+}
+
+function restoreOklch(saved) {
+  for (let i = saved.length - 1; i >= 0; i--) {
+    const { si, ri, text } = saved[i]
+    try {
+      document.styleSheets[si].deleteRule(ri)
+      document.styleSheets[si].insertRule(text, ri)
+    } catch { /* skip */ }
+  }
+}
+
 import RoutineTemplate from '@/components/routine/RoutineTemplate'
 import Loader from '@/components/shared/Loader'
 import useAuthStore from '@/store/authStore'
@@ -41,6 +80,7 @@ export default function RoutinePreview() {
   async function handleDownload() {
     if (!paperRef.current || downloading) return
     setDownloading(true)
+    const saved = temporarilyStripOklch()
     try {
       const html2pdf = (await import('html2pdf.js')).default
 
@@ -84,6 +124,7 @@ export default function RoutinePreview() {
       console.error('[RoutinePreview] download failed:', err)
       toast.error('PDF তৈরি করতে সমস্যা হয়েছে')
     } finally {
+      restoreOklch(saved)
       setDownloading(false)
     }
   }

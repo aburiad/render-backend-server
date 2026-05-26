@@ -9,6 +9,45 @@ import toast from 'react-hot-toast'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import useAuthStore from '@/store/authStore'
 
+/**
+ * html2pdf.js uses html2canvas which cannot parse oklch() colors
+ * (Tailwind v4 default). We must temporarily replace oklch() in the
+ * MAIN document's stylesheets BEFORE calling html2pdf, then restore.
+ */
+function temporarilyStripOklch() {
+  const saved = []
+  for (let si = 0; si < document.styleSheets.length; si++) {
+    const sheet = document.styleSheets[si]
+    try {
+      for (let ri = 0; ri < sheet.cssRules.length; ri++) {
+        const rule = sheet.cssRules[ri]
+        if (rule.cssText && rule.cssText.includes('oklch')) {
+          saved.push({ si, ri, text: rule.cssText })
+        }
+      }
+    } catch { continue }
+  }
+  for (let i = saved.length - 1; i >= 0; i--) {
+    const { si, ri, text } = saved[i]
+    try {
+      const safe = text.replace(/oklch\([^)]*\)/g, '#333')
+      document.styleSheets[si].deleteRule(ri)
+      document.styleSheets[si].insertRule(safe, ri)
+    } catch { /* skip */ }
+  }
+  return saved
+}
+
+function restoreOklch(saved) {
+  for (let i = saved.length - 1; i >= 0; i--) {
+    const { si, ri, text } = saved[i]
+    try {
+      document.styleSheets[si].deleteRule(ri)
+      document.styleSheets[si].insertRule(text, ri)
+    } catch { /* skip */ }
+  }
+}
+
 export default function PDFPreview() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -182,6 +221,7 @@ export default function PDFPreview() {
   async function handleDownload() {
     if (!paperRef.current || downloading) return
     setDownloading(true)
+    const saved = temporarilyStripOklch()
     try {
       // Lazy-load: html2pdf.js pulls in html2canvas + jsPDF (~300KB combined)
       const html2pdf = (await import('html2pdf.js')).default
@@ -319,6 +359,7 @@ export default function PDFPreview() {
       console.error('[PDFPreview] download failed:', err)
       toast.error('PDF তৈরি করতে সমস্যা হয়েছে')
     } finally {
+      restoreOklch(saved)
       setDownloading(false)
     }
   }
