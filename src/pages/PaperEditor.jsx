@@ -674,13 +674,13 @@ export default function PaperEditor() {
                 onClick={() => handleAddQuestion(qt.type)}
                 className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
                 style={{
-                  background: `linear-gradient(135deg, ${qt.color}15, ${qt.color}25)`,
-                  border: `1px solid ${qt.color}35`,
-                  boxShadow: `0 2px 6px ${qt.color}15`,
+                  background: `linear-gradient(145deg, ${qt.color}f2, ${qt.color}cc)`,
+                  border: 'none',
+                  boxShadow: `0 3px 10px ${qt.color}50`,
                 }}
               >
-                <span className="text-[13px] sm:text-lg leading-none" style={{ color: qt.color }}>{qt.icon}</span>
-                <span className="text-[10px] sm:text-[9px] font-bold leading-tight text-center" style={{ color: '#334155' }}>
+                <span className="text-[13px] sm:text-lg leading-none text-white drop-shadow-sm">{qt.icon}</span>
+                <span className="text-[9px] sm:text-[9px] font-bold leading-tight text-center text-white drop-shadow-sm">
                   {qt.label}
                 </span>
               </button>
@@ -704,13 +704,13 @@ export default function PaperEditor() {
                 onClick={() => handleAddQuestion(qt.type)}
                 className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
                 style={{
-                  background: `linear-gradient(135deg, ${qt.color}15, ${qt.color}25)`,
-                  border: `1px solid ${qt.color}35`,
-                  boxShadow: `0 2px 6px ${qt.color}15`,
+                  background: `linear-gradient(145deg, ${qt.color}f2, ${qt.color}cc)`,
+                  border: 'none',
+                  boxShadow: `0 3px 10px ${qt.color}50`,
                 }}
               >
-                <span className="text-[13px] sm:text-lg leading-none" style={{ color: qt.color }}>{qt.icon}</span>
-                <span className="text-[10px] sm:text-[9px] font-bold leading-tight text-center" style={{ color: '#334155' }}>
+                <span className="text-[13px] sm:text-lg leading-none text-white drop-shadow-sm">{qt.icon}</span>
+                <span className="text-[9px] sm:text-[9px] font-bold leading-tight text-center text-white drop-shadow-sm">
                   {qt.label}
                 </span>
               </button>
