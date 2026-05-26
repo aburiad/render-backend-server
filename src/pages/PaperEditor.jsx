@@ -653,11 +653,11 @@ export default function PaperEditor() {
           <div className="h-px bg-slate-100 my-0.5 sm:my-1" />
 
           <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase pl-1">ম্যানুয়ালি যোগ করুন</p>
-          <div className="no-scrollbar flex flex-wrap gap-1 sm:gap-2 pb-2">
+          <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 sm:gap-2 pb-2">
             {currentPaper?.section_mode && (
               <button
                 onClick={() => handleAddQuestion('section')}
-                className="btn-press flex-shrink-0 flex flex-col items-center justify-center sm:justify-start w-[54px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
+                className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
                 style={{
                   background: 'linear-gradient(135deg, #1e293b, #334155)',
                   border: '1px solid #334155',
@@ -665,14 +665,14 @@ export default function PaperEditor() {
                 }}
               >
                 <span className="text-[13px] sm:text-lg leading-none">📑</span>
-                <span className="text-[8px] sm:text-[9px] font-bold leading-tight" style={{ color: '#fbbf24' }}>বিভাগ</span>
+                <span className="text-[10px] sm:text-[9px] font-bold leading-tight" style={{ color: '#fbbf24' }}>বিভাগ</span>
               </button>
             )}
             {PRIMARY_TYPES.map(qt => (
               <button
                 key={qt.type}
                 onClick={() => handleAddQuestion(qt.type)}
-                className="btn-press flex-shrink-0 flex flex-col items-center justify-center sm:justify-start w-[54px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
+                className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
                 style={{
                   border: '1px solid #f1f5f9',
                 }}
@@ -685,14 +685,14 @@ export default function PaperEditor() {
             ))}
             <button
               onClick={() => setShowMoreTypes(!showMoreTypes)}
-              className="btn-press flex-shrink-0 flex flex-col items-center justify-center w-[54px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
+              className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl"
               style={{
                 background: showMoreTypes ? '#f8fafc' : '#f0f9ff',
                 border: showMoreTypes ? '1px solid #e2e8f0' : '1px solid #bae6fd',
               }}
             >
               <span className="text-[13px] sm:text-lg leading-none">{showMoreTypes ? '▲' : '⋯'}</span>
-              <span className="text-[8px] sm:text-[9px] font-bold leading-tight" style={{ color: showMoreTypes ? '#64748b' : '#0284c7' }}>
+              <span className="text-[10px] sm:text-[9px] font-bold leading-tight" style={{ color: showMoreTypes ? '#64748b' : '#0284c7' }}>
                 {showMoreTypes ? 'কম' : 'আরও'}
               </span>
             </button>
@@ -700,7 +700,7 @@ export default function PaperEditor() {
               <button
                 key={qt.type}
                 onClick={() => handleAddQuestion(qt.type)}
-                className="btn-press flex-shrink-0 flex flex-col items-center justify-center sm:justify-start w-[58px] sm:w-20 py-1.5 px-[3px] sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
+                className="btn-press flex flex-col items-center justify-center py-1.5 px-1 sm:py-3 sm:px-1.5 gap-0.5 sm:gap-1.5 rounded-lg sm:rounded-2xl bg-white"
                 style={{
                   border: '1px solid #f1f5f9',
                 }}
