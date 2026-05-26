@@ -40,6 +40,7 @@ export default function MagicScanModal({ onClose }) {
     return 'text-red-600 bg-red-50 border-red-100'
   }
   const fileInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
   
   const addQuestion = usePaperStore(s => s.addQuestion)
 
@@ -255,21 +256,7 @@ export default function MagicScanModal({ onClose }) {
                   <div className="grid grid-cols-2 gap-3 w-full">
                     {/* Camera Card */}
                     <button
-                      onClick={() => {
-                        const inp = document.createElement('input')
-                        inp.type = 'file'
-                        inp.accept = 'image/*'
-                        inp.capture = 'environment'
-                        inp.onchange = (e) => {
-                          const file = e.target.files[0]
-                          if (!file) return
-                          setImageFile(file)
-                          const reader = new FileReader()
-                          reader.onloadend = () => setImagePreview(reader.result)
-                          reader.readAsDataURL(file)
-                        }
-                        inp.click()
-                      }}
+                      onClick={() => cameraInputRef.current?.click()}
                       className="group relative overflow-hidden flex flex-col items-center justify-center py-5 px-3 rounded-xl transition-all duration-300 hover:scale-[1.02] active:scale-95"
                       style={{ background: 'linear-gradient(135deg, #4648d4 0%, #6063ee 100%)', boxShadow: '0 6px 16px -4px rgba(70,72,212,0.35)' }}
                     >
@@ -281,6 +268,14 @@ export default function MagicScanModal({ onClose }) {
                         </svg>
                       </div>
                       <span className="text-white font-extrabold text-sm tracking-tight">ক্যামেরা</span>
+                      <input
+                        type="file"
+                        ref={cameraInputRef}
+                        hidden
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleFileChange}
+                      />
                     </button>
 
                     {/* Upload Card */}
