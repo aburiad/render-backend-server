@@ -239,8 +239,8 @@ export default function Dashboard() {
       {/* ── Welcome Area + Stats (side by side) ──────────────── */}
       <motion.div variants={item}>
         {/* Desktop: side-by-side | Mobile: stacked */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="sm:flex-shrink-0">
+        <div className="flex flex-col gap-3 sm:gap-4">
+          <div>
             <span
               className="text-[12px] sm:text-sm"
               style={{ fontWeight: 700, color: 'var(--primary)', letterSpacing: '0.05em' }}
