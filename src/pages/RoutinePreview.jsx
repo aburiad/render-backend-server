@@ -111,8 +111,8 @@ export default function RoutinePreview() {
       const renderPdfUrl = getRenderPdfUrl()
       const baseUrl = renderPdfUrl || api.defaults.baseURL || '/api'
       const pdfUrl = baseUrl.startsWith('http')
-        ? `${baseUrl}/pdf-server/routines/${id}`
-        : `/api/pdf-server/routines/${id}`
+        ? `${baseUrl}/pdf-server/render`
+        : `/api/pdf-server/render`
       const token = useAuthStore.getState().token
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`

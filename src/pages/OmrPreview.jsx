@@ -6,6 +6,33 @@ import api from '@/services/api'
 import Loader from '@/components/shared/Loader'
 import toast from 'react-hot-toast'
 
+/**
+ * html2pdf.js uses html2canvas which cannot parse oklch() colors
+ * (Tailwind v4 default). This onclone callback strips oklch from
+ * all inline styles and stylesheet rules in the cloned document.
+ */
+function stripOklch(_doc, clone) {
+  // Fix inline styles on the clone tree
+  clone.querySelectorAll('[style]').forEach(el => {
+    if (el.style.cssText && el.style.cssText.includes('oklch')) {
+      el.style.cssText = el.style.cssText.replace(/oklch\([^)]*\)/g, 'inherit')
+    }
+  })
+  // Fix stylesheet rules in the cloned document
+  const doc = clone.ownerDocument || document
+  try {
+    for (const sheet of doc.styleSheets) {
+      try {
+        for (const rule of sheet.cssRules) {
+          if (rule.cssText && rule.cssText.includes('oklch')) {
+            rule.style.cssText = rule.style.cssText.replace(/oklch\([^)]*\)/g, 'inherit')
+          }
+        }
+      } catch { /* cross-origin stylesheet */ }
+    }
+  } catch { /* no styleSheets access */ }
+}
+
 export default function OmrPreview() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -54,6 +81,7 @@ export default function OmrPreview() {
             useCORS: true,
             backgroundColor: '#ffffff',
             windowWidth: omrRef.current.offsetWidth,
+            onclone: stripOklch,
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css'] },

@@ -105,8 +105,8 @@ export default function NoticePreview() {
       const renderPdfUrl = getRenderPdfUrl()
       const baseUrl = renderPdfUrl || api.defaults.baseURL || '/api'
       const pdfUrl = baseUrl.startsWith('http')
-        ? `${baseUrl}/pdf-server/notices/${id}`
-        : `/api/pdf-server/notices/${id}`
+        ? `${baseUrl}/pdf-server/render`
+        : `/api/pdf-server/render`
       const token = useAuthStore.getState().token
       const headers = { 'Content-Type': 'application/json' }
       if (token) headers['Authorization'] = `Bearer ${token}`
