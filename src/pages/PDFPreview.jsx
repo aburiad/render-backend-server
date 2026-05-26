@@ -301,17 +301,9 @@ export default function PDFPreview() {
     }
   }
 
-  // Server-side PDF render via the Puppeteer microservice. Higher
-  // fidelity than html2pdf for complex math + Bengali typography, but
-  // requires the PDF server to be deployed and PDF_SERVER_URL +
-  // PDF_SERVER_API_KEY to be set on the main app. On Render's free
-  // tier the first request may take 30–60s while the dyno wakes up.
-  //
-  // IMPORTANT: We dynamically use the active backend's URL (e.g. Render backend
-  // if active, or same-origin Vercel proxy if Vercel is active). This avoids
-  // hitting Vercel's strict 10-second serverless execution timeout limit when
-  // the main backend is hosted on Render.com. Note that PDF_SERVER_URL and
-  // PDF_SERVER_API_KEY must be configured on whichever backend is active.
+  // Server-side PDF via Puppeteer microservice.
+  // Tries once; on failure shows a message asking user to retry later
+  // or use the client-side "PDF" button instead.
   async function handleServerDownload() {
     if (!paperRef.current || downloadingServer) return
     setDownloadingServer(true)
@@ -336,70 +328,55 @@ export default function PDFPreview() {
         },
       })
 
-      // Client-side retry: each attempt is a FRESH Vercel serverless call
-      // with its own 60s budget. This is better than server-side retries
-      // which would burn through a single function's timeout.
-      const MAX_RETRIES = 3
-      let lastErr = null
+      // ── Attempt 1: server-side PDF (one try, no retries) ──────────
+      try {
+        const baseUrl = api.defaults.baseURL || '/api'
+        const pdfUrl = baseUrl.startsWith('http')
+          ? `${baseUrl}/pdf-server/papers/${paper.id}`
+          : `/api/pdf-server/papers/${paper.id}`
+        const token = useAuthStore.getState().token
+        const headers = { 'Content-Type': 'application/json' }
+        if (token) headers['Authorization'] = `Bearer ${token}`
 
-      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-        if (attempt > 1) {
-          toast.loading(`আবার চেষ্টা হচ্ছে (${attempt}/${MAX_RETRIES})…`, { id: toastId })
-          await new Promise((r) => setTimeout(r, 3000))
+        // 120s timeout — generous enough for Render cold start + render
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 120_000)
+
+        const fetchRes = await fetch(pdfUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            html,
+            filename: `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}`,
+          }),
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+
+        if (!fetchRes.ok) {
+          const errText = await fetchRes.text().catch(() => '')
+          throw new Error(`PDF server failed (${fetchRes.status}): ${errText.slice(0, 200)}`)
         }
 
-        try {
-          const baseUrl = api.defaults.baseURL || '/api'
-          const pdfUrl = baseUrl.startsWith('http')
-            ? `${baseUrl}/pdf-server/papers/${paper.id}`
-            : `/api/pdf-server/papers/${paper.id}`
-          const token = useAuthStore.getState().token
-          const headers = { 'Content-Type': 'application/json' }
-          if (token) headers['Authorization'] = `Bearer ${token}`
-
-          const fetchRes = await fetch(pdfUrl, {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
-              html,
-              filename: `${paper?.exam_title || 'paper'}${variant ? `_Set-${variant}` : ''}`,
-            }),
-          })
-
-          if (!fetchRes.ok) {
-            const errText = await fetchRes.text().catch(() => '')
-            const err = new Error(`PDF server failed (${fetchRes.status}): ${errText.slice(0, 200)}`)
-            err.status = fetchRes.status
-            lastErr = err
-            // Only retry on 503 (Render waking up) or network errors
-            if (fetchRes.status === 503 && attempt < MAX_RETRIES) continue
-            throw err
-          }
-
-          const blob = await fetchRes.blob()
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = url
-          a.download = filename
-          document.body.appendChild(a)
-          a.click()
-          a.remove()
-          URL.revokeObjectURL(url)
-          toast.success('সার্ভার PDF ডাউনলোড সম্পন্ন', { id: toastId })
-          return // success
-        } catch (err) {
-          lastErr = err
-          // Retry on 503 or network errors
-          const isRetryable = String(err?.message || '').includes('503') ||
-            err?.name === 'TypeError' || err?.name === 'AbortError'
-          if (isRetryable && attempt < MAX_RETRIES) continue
-          throw err
-        }
+        const blob = await fetchRes.blob()
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = filename
+        document.body.appendChild(a)
+        a.click()
+        a.remove()
+        URL.revokeObjectURL(url)
+        toast.success('সার্ভার PDF ডাউনলোড সম্পন্ন', { id: toastId })
+        return // success
+      } catch (serverErr) {
+        // Server PDF failed — tell user to use client PDF button or retry.
+        console.warn('[PDFPreview] server PDF failed:', serverErr.message)
+        toast.error('সার্ভার PDF তৈরি হচ্ছে — কিছুক্ষণ পর আবার চেষ্টা করুন অথবা "PDF" বাটনে ক্লিক করুন', { id: toastId, duration: 6000 })
       }
-      throw lastErr
     } catch (err) {
       console.error('[PDFPreview] server download failed:', err)
-      let msg = 'সার্ভার PDF তৈরি করা যায়নি'
+      let msg = 'PDF ডাউনলোড করা যায়নি'
       if (String(err?.message || '').includes('503')) {
         msg = 'PDF সার্ভার স্টার্ট হচ্ছে — কয়েক মিনিট পর আবার চেষ্টা করুন'
       } else if (String(err?.message || '').includes('504') || String(err?.message || '').includes('timed out')) {
