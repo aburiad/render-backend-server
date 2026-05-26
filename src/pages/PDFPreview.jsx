@@ -511,36 +511,36 @@ export default function PDFPreview() {
             onClick={handleDownload}
             disabled={!paper || downloading}
             title="দ্রুত PDF"
-            className="px-1.5 sm:px-4 h-7 sm:h-9 flex items-center gap-0.5 sm:gap-1.5 rounded-lg bg-blue-600 text-white text-[10px] sm:text-sm font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-blue-600/25 flex-shrink-0"
+            className="px-3 sm:px-4 h-10 sm:h-9 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-blue-600 text-white text-xs sm:text-sm font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-blue-600/25 flex-shrink-0"
           >
-            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
-            <span className="hidden sm:inline">{downloading ? '...' : 'PDF'}</span>
+            <span>{downloading ? '...' : 'PDF'}</span>
           </button>
 
           <button
             onClick={handleServerDownload}
             disabled={!paper || downloadingServer}
             title="সার্ভার PDF (উচ্চ গুণমান)"
-            className="px-1.5 sm:px-4 h-7 sm:h-9 flex items-center gap-0.5 sm:gap-1.5 rounded-lg bg-violet-600 text-white text-[10px] sm:text-sm font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-violet-600/25 flex-shrink-0"
+            className="px-3 sm:px-4 h-10 sm:h-9 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-violet-600 text-white text-xs sm:text-sm font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-violet-600/25 flex-shrink-0"
           >
-            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
             </svg>
-            <span className="hidden sm:inline">{downloadingServer ? '...' : 'Server PDF'}</span>
+            <span>{downloadingServer ? '...' : 'Server'}</span>
           </button>
 
           <button
             onClick={handleNativePdf}
             disabled={!paper}
             title='Print → Save as PDF'
-            className="px-1.5 sm:px-4 h-7 sm:h-9 flex items-center gap-0.5 sm:gap-1.5 rounded-lg bg-emerald-600 text-white text-[10px] sm:text-sm font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-emerald-600/25 flex-shrink-0"
+            className="px-3 sm:px-4 h-10 sm:h-9 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-emerald-600 text-white text-xs sm:text-sm font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-emerald-600/25 flex-shrink-0"
           >
-            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
-            <span className="hidden sm:inline">Print/Save</span>
+            <span>Print</span>
           </button>
         </div>
       </div>
