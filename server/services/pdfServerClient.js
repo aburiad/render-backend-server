@@ -10,10 +10,10 @@
  * If either is missing, `isConfigured()` returns false. Callers should
  * surface a friendly error before invoking renderHtml/renderUrl.
  *
- * IMPORTANT: No server-side retries. The Vercel serverless function has
- * a 60s maxDuration. If we retry here, we burn through that budget.
- * Instead, the frontend retries with fresh Vercel calls — each gets a
- * full 60s budget.
+ * Retries: 503 (Render free-tier cold start) is retried up to 2 times
+ * with a 5s delay between attempts. The 503 response comes back quickly
+ * (< 2s), so the retry budget fits within Vercel's 60s function timeout.
+ * Other errors are not retried server-side; the frontend handles those.
  */
 
 const BASE = (process.env.PDF_SERVER_URL || '').replace(/\/+$/, '')
@@ -24,40 +24,54 @@ function isConfigured() {
   return Boolean(BASE && API_KEY)
 }
 
+const MAX_503_RETRIES = 2
+const RETRY_DELAY_MS = 5000
+
 async function postJson(path, body) {
   if (!isConfigured()) {
     const err = new Error('PDF server is not configured (PDF_SERVER_URL / PDF_SERVER_API_KEY missing)')
     err.status = 503
     throw err
   }
-  const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
-  try {
-    const res = await fetch(`${BASE}${path}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': API_KEY,
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      const err = new Error(`PDF server ${path} failed (${res.status}): ${text.slice(0, 300)}`)
-      err.status = res.status
+
+  for (let attempt = 0; attempt <= MAX_503_RETRIES; attempt++) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+    try {
+      const res = await fetch(`${BASE}${path}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': API_KEY,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      })
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        // 503 = Render free-tier cold start. Retry after a delay
+        // instead of failing immediately. Frontend gives us 120s.
+        if (res.status === 503 && attempt < MAX_503_RETRIES) {
+          console.warn(`[pdfServerClient] 503 cold start (attempt ${attempt + 1}/${MAX_503_RETRIES}), retrying in ${RETRY_DELAY_MS}ms…`)
+          clearTimeout(timer)
+          await new Promise(r => setTimeout(r, RETRY_DELAY_MS))
+          continue
+        }
+        const err = new Error(`PDF server ${path} failed (${res.status}): ${text.slice(0, 300)}`)
+        err.status = res.status
+        throw err
+      }
+      return Buffer.from(await res.arrayBuffer())
+    } catch (err) {
+      if (err.name === 'AbortError') {
+        const timeout = new Error(`PDF server request timed out after ${REQUEST_TIMEOUT_MS}ms`)
+        timeout.status = 504
+        throw timeout
+      }
       throw err
+    } finally {
+      clearTimeout(timer)
     }
-    return Buffer.from(await res.arrayBuffer())
-  } catch (err) {
-    if (err.name === 'AbortError') {
-      const timeout = new Error(`PDF server request timed out after ${REQUEST_TIMEOUT_MS}ms`)
-      timeout.status = 504
-      throw timeout
-    }
-    throw err
-  } finally {
-    clearTimeout(timer)
   }
 }
 
