@@ -3,21 +3,25 @@
  * (Tailwind v4 default). This utility temporarily replaces oklch()
  * in ALL document stylesheets before html2pdf runs, then restores.
  *
- * Strategy: For each stylesheet, read all CSS rules, replace oklch()
- * with a safe fallback, inject as a new <style> tag, and DISABLE the
- * original stylesheet. After PDF generation, reverse the process.
+ * Strategy: For each stylesheet containing oklch, read all CSS rules,
+ * replace oklch() with a safe fallback, inject as a new <style> tag,
+ * and REMOVE the original stylesheet node from the DOM entirely.
+ * After PDF generation, put the originals back.
+ *
+ * We must REMOVE (not just disable) because html2canvas may still
+ * read "disabled" stylesheets. Physically removing them from the DOM
+ * is the only reliable way.
  */
 
 /**
  * Recursively collect all CSS text from a CSSRule list,
- * including nested rules (media, layer, supports, etc.)
+ * including nested rules (media, layer, supports, container).
  */
 function collectCssText(rules) {
   let text = ''
   for (let i = 0; i < rules.length; i++) {
     const rule = rules[i]
     if (rule.cssRules) {
-      // Nested rules (media, layer, supports, container)
       text += rule.cssText.split('{')[0] + '{\n'
       text += collectCssText(rule.cssRules)
       text += '}\n'
@@ -33,15 +37,17 @@ function collectCssText(rules) {
  * 1. Reading all CSS text from each sheet
  * 2. Replacing oklch() with #333
  * 3. Injecting a clean <style> tag
- * 4. Disabling the original stylesheet
+ * 4. REMOVING the original stylesheet node from the DOM
  *
  * Returns a restore function — call it after html2pdf finishes.
  */
 export function stripOklchForPdf() {
   const entries = []
 
-  for (let i = 0; i < document.styleSheets.length; i++) {
-    const sheet = document.styleSheets[i]
+  // Collect all stylesheets into an array first (DOM changes mid-loop can skip items)
+  const sheets = [...document.styleSheets]
+
+  for (const sheet of sheets) {
     try {
       const cssText = collectCssText(sheet.cssRules)
       if (!cssText.includes('oklch')) continue
@@ -53,14 +59,12 @@ export function stripOklchForPdf() {
       styleEl.textContent = cleanCss
       document.head.appendChild(styleEl)
 
-      // Disable the original stylesheet owner node
+      // REMOVE the original stylesheet node from DOM entirely
       const ownerNode = sheet.ownerNode
-      if (ownerNode) {
-        ownerNode.setAttribute('data-oklch-disabled', '1')
-        ownerNode.disabled = true
+      if (ownerNode && ownerNode.parentNode) {
+        ownerNode.parentNode.removeChild(ownerNode)
+        entries.push({ cleanStyleEl: styleEl, originalNode: ownerNode, insertBefore: styleEl })
       }
-
-      entries.push({ cleanStyleEl: styleEl, originalNode: ownerNode })
     } catch {
       // Cross-origin stylesheet — skip
     }
@@ -69,9 +73,9 @@ export function stripOklchForPdf() {
   return function restore() {
     for (const { cleanStyleEl, originalNode } of entries) {
       cleanStyleEl.remove()
+      // Put the original back where the patch was
       if (originalNode) {
-        originalNode.disabled = false
-        originalNode.removeAttribute('data-oklch-disabled')
+        document.head.appendChild(originalNode)
       }
     }
   }
