@@ -1,75 +1,85 @@
 /**
- * html2pdf.js uses html2canvas which cannot parse oklch() colors
- * (Tailwind v4 default). 
+ * html2pdf.js uses html2canvas which cannot parse oklch()/oklab()
+ * colors (Tailwind v4 default).
  *
- * The CORRECT approach is to fix oklch inside the onclone callback.
- * html2canvas creates a cloned document in an iframe, then calls onclone,
- * THEN parses styles. So we can modify the cloned stylesheets safely
- * without touching the main document.
+ * The CORRECT approach: fix them inside the onclone callback by
+ * directly modifying <style> tag textContent AND stylesheet rules.
+ * html2canvas creates a cloned document, calls onclone, THEN parses
+ * styles — so our changes take effect before rendering.
  *
  * Usage in html2pdf:
  *   html2canvas: { onclone: oklchOnclone(), ...otherOptions }
  */
 
+const OKL_REGEX = /okl[a-z]+\([^)]*\)/g
+
 /**
- * Recursively walk CSS rules (including nested @layer, @media, @supports)
- * and replace oklch() values in individual style properties.
+ * Recursively walk CSS rules and replace oklch/oklab in individual properties.
  */
-function replaceOklchInRules(rules) {
+function fixStylesheetRules(rules) {
   for (const rule of rules) {
     try {
-      // Recurse into nested rules (@layer, @media, @supports, @container)
-      if (rule.cssRules) {
-        replaceOklchInRules(rule.cssRules)
-      }
-      // Replace oklch/oklab in individual properties of this rule
+      if (rule.cssRules) fixStylesheetRules(rule.cssRules)
       if (rule.style && rule.style.length) {
         for (let i = 0; i < rule.style.length; i++) {
           const prop = rule.style[i]
           const val = rule.style.getPropertyValue(prop)
-          if (val && (val.includes('oklch') || val.includes('oklab'))) {
+          if (val && OKL_REGEX.test(val)) {
             const prio = rule.style.getPropertyPriority(prop)
-            rule.style.setProperty(prop, val.replace(/okl[a-z]+\([^)]*\)/g, '#333'), prio)
+            rule.style.setProperty(prop, val.replace(OKL_REGEX, '#333'), prio)
           }
         }
       }
-    } catch {
-      // Some rules are read-only — skip
-    }
+    } catch { /* read-only rule */ }
   }
 }
 
 /**
- * Returns an onclone handler for html2canvas that strips oklch()
- * from the CLONED document's stylesheets. The main document is
- * never modified.
+ * Returns an onclone handler for html2canvas that strips oklch()/oklab()
+ * from the CLONED document. The main document is never modified.
+ *
+ * Uses THREE methods for maximum compatibility:
+ *  1. Modify <style> textContent directly (works for Vite dev mode)
+ *  2. Modify stylesheet rules via CSSOM (works for production builds)
+ *  3. Fix inline styles on elements
  */
 export function oklchOnclone() {
   return (clonedDoc) => {
-    try {
-      // Fix oklch in cloned document's stylesheets
-      const sheets = clonedDoc.styleSheets || []
-      for (const sheet of sheets) {
-        try {
-          replaceOklchInRules(sheet.cssRules)
-        } catch {
-          // Cross-origin stylesheet — skip
-        }
-      }
-    } catch {
-      // Non-critical — best effort
-    }
+    // Resolve the actual Document object — html2canvas passes the
+    // Document, but some versions might pass an Element.
+    const doc = clonedDoc.documentElement
+      ? clonedDoc
+      : (clonedDoc.ownerDocument || clonedDoc)
 
-    // Also fix inline styles on elements that might have oklch
+    // ── Method 1: Fix <style> tag textContent ────────────────
+    // In Vite dev mode, CSS is injected as <style> tags.
+    // Directly modifying textContent ensures html2canvas reads fixed CSS.
     try {
-      clonedDoc.querySelectorAll('[style]').forEach(el => {
-        const css = el.style.cssText
-        if (css && (css.includes('oklch') || css.includes('oklab'))) {
-          el.style.cssText = css.replace(/okl[a-z]+\([^)]*\)/g, '#333')
+      doc.querySelectorAll('style').forEach(styleEl => {
+        const css = styleEl.textContent || ''
+        if (css.includes('oklch') || css.includes('oklab')) {
+          styleEl.textContent = css.replace(OKL_REGEX, '#333')
         }
       })
-    } catch {
-      // Non-critical
-    }
+    } catch { /* non-critical */ }
+
+    // ── Method 2: Fix stylesheet rules via CSSOM ──────────────
+    // In production, CSS may be in <link> stylesheets.
+    try {
+      const sheets = doc.styleSheets || []
+      for (const sheet of sheets) {
+        try { fixStylesheetRules(sheet.cssRules) } catch { /* cross-origin */ }
+      }
+    } catch { /* non-critical */ }
+
+    // ── Method 3: Fix inline styles on elements ───────────────
+    try {
+      doc.querySelectorAll('[style]').forEach(el => {
+        const css = el.style.cssText
+        if (css && (css.includes('oklch') || css.includes('oklab'))) {
+          el.style.cssText = css.replace(OKL_REGEX, '#333')
+        }
+      })
+    } catch { /* non-critical */ }
   }
 }

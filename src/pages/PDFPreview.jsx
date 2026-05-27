@@ -288,35 +288,44 @@ export default function PDFPreview() {
                 }
               }
 
-              // ─── Strip oklch() colors ──────────────────────────
-              // Tailwind v4 uses oklch() which html2canvas cannot parse.
-              // Recursively walk all CSS rules (including @layer, @media,
-              // @supports) and replace oklch() in individual properties.
+              // ─── Strip oklch()/oklab() colors ──────────────────
+              // Tailwind v4 uses oklch()/oklab() which html2canvas cannot parse.
+              // Fix in cloned doc using 3 methods for maximum compatibility.
+              const OKL = /okl[a-z]+\([^)]*\)/g
               try {
-                const fixOklchRules = (rules) => {
+                // Method 1: Fix <style> tag textContent (Vite dev mode)
+                clonedDoc.querySelectorAll('style').forEach(el => {
+                  const css = el.textContent || ''
+                  if (css.includes('oklch') || css.includes('oklab')) {
+                    el.textContent = css.replace(OKL, '#333')
+                  }
+                })
+                // Method 2: Fix stylesheet rules via CSSOM (production)
+                const fixRules = (rules) => {
                   for (const rule of rules) {
                     try {
-                      if (rule.cssRules) fixOklchRules(rule.cssRules)
+                      if (rule.cssRules) fixRules(rule.cssRules)
                       if (rule.style && rule.style.length) {
                         for (let i = 0; i < rule.style.length; i++) {
                           const prop = rule.style[i]
                           const val = rule.style.getPropertyValue(prop)
                           if (val && (val.includes('oklch') || val.includes('oklab'))) {
                             const prio = rule.style.getPropertyPriority(prop)
-                            rule.style.setProperty(prop, val.replace(/okl[a-z]+\([^)]*\)/g, '#333'), prio)
+                            rule.style.setProperty(prop, val.replace(OKL, '#333'), prio)
                           }
                         }
                       }
-                    } catch { /* read-only rule */ }
+                    } catch { /* read-only */ }
                   }
                 }
                 for (const sheet of clonedDoc.styleSheets) {
-                  try { fixOklchRules(sheet.cssRules) } catch { /* cross-origin */ }
+                  try { fixRules(sheet.cssRules) } catch { /* cross-origin */ }
                 }
+                // Method 3: Fix inline styles on elements
                 clonedDoc.querySelectorAll('[style]').forEach(el => {
                   const css = el.style.cssText
                   if (css && (css.includes('oklch') || css.includes('oklab'))) {
-                    el.style.cssText = css.replace(/okl[a-z]+\([^)]*\)/g, '#333')
+                    el.style.cssText = css.replace(OKL, '#333')
                   }
                 })
               } catch { /* non-critical */ }
