@@ -1,82 +1,75 @@
 /**
  * html2pdf.js uses html2canvas which cannot parse oklch() colors
- * (Tailwind v4 default). This utility temporarily replaces oklch()
- * in ALL document stylesheets before html2pdf runs, then restores.
+ * (Tailwind v4 default). 
  *
- * Strategy: For each stylesheet containing oklch, read all CSS rules,
- * replace oklch() with a safe fallback, inject as a new <style> tag,
- * and REMOVE the original stylesheet node from the DOM entirely.
- * After PDF generation, put the originals back.
+ * The CORRECT approach is to fix oklch inside the onclone callback.
+ * html2canvas creates a cloned document in an iframe, then calls onclone,
+ * THEN parses styles. So we can modify the cloned stylesheets safely
+ * without touching the main document.
  *
- * We must REMOVE (not just disable) because html2canvas may still
- * read "disabled" stylesheets. Physically removing them from the DOM
- * is the only reliable way.
+ * Usage in html2pdf:
+ *   html2canvas: { onclone: oklchOnclone(), ...otherOptions }
  */
 
 /**
- * Recursively collect all CSS text from a CSSRule list,
- * including nested rules (media, layer, supports, container).
+ * Recursively walk CSS rules (including nested @layer, @media, @supports)
+ * and replace oklch() values in individual style properties.
  */
-function collectCssText(rules) {
-  let text = ''
-  for (let i = 0; i < rules.length; i++) {
-    const rule = rules[i]
-    if (rule.cssRules) {
-      text += rule.cssText.split('{')[0] + '{\n'
-      text += collectCssText(rule.cssRules)
-      text += '}\n'
-    } else {
-      text += rule.cssText + '\n'
+function replaceOklchInRules(rules) {
+  for (const rule of rules) {
+    try {
+      // Recurse into nested rules (@layer, @media, @supports, @container)
+      if (rule.cssRules) {
+        replaceOklchInRules(rule.cssRules)
+      }
+      // Replace oklch in individual properties of this rule
+      if (rule.style && rule.style.length) {
+        for (let i = 0; i < rule.style.length; i++) {
+          const prop = rule.style[i]
+          const val = rule.style.getPropertyValue(prop)
+          if (val && val.includes('oklch')) {
+            const prio = rule.style.getPropertyPriority(prop)
+            rule.style.setProperty(prop, val.replace(/oklch\([^)]*\)/g, '#333'), prio)
+          }
+        }
+      }
+    } catch {
+      // Some rules are read-only — skip
     }
   }
-  return text
 }
 
 /**
- * Strip oklch() from all document stylesheets by:
- * 1. Reading all CSS text from each sheet
- * 2. Replacing oklch() with #333
- * 3. Injecting a clean <style> tag
- * 4. REMOVING the original stylesheet node from the DOM
- *
- * Returns a restore function — call it after html2pdf finishes.
+ * Returns an onclone handler for html2canvas that strips oklch()
+ * from the CLONED document's stylesheets. The main document is
+ * never modified.
  */
-export function stripOklchForPdf() {
-  const entries = []
-
-  // Collect all stylesheets into an array first (DOM changes mid-loop can skip items)
-  const sheets = [...document.styleSheets]
-
-  for (const sheet of sheets) {
+export function oklchOnclone() {
+  return (clonedDoc) => {
     try {
-      const cssText = collectCssText(sheet.cssRules)
-      if (!cssText.includes('oklch')) continue
-
-      const cleanCss = cssText.replace(/oklch\([^)]*\)/g, '#333')
-
-      const styleEl = document.createElement('style')
-      styleEl.setAttribute('data-oklch-patch', '1')
-      styleEl.textContent = cleanCss
-      document.head.appendChild(styleEl)
-
-      // REMOVE the original stylesheet node from DOM entirely
-      const ownerNode = sheet.ownerNode
-      if (ownerNode && ownerNode.parentNode) {
-        ownerNode.parentNode.removeChild(ownerNode)
-        entries.push({ cleanStyleEl: styleEl, originalNode: ownerNode, insertBefore: styleEl })
+      // Fix oklch in cloned document's stylesheets
+      const sheets = clonedDoc.styleSheets || []
+      for (const sheet of sheets) {
+        try {
+          replaceOklchInRules(sheet.cssRules)
+        } catch {
+          // Cross-origin stylesheet — skip
+        }
       }
     } catch {
-      // Cross-origin stylesheet — skip
+      // Non-critical — best effort
     }
-  }
 
-  return function restore() {
-    for (const { cleanStyleEl, originalNode } of entries) {
-      cleanStyleEl.remove()
-      // Put the original back where the patch was
-      if (originalNode) {
-        document.head.appendChild(originalNode)
-      }
+    // Also fix inline styles on elements that might have oklch
+    try {
+      clonedDoc.querySelectorAll('[style]').forEach(el => {
+        const css = el.style.cssText
+        if (css && css.includes('oklch')) {
+          el.style.cssText = css.replace(/oklch\([^)]*\)/g, '#333')
+        }
+      })
+    } catch {
+      // Non-critical
     }
   }
 }

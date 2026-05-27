@@ -1,14 +1,14 @@
 import PaperTemplate from '@/components/paper/PaperTemplate'
-import api, { getRenderPdfUrl } from '@/services/api'
 import Loader from '@/components/shared/Loader'
+import api, { getRenderPdfUrl } from '@/services/api'
 import { buildPaperHtmlForServerPdf } from '@/utils/paperToPdfHtml'
 // eslint-disable-next-line no-unused-vars
+import useAuthStore from '@/store/authStore'
+// oklch fix is handled inside onclone callback below
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import useAuthStore from '@/store/authStore'
-import { stripOklchForPdf } from '@/utils/stripOklchForPdf'
 
 export default function PDFPreview() {
   const { id } = useParams()
@@ -183,7 +183,6 @@ export default function PDFPreview() {
   async function handleDownload() {
     if (!paperRef.current || downloading) return
     setDownloading(true)
-    const restore = stripOklchForPdf()
     try {
       // Lazy-load: html2pdf.js pulls in html2canvas + jsPDF (~300KB combined)
       const html2pdf = (await import('html2pdf.js')).default
@@ -291,24 +290,35 @@ export default function PDFPreview() {
 
               // ─── Strip oklch() colors ──────────────────────────
               // Tailwind v4 uses oklch() which html2canvas cannot parse.
-              // Replace all oklch() with 'inherit' in the cloned doc.
+              // Recursively walk all CSS rules (including @layer, @media,
+              // @supports) and replace oklch() in individual properties.
               try {
-                const cloneEl = clonedDoc.documentElement || clonedDoc
-                cloneEl.querySelectorAll('[style]').forEach(el => {
-                  if (el.style.cssText && el.style.cssText.includes('oklch')) {
-                    el.style.cssText = el.style.cssText.replace(/oklch\([^)]*\)/g, 'inherit')
+                const fixOklchRules = (rules) => {
+                  for (const rule of rules) {
+                    try {
+                      if (rule.cssRules) fixOklchRules(rule.cssRules)
+                      if (rule.style && rule.style.length) {
+                        for (let i = 0; i < rule.style.length; i++) {
+                          const prop = rule.style[i]
+                          const val = rule.style.getPropertyValue(prop)
+                          if (val && val.includes('oklch')) {
+                            const prio = rule.style.getPropertyPriority(prop)
+                            rule.style.setProperty(prop, val.replace(/oklch\([^)]*\)/g, '#333'), prio)
+                          }
+                        }
+                      }
+                    } catch { /* read-only rule */ }
+                  }
+                }
+                for (const sheet of clonedDoc.styleSheets) {
+                  try { fixOklchRules(sheet.cssRules) } catch { /* cross-origin */ }
+                }
+                clonedDoc.querySelectorAll('[style]').forEach(el => {
+                  const css = el.style.cssText
+                  if (css && css.includes('oklch')) {
+                    el.style.cssText = css.replace(/oklch\([^)]*\)/g, '#333')
                   }
                 })
-                const doc = cloneEl.ownerDocument || document
-                for (const sheet of doc.styleSheets) {
-                  try {
-                    for (const rule of sheet.cssRules) {
-                      if (rule.cssText && rule.cssText.includes('oklch')) {
-                        rule.style.cssText = rule.style.cssText.replace(/oklch\([^)]*\)/g, 'inherit')
-                      }
-                    }
-                  } catch { /* cross-origin */ }
-                }
               } catch { /* non-critical */ }
             },
           },
@@ -321,7 +331,6 @@ export default function PDFPreview() {
       console.error('[PDFPreview] download failed:', err)
       toast.error('PDF তৈরি করতে সমস্যা হয়েছে')
     } finally {
-      restore()
       setDownloading(false)
     }
   }
