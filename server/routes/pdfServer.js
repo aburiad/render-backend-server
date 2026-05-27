@@ -7,8 +7,11 @@ const { requireAuth } = require('../middleware/auth')
 const router = express.Router()
 
 function safeFilename(name, fallback = 'paper') {
+  // Only allow ASCII word chars, dots, dashes, spaces — no Bengali or
+  // other non-ASCII characters because the filename goes into the
+  // Content-Disposition HTTP header which rejects non-ASCII bytes.
   const cleaned = String(name || fallback)
-    .replace(/[^\wঀ-৿\-. ]+/g, '')
+    .replace(/[^\w\-. ]+/g, '')
     .replace(/\s+/g, '_')
     .slice(0, 100)
   return (cleaned || fallback) + '.pdf'
