@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import api, { getRenderPdfUrl } from '@/services/api'
-import { oklchOnclone } from '@/utils/stripOklchForPdf'
+import { stripOklchForPdf } from '@/utils/stripOklchForPdf'
 
 import RoutineTemplate from '@/components/routine/RoutineTemplate'
 import Loader from '@/components/shared/Loader'
@@ -43,6 +43,7 @@ export default function RoutinePreview() {
   async function handleDownload() {
     if (!paperRef.current || downloading) return
     setDownloading(true)
+    const restore = stripOklchForPdf()
     try {
       const html2pdf = (await import('html2pdf.js')).default
 
@@ -72,7 +73,6 @@ export default function RoutinePreview() {
             useCORS: true,
             backgroundColor: '#ffffff',
             windowWidth: paperRef.current.offsetWidth,
-            onclone: oklchOnclone(),
           },
           jsPDF: {
             unit: 'mm',
@@ -87,6 +87,7 @@ export default function RoutinePreview() {
       console.error('[RoutinePreview] download failed:', err)
       toast.error('PDF তৈরি করতে সমস্যা হয়েছে')
     } finally {
+      restore()
       setDownloading(false)
     }
   }

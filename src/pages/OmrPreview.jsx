@@ -7,7 +7,7 @@ import api, { getRenderPdfUrl } from '@/services/api'
 import Loader from '@/components/shared/Loader'
 import toast from 'react-hot-toast'
 import useAuthStore from '@/store/authStore'
-import { oklchOnclone } from '@/utils/stripOklchForPdf'
+import { stripOklchForPdf } from '@/utils/stripOklchForPdf'
 
 export default function OmrPreview() {
   const { id } = useParams()
@@ -47,6 +47,7 @@ export default function OmrPreview() {
   async function handleDownload() {
     if (!omrRef.current || downloading) return
     setDownloading(true)
+    const restore = stripOklchForPdf()
     try {
       const html2pdf = (await import('html2pdf.js')).default
       if (document.fonts) await document.fonts.ready
@@ -63,7 +64,6 @@ export default function OmrPreview() {
             useCORS: true,
             backgroundColor: '#ffffff',
             windowWidth: omrRef.current.offsetWidth,
-            onclone: oklchOnclone(),
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css'] },
@@ -74,6 +74,7 @@ export default function OmrPreview() {
       console.error('[OmrPreview] download failed:', err)
       toast.error('PDF তৈরি করতে সমস্যা হয়েছে')
     } finally {
+      restore()
       setDownloading(false)
     }
   }
