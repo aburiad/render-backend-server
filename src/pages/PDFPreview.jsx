@@ -301,9 +301,9 @@ export default function PDFPreview() {
                         for (let i = 0; i < rule.style.length; i++) {
                           const prop = rule.style[i]
                           const val = rule.style.getPropertyValue(prop)
-                          if (val && val.includes('oklch')) {
+                          if (val && (val.includes('oklch') || val.includes('oklab'))) {
                             const prio = rule.style.getPropertyPriority(prop)
-                            rule.style.setProperty(prop, val.replace(/oklch\([^)]*\)/g, '#333'), prio)
+                            rule.style.setProperty(prop, val.replace(/okl[a-z]+\([^)]*\)/g, '#333'), prio)
                           }
                         }
                       }
@@ -315,8 +315,8 @@ export default function PDFPreview() {
                 }
                 clonedDoc.querySelectorAll('[style]').forEach(el => {
                   const css = el.style.cssText
-                  if (css && css.includes('oklch')) {
-                    el.style.cssText = css.replace(/oklch\([^)]*\)/g, '#333')
+                  if (css && (css.includes('oklch') || css.includes('oklab'))) {
+                    el.style.cssText = css.replace(/okl[a-z]+\([^)]*\)/g, '#333')
                   }
                 })
               } catch { /* non-critical */ }
