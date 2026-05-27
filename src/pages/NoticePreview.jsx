@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import api, { getRenderPdfUrl } from '@/services/api'
-import { stripOklchForPdf } from '@/utils/stripOklchForPdf'
+import { stripOklchForPdf, oklchOnclone } from '@/utils/stripOklchForPdf'
 import NoticeTemplate from '@/components/notice/NoticeTemplate'
 import Loader from '@/components/shared/Loader'
 import useAuthStore from '@/store/authStore'
@@ -71,6 +71,7 @@ export default function NoticePreview() {
             useCORS: true,
             backgroundColor: '#ffffff',
             windowWidth: paperRef.current.offsetWidth,
+            onclone: oklchOnclone(),
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css'] },

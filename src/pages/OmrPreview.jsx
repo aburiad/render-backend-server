@@ -7,7 +7,7 @@ import api, { getRenderPdfUrl } from '@/services/api'
 import Loader from '@/components/shared/Loader'
 import toast from 'react-hot-toast'
 import useAuthStore from '@/store/authStore'
-import { stripOklchForPdf } from '@/utils/stripOklchForPdf'
+import { stripOklchForPdf, oklchOnclone } from '@/utils/stripOklchForPdf'
 
 export default function OmrPreview() {
   const { id } = useParams()
@@ -64,6 +64,7 @@ export default function OmrPreview() {
             useCORS: true,
             backgroundColor: '#ffffff',
             windowWidth: omrRef.current.offsetWidth,
+            onclone: oklchOnclone(),
           },
           jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
           pagebreak: { mode: ['css'] },

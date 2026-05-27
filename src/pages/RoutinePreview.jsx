@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import toast from 'react-hot-toast'
 import api, { getRenderPdfUrl } from '@/services/api'
-import { stripOklchForPdf } from '@/utils/stripOklchForPdf'
+import { stripOklchForPdf, oklchOnclone } from '@/utils/stripOklchForPdf'
 
 import RoutineTemplate from '@/components/routine/RoutineTemplate'
 import Loader from '@/components/shared/Loader'
@@ -73,6 +73,7 @@ export default function RoutinePreview() {
             useCORS: true,
             backgroundColor: '#ffffff',
             windowWidth: paperRef.current.offsetWidth,
+            onclone: oklchOnclone(),
           },
           jsPDF: {
             unit: 'mm',

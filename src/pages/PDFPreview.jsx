@@ -4,7 +4,7 @@ import api, { getRenderPdfUrl } from '@/services/api'
 import { buildPaperHtmlForServerPdf } from '@/utils/paperToPdfHtml'
 // eslint-disable-next-line no-unused-vars
 import useAuthStore from '@/store/authStore'
-import { stripOklchForPdf } from '@/utils/stripOklchForPdf'
+import { stripOklchForPdf, oklchOnclone } from '@/utils/stripOklchForPdf'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -247,6 +247,9 @@ export default function PDFPreview() {
             // may still drift — for pixel-perfect exports, the Print
             // button → Save as PDF dialog is the reliable fallback.
             onclone: (clonedDoc) => {
+              // First: fix oklch/oklab in cloned document
+              oklchOnclone()(clonedDoc)
+
               const orig = paperRef.current
               if (!orig) return
 
