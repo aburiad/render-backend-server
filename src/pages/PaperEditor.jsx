@@ -17,9 +17,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
+import Spinner from '@/components/shared/Spinner'
 import api from '@/services/api'
 import usePaperStore from '@/store/paperStore'
-import Spinner from '@/components/shared/Spinner'
 
 import ExamPublishModal from '@/components/paper/ExamPublishModal'
 import PaperSetupForm from '@/components/paper/PaperSetupForm'
@@ -517,8 +517,8 @@ export default function PaperEditor() {
         )}
       </AnimatePresence>
 
-      <div style={{ paddingBottom: 100 }}>
-      {/* ── Top Bar (Desktop Only) ─────────────────────────────────────────── */}
+      
+      {/* ── Top Bar (Desktop Only) /*─────────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-5">
         <div>
           <button
@@ -926,6 +926,6 @@ export default function PaperEditor() {
         {showBankImport && <ImportFromBankModal onClose={() => setShowBankImport(false)} onImport={handleImportFromBank} />}
         {showPublishModal && <ExamPublishModal paperId={id} onClose={() => setShowPublishModal(false)} />}
       </AnimatePresence>
-    </div>
+    </>
   )
 }
