@@ -663,6 +663,55 @@ export default function MagicScanModal({ onClose }) {
                   >
                     সবগুলো পেপারে যোগ করুন
                   </button>
+                  <button
+                    onClick={() => {
+                      setStep('processing')
+                      setLoading(true)
+                      const isRetryable = (err) => {
+                        const status = err.response?.status
+                        if (status === 502 || status === 503 || status === 504 || status === 408) return true
+                        if (err.code === 'ECONNABORTED') return true
+                        const msg = err.message || ''
+                        if (/timeout|network/i.test(msg) || err.code === 'ERR_NETWORK') return true
+                        return false
+                      }
+                      postScanOnce()
+                        .then(({ data }) => {
+                          if (data.success) {
+                            setExtractedQuestions(data.questions)
+                            setStep('review')
+                          }
+                        })
+                        .catch(async (firstErr) => {
+                          if (isRetryable(firstErr)) {
+                            toast.loading('আবার চেষ্টা করছি…', { id: 'scan-retry' })
+                            await new Promise((r) => setTimeout(r, 1500))
+                            try {
+                              const { data } = await postScanOnce()
+                              toast.dismiss('scan-retry')
+                              if (data.success) {
+                                setExtractedQuestions(data.questions)
+                                setStep('review')
+                              }
+                            } catch (err) {
+                              toast.dismiss('scan-retry')
+                              toast.error(err.response?.data?.message || err.response?.data?.error || 'স্ক্যান করতে ব্যর্থ হয়েছে')
+                              setStep('review')
+                            }
+                          } else {
+                            toast.error(firstErr.response?.data?.message || firstErr.response?.data?.error || 'স্ক্যান করতে ব্যর্থ হয়েছে')
+                            setStep('review')
+                          }
+                        })
+                        .finally(() => setLoading(false))
+                    }}
+                    className="w-full mt-2 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors btn-press flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                    </svg>
+                    আবার চেষ্টা করুন
+                  </button>
                   <p className="text-center text-[10px] text-gray-400 mt-2">
                     *যোগ করার পর আপনি এডিট করতে পারবেন
                   </p>
