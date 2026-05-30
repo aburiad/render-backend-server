@@ -66,8 +66,8 @@ export default function MagicScanModal({ onClose }) {
                       !api.defaults.baseURL.includes('vercel.app') &&
                       !api.defaults.baseURL.includes('rongtonu.com'))
     const processedDataUrl = await processExamImage(imgRef.current, completedCrop, {
-      maxDim: isRender ? 1600 : 1000,
-      quality: isRender ? 0.85 : 0.75,
+      maxDim: isRender ? 2000 : 1200,
+      quality: isRender ? 0.95 : 0.92,
     })
     setCroppedImagePreview(processedDataUrl)
     return api.post('/ai/scan', { image: processedDataUrl, questionType }, { timeout: 240000 })

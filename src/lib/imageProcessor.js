@@ -2,10 +2,10 @@
  * Process an exam image for AI scanning.
  *
  * @param {HTMLImageElement} imgElement
- * @param {object} completedCrop  — percent crop from react-image-crop
+ * @param {object} completedCrop  — pixel crop from react-image-crop v11
  * @param {object} options
- * @param {number} options.maxDim  — max pixel dimension (default 1000 for Vercel, 1600 for Render)
- * @param {number} options.quality — WebP quality 0-1 (default 0.75 for Vercel, 0.85 for Render)
+ * @param {number} options.maxDim  — max pixel dimension (default 1200 for Vercel, 2000 for Render)
+ * @param {number} options.quality — JPEG quality 0-1 (default 0.92 for Vercel, 0.95 for Render)
  */
 export async function processExamImage(imgElement, completedCrop, options = {}) {
   const canvas = document.createElement('canvas')
@@ -25,10 +25,11 @@ export async function processExamImage(imgElement, completedCrop, options = {}) 
   const cropWidth = completedCrop.width * scaleX
   const cropHeight = completedCrop.height * scaleY
 
-  // Step 2: Resize — caller controls maxDim based on active backend
-  //   Vercel (10s limit) → 1000px keeps response fast
-  //   Render (no limit)  → 1600px preserves fine Bengali/Arabic text detail
-  const maxDim = options.maxDim || 1000
+  // Step 2: Resize — caller controls maxDim based on active backend.
+  //   Vercel (10s limit) → 1200px: enough for most text, keeps response fast.
+  //   Render (no limit)  → 2000px: preserves fine Bengali/Arabic/formula detail.
+  //   No resize if image is already smaller than maxDim.
+  const maxDim = options.maxDim || 1200
   let outW = cropWidth
   let outH = cropHeight
   if (outW > maxDim || outH > maxDim) {
@@ -45,13 +46,13 @@ export async function processExamImage(imgElement, completedCrop, options = {}) 
   ctx.fillRect(0, 0, outW, outH)
   ctx.drawImage(imgElement, cropX, cropY, cropWidth, cropHeight, 0, 0, outW, outH)
 
-  // Step 4: Quality — adaptive per backend + image size
-  //   Vercel: 0.75 default, 0.92 for small images (< 600px)
-  //   Render: 0.85 default, 0.95 for small images (< 600px)
-  const baseQuality = options.quality || 0.75
-  const quality = Math.max(outW, outH) < 600 ? Math.min(baseQuality + 0.10, 0.97) : baseQuality
+  // Step 4: Quality — high quality to preserve fine text strokes.
+  //   Using JPEG (not WebP) to avoid double-compression artifacts:
+  //   Original JPEG → WebP re-encodes twice, blurring fine Bangla strokes.
+  //   JPEG → JPEG at high quality preserves text sharpness much better.
+  const quality = options.quality || 0.92
 
-  // Step 5: WebP export (smaller than JPEG at same quality — saves bandwidth)
+  // Step 5: JPEG export — keeps original format, avoids WebP double-compression
   return new Promise((resolve) => {
     canvas.toBlob(
       (blob) => {
@@ -59,7 +60,7 @@ export async function processExamImage(imgElement, completedCrop, options = {}) 
         reader.onloadend = () => resolve(reader.result) // base64 dataURL
         reader.readAsDataURL(blob)
       },
-      'image/webp',
+      'image/jpeg',
       quality
     )
   })
