@@ -492,4 +492,4 @@ ${mathBlock}
   return { questions, provider, source }
 }
 
-module.exports = { scanImage, generateFromBook, parseQuestionsJson }
+module.exports = { scanImage, generateFromBook, parseQuestionsJson, callWithFallback }
