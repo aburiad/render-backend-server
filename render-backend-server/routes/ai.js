@@ -33,8 +33,8 @@ router.post('/scan', checkAiCredit(1), async (req, res, next) => {
     
     console.log(`[ai:scan] Received image size: ${Math.round(imageSizeKB)}KB (MIME: ${detectedMime}, Question Type: ${questionType})`)
 
-    if (imageSizeKB > 500) {
-      throw new AppError(`ছবি অনেক বড় (${Math.round(imageSizeKB)}KB) — 500KB এর মধ্যে রাখুন`, 400)
+    if (imageSizeKB > 1024) {
+      throw new AppError(`ছবি অনেক বড় (${Math.round(imageSizeKB)}KB) — 1MB এর মধ্যে রাখুন`, 400)
     }
 
     const result = await withChargedCredit(
