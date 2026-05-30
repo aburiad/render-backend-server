@@ -511,6 +511,8 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
 
         const sourceChapters = Array.from(chapterGroups.values()).map(g => g.title)
 
+        console.log('[smart-prompt] Multi-chapter DONE: questions=', allQuestions.length, 'db=', totalDbCount, 'ai=', totalAiCount)
+        
         res.json({
           success: true,
           questions: allQuestions,
