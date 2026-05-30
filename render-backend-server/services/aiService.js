@@ -341,6 +341,7 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, qu
     'Your job: read EVERY line of the image from top to bottom, left to right — skip nothing.',
     'Extract ALL questions exactly as written. Do NOT summarize, skip, merge, or reorder.',
     'Preserve every word, number, punctuation, and symbol exactly as it appears.',
+    'CRITICAL: Copy text EXACTLY as it appears in the image. Do NOT paraphrase, substitute, or invent words. If a word is unclear, write your best reading of it — never replace it with a different word.',
     'For Bangla text: copy Unicode characters exactly — do not transliterate.',
     'For math: use LaTeX inline notation $...$ for all equations, fractions, symbols.',
     'Output ONLY a valid JSON array. No markdown fences, no explanation, no extra text.',
