@@ -19,6 +19,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
 import api from '@/services/api'
 import usePaperStore from '@/store/paperStore'
+import Spinner from '@/components/shared/Spinner'
 
 import ExamPublishModal from '@/components/paper/ExamPublishModal'
 import PaperSetupForm from '@/components/paper/PaperSetupForm'
@@ -77,8 +78,8 @@ const QUESTION_TYPES = [
   { type: 'true_false', label: 'সত্য/মিথ্যা', icon: 'check_circle', from: '#4ade80', to: '#15803d', shadow: 'rgba(21,128,61,0.25)' },
 ]
 
-const PRIMARY_TYPES = QUESTION_TYPES.slice(0, 10)
-const MORE_TYPES = QUESTION_TYPES.slice(10)
+const PRIMARY_TYPES = QUESTION_TYPES.slice(0, 4) // MCQ, সৃজনশীল, হিসাববিজ্ঞান, সংক্ষিপ্ত
+const MORE_TYPES = QUESTION_TYPES.slice(4)
 
 const EDITOR_MAP = {
   MCQ: McqEditor,
@@ -167,6 +168,8 @@ export default function PaperEditor() {
   const [showBankImport, setShowBankImport] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showMoreTypes, setShowMoreTypes] = useState(false)
+  const [quickPrompt, setQuickPrompt] = useState('')
+  const [quickLoading, setQuickLoading] = useState(false)
   const autoSaveTimer = useRef(null)
 
   const currentPaper = usePaperStore((s) => s.currentPaper)
@@ -192,10 +195,12 @@ export default function PaperEditor() {
         clearPaper()
       }
       if (!usePaperStore.getState().currentPaper) {
+        const currentYear = new Date().getFullYear()
+        const toBengaliNum = (n) => String(n).replace(/\d/g, d => '০১২৩৪৫৬৭৮৯'[d])
         setPaper({
           institution_name: '',
           exam_title: '',
-          session_year: '',
+          session_year: toBengaliNum(currentYear),
           subject: '',
           time_minutes: 60,
           total_marks: 100,
@@ -383,9 +388,73 @@ export default function PaperEditor() {
   }, [location.search, location.pathname])
 
   const handleManualSave = async () => {
+    const state = usePaperStore.getState()
+    if (!state.currentPaper?.exam_title?.trim()) {
+      toast.error('⚠️ পরীক্ষার নাম দিন — Paper Setup থেকে ফিল করুন')
+      return
+    }
     await saveToBackend()
     if (!usePaperStore.getState().isDirty) {
       toast.success('সেভ হয়েছে!')
+    }
+  }
+
+  // Helper: convert class number to Bengali display format
+  const toBengaliClass = (num) => {
+    const map = { 6: '৬ম', 7: '৭ম', 8: '৮ম', 9: '৯ম', 10: '১০ম' }
+    return map[num] || (num ? `${num}ম` : '')
+  }
+
+  // Helper: convert English subject key to Bengali display name
+  const toBengaliSubject = (key) => {
+    const map = {
+      bangla: 'বাংলা', english: 'ইংরেজি', math: 'গণিত', science: 'বিজ্ঞান',
+      accounting: 'হিসাববিজ্ঞান', physics: 'পদার্থবিজ্ঞান', chemistry: 'রসায়ন',
+      biology: 'জীববিজ্ঞান', ict: 'তথ্য ও যোগাযোগ প্রযুক্তি',
+      bgs: 'বাংলাদেশ ও বিশ্বপরিচয়', religion: 'ধর্ম', islam: 'ইসলাম',
+    }
+    return map[key?.toLowerCase()] || key || ''
+  }
+
+  const handleQuickPrompt = async () => {
+    if (!quickPrompt.trim() || quickLoading) return
+    setQuickLoading(true)
+    try {
+      const { data } = await api.post('/book/smart-prompt', { prompt: quickPrompt.trim() })
+      window.dispatchEvent(new CustomEvent('credits-changed'))
+      const qs = data.questions || []
+      if (qs.length === 0) {
+        toast('কোনো প্রশ্ন পাওয়া যায়নি', { icon: 'ℹ️' })
+      } else {
+        qs.forEach(q => addQuestion(q))
+        const dbCount = data.dbCount || 0
+        const aiCount = data.aiCount || 0
+        if (aiCount > 0) {
+          toast.success(`📚 ${dbCount}টি + 🤖 ${aiCount}টি = ${data.count}টি প্রশ্ন যোগ হয়েছে`)
+        } else {
+          toast.success(`${qs.length}টি প্রশ্ন যোগ হয়েছে`)
+        }
+
+        // Auto-fill paper setup from parsed prompt data
+        if (data.parsed) {
+          const updates = {}
+          if (data.parsed.class && !currentPaper?.class_name?.trim()) {
+            updates.class_name = toBengaliClass(data.parsed.class)
+          }
+          if (data.parsed.subject && !currentPaper?.subject?.trim()) {
+            updates.subject = toBengaliSubject(data.parsed.subject)
+          }
+          if (Object.keys(updates).length > 0) {
+            updatePaper(updates)
+          }
+        }
+
+        setQuickPrompt('')
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'প্রশ্ন তৈরি করতে ব্যর্থ')
+    } finally {
+      setQuickLoading(false)
     }
   }
 
@@ -568,10 +637,85 @@ export default function PaperEditor() {
         </DndContext>
 
         {questions.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 24, border: '1px solid #f1f5f9' }}>
-            <div style={{ fontSize: 40, marginBottom: 16 }}>✏️</div>
-            <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 6px' }}>এখনো কোনো প্রশ্ন নেই</h3>
-            <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>নিচের বাটন থেকে প্রশ্ন যোগ করুন</p>
+          <div style={{ padding: '32px 20px', background: '#fff', borderRadius: 24, border: '1px solid #f1f5f9' }}>
+            {/* Smart Prompt Hero */}
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{ fontSize: 36, marginBottom: 8 }}>✨</div>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>কী প্রশ্ন চান? লিখে বলুন</h3>
+              <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>বাংলা বা ইংরেজিতে লিখুন — AI বুঝে নেবে</p>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <input
+                value={quickPrompt}
+                onChange={(e) => setQuickPrompt(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleQuickPrompt()}
+                placeholder="যেমন: ক্লাস ৯ গণিত ২য় অধ্যায় থেকে ১০টা MCQ দাও"
+                style={{
+                  flex: 1, padding: '12px 16px', borderRadius: 14, border: '1px solid #e2e8f0',
+                  fontSize: 13, fontWeight: 500, outline: 'none', background: '#f8fafc',
+                }}
+              />
+              <button
+                onClick={handleQuickPrompt}
+                disabled={!quickPrompt.trim() || quickLoading}
+                className="btn-press"
+                style={{
+                  padding: '12px 20px', borderRadius: 14, border: 'none',
+                  background: quickPrompt.trim() ? '#7c3aed' : '#e2e8f0',
+                  color: quickPrompt.trim() ? '#fff' : '#94a3b8',
+                  fontSize: 13, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
+                  boxShadow: quickPrompt.trim() ? '0 4px 12px rgba(124,58,237,0.3)' : 'none',
+                }}
+              >
+                {quickLoading ? <Spinner size={14} color="#fff" /> : 'বানাও ✨'}
+              </button>
+            </div>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <p style={{ fontSize: 10, color: '#cbd5e1', margin: 0 }}>
+                💡 উদাহরণ: "class 8 science chapter 3 theke 5ta creative question"
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+              <div style={{ flex: 1, height: 1, background: '#f1f5f9' }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#cbd5e1' }}>অন্য উপায়</span>
+              <div style={{ flex: 1, height: 1, background: '#f1f5f9' }} />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+              <button
+                onClick={() => { setShowMagicScan(true) }}
+                className="btn-press"
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '16px 8px', borderRadius: 16, background: '#eff6ff', border: '1px solid #bfdbfe', cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 22 }}>📷</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#1e40af' }}>ছবি স্ক্যান</span>
+              </button>
+              <button
+                onClick={() => { setShowBookGenerate(true) }}
+                className="btn-press"
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '16px 8px', borderRadius: 16, background: '#ecfdf5', border: '1px solid #a7f3d0', cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 22 }}>📚</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#065f46' }}>বই থেকে</span>
+              </button>
+              <button
+                onClick={() => { setShowAddMenu(true) }}
+                className="btn-press"
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '16px 8px', borderRadius: 16, background: '#fefce8', border: '1px solid #fde68a', cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 22 }}>✏️</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#854d0e' }}>নিজে লিখুন</span>
+              </button>
+              <button
+                onClick={() => { setShowBankImport(true) }}
+                className="btn-press"
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '16px 8px', borderRadius: 16, background: '#f5f3ff', border: '1px solid #ddd6fe', cursor: 'pointer' }}
+              >
+                <span style={{ fontSize: 22 }}>🏦</span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#5b21b6' }}>ব্যাংক থেকে</span>
+              </button>
+            </div>
           </div>
         )}
       </div>

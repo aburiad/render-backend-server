@@ -3,14 +3,15 @@
 // with the SAME key before moving to the next key.
 //
 // Free tier limits per key (as of 2026-05):
-//   gemini-3.1-flash-lite  — 15 RPM, 250K TPM, 500 RPD  ← highest daily cap
-//   gemini-3.5-flash       —  5 RPM, 250K TPM,  20 RPD
-//   gemini-3-flash         —  5 RPM, 250K TPM,  20 RPD
-//   gemini-2.5-flash-lite  — 10 RPM, 250K TPM,  20 RPD
-//   gemini-2.5-flash       —  5 RPM, 250K TPM,  20 RPD
+//   gemma-4-31b-it          — 15 RPM, Unlimited TPM, 1.5K RPD 🏆 BEST FOR TEXT
+//   gemma-4-26b-a4b-it      — 15 RPM, Unlimited TPM, 1.5K RPD 🏆 BEST FOR TEXT
+//   gemini-3.1-flash-lite   — 15 RPM, 250K TPM,  500 RPD  ← highest flash cap
+//   gemini-3.5-flash        —  5 RPM, 250K TPM,   20 RPD
+//   gemini-2.5-flash-lite   — 10 RPM, 250K TPM,   20 RPD
+//   gemini-2.5-flash        —  5 RPM, 250K TPM,   20 RPD
 //
-// Per-key total: 580 RPD × 4 keys = 2,320 scans/day on Gemini alone
-// Model cascade — ordered by speed + reliability.
+// Gemma 4 models: Unlimited TPM + 1.5K RPD × 4 keys = 12K text calls/day!
+// Per-key total (all models): ~3.5K RPD × 4 keys = 14K calls/day on Gemini
 const VISION_MODELS = [
   'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
   'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
@@ -18,7 +19,9 @@ const VISION_MODELS = [
   'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
 ]
 const TEXT_MODELS = [
-  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
+  'gemma-4-31b-it',          // 15 RPM, Unlimited TPM, 1.5K RPD 🏆 TEXT #1
+  'gemma-4-26b-a4b-it',      // 15 RPM, Unlimited TPM, 1.5K RPD 🏆 TEXT #2
+  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD — fallback
   'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
   'gemini-2.5-flash-lite',   // 10 RPM, 20 RPD — fast (~5.5s)
   'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)

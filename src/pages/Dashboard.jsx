@@ -15,7 +15,7 @@ const HUB_CONFIG = {
     quickActions: [
       {
         label: 'প্রশ্নপত্র তৈরি',
-        description: 'নতুন পেপার বানান',
+        description: 'AI দিয়ে দ্রুত বানান',
         path: '/papers/new',
         gradient: 'linear-gradient(135deg, #2563eb, #3b82f6)',
         glow: 'rgba(37,99,235,0.2)',
