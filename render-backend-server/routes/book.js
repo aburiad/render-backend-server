@@ -275,19 +275,48 @@ router.post(
 উপলব্ধ ক্লাস: 6, 7, 8, 9, 10
 
 Output format (শুধুমাত্র JSON, কোনো ব্যাখ্যা নয়):
+
+CASE 1: যদি per-chapter count থাকে (যেমন "3rd theke 2ta CQ, 4th theke 3ta CQ"):
+{
+  "classNum": 8,
+  "subject": "math",
+  "items": [
+    { "chapterId": "ch-3", "type": "CQ", "count": 2 },
+    { "chapterId": "ch-4", "type": "CQ", "count": 3 },
+    { "chapterId": "ch-5", "type": "CQ", "count": 4 }
+  ]
+}
+
+CASE 2: যদি single chapter থাকে (যেমন "3rd chapter theke 5 ta CQ"):
 {
   "classNum": 9,
   "subject": "math",
-  "chapterId": "ch-3",
+  "items": [
+    { "chapterId": "ch-3", "type": "CQ", "count": 5 }
+  ]
+}
+
+CASE 3: যদি per-type count থাকে (যেমন "2ta CQ, 3ta MCQ"):
+{
+  "classNum": 9,
+  "subject": "math",
   "items": [
     { "type": "CQ", "count": 2 },
-    { "type": "short", "count": 2 },
     { "type": "MCQ", "count": 3 }
   ]
 }
 
+CASE 4: যদি overall count থাকে (যেমন "10 ta question"):
+{
+  "classNum": 9,
+  "subject": "math",
+  "items": [
+    { "type": "MCQ", "count": 10 }
+  ]
+}
+
 নিয়ম:
-- chapterId: chapter number বুঝলো "ch-N" format-e দাও (যেমন "3rd chapter" → "ch-3")। না বুঝলে null রাখো।
+- chapterId: chapter number বুঝলো "ch-N" format-e দাও (যেমন "3rd chapter" → "ch-3")। যদি chapter-এর কথা না থাকে কিন্তু type থাকে → chapterId বাদ দাও।
 - type mapping:
   - "creative"/"সৃজনশীল"/"CQ"/"সজনশীল" → "CQ"
   - "mcq"/"বহুনির্বাচনি"/"বহুনির্বাচনী" → "MCQ"
@@ -334,6 +363,7 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
       let items = []
       if (Array.isArray(parsed.items) && parsed.items.length > 0) {
         items = parsed.items.map((it) => ({
+          chapterId: it.chapterId || null, // NEW: support per-chapter items
           type: it.type || 'MCQ',
           count: Math.min(it.count || 5, 20),
         }))
@@ -354,10 +384,151 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
         )
       }
 
-      // ── Step 2: Build selections ────────────────────────────────────────
+      const allChapters = await bookService.getChapters(classNum, subject)
+
+      // Check if we have per-chapter items (multi-chapter mode)
+      const hasPerChapterItems = items.some(it => it.chapterId)
+
+      if (hasPerChapterItems) {
+        // ── Multi-chapter mode: process each chapter separately ─────────────
+        const allQuestions = []
+        let totalDbCount = 0
+        let totalAiCount = 0
+
+        // Group items by chapterId
+        const chapterGroups = new Map()
+        for (const item of items) {
+          let chId = item.chapterId
+          // Resolve chapterId to actual chapter ID
+          if (chId) {
+            let found = allChapters.find((c) => c.id === chId)
+            if (!found) {
+              const num = parseInt(String(chId).replace(/\D/g, ''))
+              if (num) {
+                found = allChapters.find((c) => c.chapterNumber === num)
+                  || allChapters.find((c) => String(c.id).includes(String(num)))
+              }
+            }
+            if (found) {
+              chId = found.id
+              if (!chapterGroups.has(chId)) {
+                chapterGroups.set(chId, { title: found.title, items: [] })
+              }
+              chapterGroups.get(chId).items.push(item)
+            }
+          }
+        }
+
+        // Process each chapter separately
+        for (const [chId, group] of chapterGroups) {
+          const selections = [{ chapterId: chId, subchapterIds: ['all'] }]
+          const contentBlocks = await bookService.getContentForSelections(classNum, subject, selections)
+          let combinedContext = ''
+          if (contentBlocks.length > 0) {
+            combinedContext = contentBlocks
+              .map((b) => {
+                const head = b.subchapterId ? `## ${b.subchapterId} ${b.title}` : `## ${b.title}`
+                return `${head}\n\n${b.content}`
+              })
+              .join('\n\n---\n\n')
+          }
+
+          for (const item of group.items) {
+            const typeDbFilter = item.type.toLowerCase() === 'short' ? 'saq' : item.type.toLowerCase()
+
+            // Fetch from DB for this chapter + type
+            const dbQs = await bookService.getExistingQuestions(
+              classNum,
+              subject,
+              selections,
+              { types: [typeDbFilter] },
+            )
+
+            const normalizedDb = dbQs.slice(0, item.count).map((q) => {
+              const d = q.data || {}
+              if (q.type === 'mcq') {
+                return {
+                  type: 'MCQ',
+                  question: d.question,
+                  option_a: d.options?.['ক'] || d.options?.['i'],
+                  option_b: d.options?.['খ'] || d.options?.['ii'],
+                  option_c: d.options?.['গ'] || d.options?.['iii'],
+                  option_d: d.options?.['ঘ'],
+                  _source: q.source,
+                  _id: q.id,
+                }
+              }
+              if (q.type === 'cq') {
+                return {
+                  type: 'CQ',
+                  stimulus: d.scenario,
+                  question: d.scenario,
+                  sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({ label: k, text: v })),
+                  _source: q.source,
+                  _id: q.id,
+                }
+              }
+              return {
+                type: q.type === 'saq' ? 'short' : q.type,
+                question: d.question,
+                sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({ label: k, text: v })),
+                _source: q.source,
+                _id: q.id,
+              }
+            })
+
+            allQuestions.push(...normalizedDb)
+            totalDbCount += normalizedDb.length
+
+            const shortfall = item.count - normalizedDb.length
+            if (shortfall > 0 && combinedContext.trim()) {
+              console.log(`[smart-prompt] ${group.title} ${item.type}: DB=${normalizedDb.length}, shortfall=${shortfall}`)
+
+              let ctx = combinedContext
+              if (normalizedDb.length > 0) {
+                const styleRef = normalizedDb.slice(0, 2).map((q, i) =>
+                  `Style Example ${i + 1}:\n${JSON.stringify(q, null, 2)}`
+                ).join('\n\n')
+                ctx += `\n\n---\nSTYLE REFERENCES (use similar format, do NOT copy):\n${styleRef}`
+              }
+
+              try {
+                const aiResult = await generateFromBook(
+                  ctx,
+                  { subject, classNum, questionTypes: [item.type], count: shortfall },
+                  req.user.uid,
+                )
+                const aiQs = (aiResult.questions || []).map((q) => ({ ...q, _source: 'ai-generated' }))
+                allQuestions.push(...aiQs)
+                totalAiCount += aiQs.length
+                console.log(`[smart-prompt] ${group.title} ${item.type}: AI generated ${aiQs.length} via ${aiResult.provider}`)
+              } catch (err) {
+                console.warn(`[smart-prompt] ${group.title} ${item.type}: AI generation failed:`, err.message)
+              }
+            }
+          }
+        }
+
+        const sourceChapters = Array.from(chapterGroups.values()).map(g => g.title)
+
+        res.json({
+          success: true,
+          questions: allQuestions,
+          count: allQuestions.length,
+          dbCount: totalDbCount,
+          aiCount: totalAiCount,
+          source: 'smart',
+          parsed: { classNum, subject, items, count: requestedCount },
+          sourceChapters,
+          creditsCharged: 1,
+        })
+        return
+      }
+
+      // ── Single-chapter/all-chapters mode (existing logic) ─────────────────
+      // Build selections
       let selections = []
       let sourceChapters = []
-      const allChapters = await bookService.getChapters(classNum, subject)
 
       if (chapterId) {
         let found = allChapters.find((c) => c.id === chapterId)
@@ -383,7 +554,7 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
         sourceChapters = allChapters.map((ch) => ch.title)
       }
 
-      // ── Step 3: Per-type DB fetch + AI fill ─────────────────────────────
+      // ── Per-type DB fetch + AI fill ─────────────────────────────────────
       const allQuestions = []
       let totalDbCount = 0
       let totalAiCount = 0
@@ -400,10 +571,6 @@ User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
       }
 
       for (const item of items) {
-        const typeLower = item.type.toLowerCase() === 'cq' ? 'cq'
-          : item.type.toLowerCase() === 'mcq' ? 'mcq'
-          : item.type.toLowerCase() === 'short' ? 'saq'
-          : item.type.toLowerCase()
         const typeDbFilter = item.type.toLowerCase() === 'short' ? 'saq' : item.type.toLowerCase()
 
         // 3a: Fetch from DB for this specific type
