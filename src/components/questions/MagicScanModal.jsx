@@ -68,6 +68,7 @@ export default function MagicScanModal({ onClose }) {
     const processedDataUrl = await processExamImage(imgRef.current, completedCrop, {
       maxDim: isRender ? 2000 : 1200,
       quality: isRender ? 0.95 : 0.92,
+      questionType,
     })
     setCroppedImagePreview(processedDataUrl)
     return api.post('/ai/scan', { image: processedDataUrl, questionType }, { timeout: 240000 })
