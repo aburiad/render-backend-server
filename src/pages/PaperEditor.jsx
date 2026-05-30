@@ -170,6 +170,7 @@ export default function PaperEditor() {
   const [showMoreTypes, setShowMoreTypes] = useState(false)
   const [quickPrompt, setQuickPrompt] = useState('')
   const [quickLoading, setQuickLoading] = useState(false)
+  const [quickProgress, setQuickProgress] = useState(null) // { chapter, type, total, done }
   const autoSaveTimer = useRef(null)
 
   const currentPaper = usePaperStore((s) => s.currentPaper)
@@ -419,20 +420,30 @@ export default function PaperEditor() {
   const handleQuickPrompt = async () => {
     if (!quickPrompt.trim() || quickLoading) return
     setQuickLoading(true)
+    setQuickProgress({ step: 'parsing', message: 'প্রম্পট বিশ্লেষণ করা হচ্ছে...' })
     try {
       const { data } = await api.post('/book/smart-prompt', { prompt: quickPrompt.trim() }, { timeout: 60_000 })
+      
+      // Filter out empty questions
+      const validQuestions = (data.questions || []).filter(q => {
+        const hasContent = q.type === 'MCQ' ? q.question?.trim() :
+                          q.type === 'CQ' ? (q.question?.trim() || q.stimulus?.trim()) :
+                          q.question?.trim()
+        return hasContent
+      })
+      
       window.dispatchEvent(new CustomEvent('credits-changed'))
-      const qs = data.questions || []
-      if (qs.length === 0) {
-        toast('কোনো প্রশ্ন পাওয়া যায়নি', { icon: 'ℹ️' })
+      
+      if (validQuestions.length === 0) {
+        toast.error('প্রশ্ন তৈরি করতে ব্যর্থ। AI rate limit পার হয়ে গেছে। ১-২ মিনিট পর আবার চেষ্টা করুন।')
       } else {
-        qs.forEach(q => addQuestion(q))
+        validQuestions.forEach(q => addQuestion(q))
         const dbCount = data.dbCount || 0
         const aiCount = data.aiCount || 0
         if (aiCount > 0) {
           toast.success(`📚 ${dbCount}টি + 🤖 ${aiCount}টি = ${data.count}টি প্রশ্ন যোগ হয়েছে`)
         } else {
-          toast.success(`${qs.length}টি প্রশ্ন যোগ হয়েছে`)
+          toast.success(`${validQuestions.length}টি প্রশ্ন যোগ হয়েছে`)
         }
 
         // Auto-fill paper setup from parsed prompt data
@@ -455,6 +466,7 @@ export default function PaperEditor() {
       toast.error(err.response?.data?.message || 'প্রশ্ন তৈরি করতে ব্যর্থ')
     } finally {
       setQuickLoading(false)
+      setQuickProgress(null)
     }
   }
 
@@ -471,7 +483,41 @@ export default function PaperEditor() {
   const marksMatch = targetMarks === 0 || totalMarks === targetMarks
 
   return (
-    <div style={{ paddingBottom: 100 }}>
+    <>
+      {/* ── Full-screen Loading Overlay for Smart Prompt ────────────────────── */}
+      <AnimatePresence>
+        {quickLoading && quickProgress && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 9999,
+              background: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexDirection: 'column',
+              gap: 20,
+            }}
+          >
+            <Spinner size={48} color="#7c3aed" />
+            <div style={{ textAlign: 'center' }}>
+              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
+                {quickProgress.message}
+              </h3>
+              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+                দয়া করে অপেক্ষা করুন, প্রশ্ন তৈরি হচ্ছে...
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <div style={{ paddingBottom: 100 }}>
       {/* ── Top Bar (Desktop Only) ─────────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-5">
         <div>
