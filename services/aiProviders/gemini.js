@@ -1,22 +1,20 @@
 // Model cascade — models are the OUTER loop, keys are INNER.
-// This distributes load evenly across all 4 keys per model:
+// This distributes load evenly across all 4-5 keys per model:
 //   10 concurrent requests → ~2-3 per key on the same model.
 //   When ALL keys are rate-limited for a model, move to next model.
 //
 // Free tier limits per key (as of 2026-05):
-//   gemini-3.1-flash-lite  — 15 RPM, 250K TPM, 500 RPD  ← highest daily cap
-//   gemini-3.5-flash       —  5 RPM, 250K TPM,  20 RPD
-//   gemini-3-flash         —  5 RPM, 250K TPM,  20 RPD
-//   gemini-2.5-flash-lite  — 10 RPM, 250K TPM,  20 RPD
-//   gemini-2.5-flash       —  5 RPM, 250K TPM,  20 RPD
+//   gemma-4-31b-it          — 15 RPM, Unlimited TPM, 1.5K RPD 🏆 BEST FOR TEXT
+//   gemma-4-26b-a4b-it      — 15 RPM, Unlimited TPM, 1.5K RPD 🏆 BEST FOR TEXT
+//   gemini-3.1-flash-lite   — 15 RPM, 250K TPM,  500 RPD  ← highest flash cap
+//   gemini-3.5-flash        —  5 RPM, 250K TPM,   20 RPD
+//   gemini-2.5-flash-lite   — 10 RPM, 250K TPM,   20 RPD
+//   gemini-2.5-flash        —  5 RPM, 250K TPM,   20 RPD
 //
-// Per-key total: 580 RPD × 4 keys = 2,320 scans/day on Gemini alone
+// Gemma 4 models: Unlimited TPM + 1.5K RPD × 4 keys = 12K text calls/day!
+// Per-key total (all models): ~3.5K RPD × 4 keys = 14K calls/day on Gemini
 // Model cascade — ordered by free daily quota (RPD) + speed.
 // Each model has INDEPENDENT quota per project.
-// gemini-3.1-flash-lite = 500 RPD (25× more than others!) — #1 priority
-// gemini-2.0-flash* have 0 free quota — removed
-// gemini-3-flash shows in rate limits but API returns NOT FOUND — skip
-// Total free quota: 500 + 20×4 = 580 scans/day per project
 const VISION_MODELS = [
   'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
   'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
@@ -24,7 +22,9 @@ const VISION_MODELS = [
   'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
 ]
 const TEXT_MODELS = [
-  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
+  'gemma-4-31b-it',          // 15 RPM, Unlimited TPM, 1.5K RPD 🏆 TEXT #1
+  'gemma-4-26b-a4b-it',      // 15 RPM, Unlimited TPM, 1.5K RPD 🏆 TEXT #2
+  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD — fallback
   'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
   'gemini-2.5-flash-lite',   // 10 RPM, 20 RPD — fast (~5.5s)
   'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)

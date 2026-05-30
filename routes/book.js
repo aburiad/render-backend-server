@@ -235,4 +235,267 @@ router.post(
   },
 )
 
+/**
+ * POST /api/book/smart-prompt
+ * Hybrid: DB first → AI fills the gap.
+ *
+ * Flow:
+ *   1. AI parses the Bangla/Banglish/English prompt → { classNum, subject, chapterId, questionTypes, count }
+ *   2. Fetch existing questions from DB (book_questions table)
+ *   3. If DB has fewer than requested → fetch chapter content → AI generates the rest
+ *   4. Merge & return
+ *
+ * Uses Gemini text model (high RPM/RPD) for both parsing & generation.
+ *
+ * Body: { prompt: "class 8 er 2 no chapter theke 10 ta creative question daw" }
+ * Returns: { questions, count, parsed, sourceChapters, dbCount, aiCount }
+ */
+router.post(
+  '/smart-prompt',
+  checkAiCredit(() => 1),
+  async (req, res, next) => {
+    try {
+      const { prompt } = req.body
+      if (!prompt || typeof prompt !== 'string' || !prompt.trim()) {
+        throw new AppError('প্রম্পট লিখুন', 400)
+      }
+
+      const { callWithFallback, generateFromBook, parseQuestionsJson } = require('../services/aiService')
+      const { TEXT_CHAIN: DEFAULT_TEXT, ALL_MAP } = require('../services/aiProviders')
+      const configService = require('../services/configService')
+
+      const configData = await configService.getConfig()
+      const providerNames = configData?.aiProviderConfig?.text_chain || DEFAULT_TEXT.map(p => p.name)
+      const textChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
+
+      // ── Step 1: Parse prompt with AI ────────────────────────────────────
+      const parsePrompt = `তুমি একটি JSON parser। ইউজারের বাংলা/Banglish/ইংরেজি prompt থেকে শুধুমাত্র JSON output দাও।
+
+উপলব্ধ subjects: bangla, english, math, science, accounting
+উপলব্ধ ক্লাস: 6, 7, 8, 9, 10
+
+Output format (শুধুমাত্র JSON, কোনো ব্যাখ্যা নয়):
+{
+  "classNum": 9,
+  "subject": "math",
+  "chapterId": "ch-3",
+  "items": [
+    { "type": "CQ", "count": 2 },
+    { "type": "short", "count": 2 },
+    { "type": "MCQ", "count": 3 }
+  ]
+}
+
+নিয়ম:
+- chapterId: chapter number বুঝলো "ch-N" format-e দাও (যেমন "3rd chapter" → "ch-3")। না বুঝলে null রাখো।
+- type mapping:
+  - "creative"/"সৃজনশীল"/"CQ"/"সজনশীল" → "CQ"
+  - "mcq"/"বহুনির্বাচনি"/"বহুনির্বাচনী" → "MCQ"
+  - "short"/"সংক্ষিপ্ত"/"সংক্ষপ্ত" → "short"
+  - "broad"/"রচনামূলক"/"রচনামুলক" → "broad"
+  - "fill_blank"/"শূন্যস্থান"/"শুন্যস্থান" → "fill_blank"
+- যদি prompt-এ per-type count থাকে (যেমন "2ta CQ, 3ta MCQ") → items array-তে আলাদা করে দাও
+- যদি শুধু overall count থাকে (যেমন "10 ta question") → items = [{ "type": "MCQ", "count": 10 }]
+- যদি কোনো count না থাকে → প্রতিটির count: 5 রাখো
+- subject mapping: "math"/"গণিত"→"math", "বিজ্ঞান"/"science"→"science", "বাংলা"/"bangla"→"bangla", "english"/"ইংরেজি"→"english", "হিসাববিজ্ঞান"/"accounting"→"accounting"
+- যদি prompt-এ ক্লাস না থাকে, classNum: null রাখো
+- যদি subject বোঝা না যায়, subject: null রাখো
+
+User prompt: "${prompt.replace(/"/g, '\\"').trim()}"`
+
+      const parseResult = await callWithFallback(
+        textChain,
+        { messages: [{ role: 'user', content: parsePrompt }], vision: false, jsonMode: true, temperature: 0 },
+        'smart-parse',
+        req.user.uid,
+      )
+
+      // Extract parsed params from AI response
+      let parsed = {}
+      try {
+        const raw = parseResult.questions?.[0] || {}
+        if (raw.classNum || raw.subject) {
+          parsed = raw
+        } else {
+          const arr = parseQuestionsJson(JSON.stringify(parseResult.questions))
+          parsed = arr[0] || {}
+        }
+      } catch {
+        parsed = {}
+      }
+
+      console.log('[smart-prompt] parsed:', JSON.stringify(parsed))
+
+      const classNum = parsed.classNum
+      const subject = parsed.subject
+      const chapterId = parsed.chapterId
+
+      // Support both new `items` format and legacy `questionTypes`/`count`
+      let items = []
+      if (Array.isArray(parsed.items) && parsed.items.length > 0) {
+        items = parsed.items.map((it) => ({
+          type: it.type || 'MCQ',
+          count: Math.min(it.count || 5, 20),
+        }))
+      } else if (Array.isArray(parsed.questionTypes) && parsed.questionTypes.length > 0) {
+        const total = Math.min(parsed.count || 5, 20)
+        const perType = Math.max(1, Math.ceil(total / parsed.questionTypes.length))
+        items = parsed.questionTypes.map((t) => ({ type: t, count: perType }))
+      } else {
+        items = [{ type: 'MCQ', count: 5 }]
+      }
+
+      const requestedCount = items.reduce((s, it) => s + it.count, 0)
+
+      if (!classNum || !subject) {
+        throw new AppError(
+          'ক্লাস ও বিষয় বোঝা যায়নি। যেমন: "class 8 math er 2 no chapter theke 5 ta CQ daw"',
+          400,
+        )
+      }
+
+      // ── Step 2: Build selections ────────────────────────────────────────
+      let selections = []
+      let sourceChapters = []
+      const allChapters = await bookService.getChapters(classNum, subject)
+
+      if (chapterId) {
+        let found = allChapters.find((c) => c.id === chapterId)
+        if (!found) {
+          const num = parseInt(String(chapterId).replace(/\D/g, ''))
+          if (num) {
+            found = allChapters.find((c) => c.chapterNumber === num)
+              || allChapters.find((c) => String(c.id).includes(String(num)))
+          }
+        }
+        if (found) {
+          selections = [{ chapterId: found.id, subchapterIds: ['all'] }]
+          sourceChapters.push(found.title)
+        } else if (allChapters.length > 0) {
+          selections = allChapters.map((ch) => ({ chapterId: ch.id, subchapterIds: ['all'] }))
+          sourceChapters = allChapters.map((ch) => ch.title)
+        }
+      } else {
+        if (allChapters.length === 0) {
+          throw new AppError(`${classNum} শ্রেণির ${subject} বিষয়ে কোনো অধ্যায় পাওয়া যায়নি`, 404)
+        }
+        selections = allChapters.map((ch) => ({ chapterId: ch.id, subchapterIds: ['all'] }))
+        sourceChapters = allChapters.map((ch) => ch.title)
+      }
+
+      // ── Step 3: Per-type DB fetch + AI fill ─────────────────────────────
+      const allQuestions = []
+      let totalDbCount = 0
+      let totalAiCount = 0
+
+      let combinedContext = ''
+      const contentBlocks = await bookService.getContentForSelections(classNum, subject, selections)
+      if (contentBlocks.length > 0) {
+        combinedContext = contentBlocks
+          .map((b) => {
+            const head = b.subchapterId ? `## ${b.subchapterId} ${b.title}` : `## ${b.title}`
+            return `${head}\n\n${b.content}`
+          })
+          .join('\n\n---\n\n')
+      }
+
+      for (const item of items) {
+        const typeLower = item.type.toLowerCase() === 'cq' ? 'cq'
+          : item.type.toLowerCase() === 'mcq' ? 'mcq'
+          : item.type.toLowerCase() === 'short' ? 'saq'
+          : item.type.toLowerCase()
+        const typeDbFilter = item.type.toLowerCase() === 'short' ? 'saq' : item.type.toLowerCase()
+
+        // 3a: Fetch from DB for this specific type
+        const dbQs = await bookService.getExistingQuestions(
+          classNum,
+          subject,
+          selections,
+          { types: [typeDbFilter] },
+        )
+
+        // Normalize DB questions
+        const normalizedDb = dbQs.slice(0, item.count).map((q) => {
+          const d = q.data || {}
+          if (q.type === 'mcq') {
+            return {
+              type: 'MCQ',
+              question: d.question,
+              option_a: d.options?.['ক'] || d.options?.['i'],
+              option_b: d.options?.['খ'] || d.options?.['ii'],
+              option_c: d.options?.['গ'] || d.options?.['iii'],
+              option_d: d.options?.['ঘ'],
+              _source: q.source,
+              _id: q.id,
+            }
+          }
+          if (q.type === 'cq') {
+            return {
+              type: 'CQ',
+              stimulus: d.scenario,
+              question: d.scenario,
+              sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({ label: k, text: v })),
+              _source: q.source,
+              _id: q.id,
+            }
+          }
+          return {
+            type: q.type === 'saq' ? 'short' : q.type,
+            question: d.question,
+            sub_questions: Object.entries(d.parts || {}).map(([k, v]) => ({ label: k, text: v })),
+            _source: q.source,
+            _id: q.id,
+          }
+        })
+
+        allQuestions.push(...normalizedDb)
+        totalDbCount += normalizedDb.length
+
+        // 3b: If shortfall for this type, AI generates the rest
+        const shortfall = item.count - normalizedDb.length
+        if (shortfall > 0 && combinedContext.trim()) {
+          console.log(`[smart-prompt] ${item.type}: DB=${normalizedDb.length}, shortfall=${shortfall}`)
+
+          let ctx = combinedContext
+          if (normalizedDb.length > 0) {
+            const styleRef = normalizedDb.slice(0, 2).map((q, i) =>
+              `Style Example ${i + 1}:\n${JSON.stringify(q, null, 2)}`
+            ).join('\n\n')
+            ctx += `\n\n---\nSTYLE REFERENCES (use similar format, do NOT copy):\n${styleRef}`
+          }
+
+          try {
+            const aiResult = await generateFromBook(
+              ctx,
+              { subject, classNum, questionTypes: [item.type], count: shortfall },
+              req.user.uid,
+            )
+            const aiQs = (aiResult.questions || []).map((q) => ({ ...q, _source: 'ai-generated' }))
+            allQuestions.push(...aiQs)
+            totalAiCount += aiQs.length
+            console.log(`[smart-prompt] ${item.type}: AI generated ${aiQs.length} via ${aiResult.provider}`)
+          } catch (err) {
+            console.warn(`[smart-prompt] ${item.type}: AI generation failed:`, err.message)
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        questions: allQuestions,
+        count: allQuestions.length,
+        dbCount: totalDbCount,
+        aiCount: totalAiCount,
+        source: 'smart',
+        parsed: { classNum, subject, chapterId, items, count: requestedCount },
+        sourceChapters,
+        creditsCharged: 1,
+      })
+    } catch (err) {
+      console.error('Smart Prompt Error:', err)
+      next(err)
+    }
+  },
+)
+
 module.exports = router

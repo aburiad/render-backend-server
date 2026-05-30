@@ -332,37 +332,144 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, qu
   const providerNames = config?.aiProviderConfig?.vision_chain || DEFAULT_VISION.map(p => p.name)
   const visionChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
 
-  // System message: tells the model its ONLY job is to output JSON. Added hallucination control and example.
-  const SYSTEM_MSG = 'You are a strict JSON extractor. Output ONLY a valid JSON array. No explanation, no comments, no markdown. Rule: Do not guess or hallucinate any text. If any word is totally illegible, output "[unreadable]". Example Output: [{"type": "MCQ", "question": "What is the capital of BD?", "option_a": "Dhaka", "correct_answer": "Dhaka"}]'
+  // System message: OCR-first instruction — read EVERYTHING, skip nothing.
+  // Key change from old prompt: removed "do not guess / output [unreadable]"
+  // which was causing Gemini to skip unclear words instead of reading them.
+  // Gemini vision is accurate enough that we want it to attempt every word.
+  const SYSTEM_MSG = [
+    'You are an expert OCR engine for Bengali/English question papers.',
+    'Your job: read EVERY line of the image from top to bottom, left to right — skip nothing.',
+    'Extract ALL questions exactly as written. Do NOT summarize, skip, merge, or reorder.',
+    'Preserve every word, number, punctuation, and symbol exactly as it appears.',
+    'CRITICAL: Copy text EXACTLY as it appears in the image. Do NOT paraphrase, substitute, or invent words. If a word is unclear, write your best reading of it — never replace it with a different word.',
+    'For Bangla text: copy Unicode characters exactly — do not transliterate.',
+    'For math: use LaTeX inline notation $...$ for all equations, fractions, symbols.',
+    'Output ONLY a valid JSON array. No markdown fences, no explanation, no extra text.',
+  ].join(' ')
 
-  // Ultra-compact type-specific prompts (~20-30 tokens each).
-  // Keeping them minimal eliminates layout-detection reasoning entirely.
+  // Per-type prompts: explicit "read every question" instruction + format.
   const PROMPTS = {
-    mcq:        'Extract MCQ: [{type:"MCQ",question,option_a,option_b,option_c,option_d,correct_answer,marks,confidence}]',
-    cq:         'Extract CQ: [{type:"CQ",stimulus,sub_questions:[{label,text,marks}],confidence}]',
-    creative:   'Extract descriptive: [{type:"broad",question,marks,confidence}]',
-    short:      'Extract short Q: [{type:"short",question,marks,confidence}]',
-    fill_blank: 'Extract fill-in-blank: [{type:"fill_blank",sentence,clues,marks,confidence}]',
-    matching:   'Extract matching: [{type:"matching",column_a:[],column_b:[],marks,confidence}]',
-    true_false: 'Extract true/false: [{type:"true_false",statements:[{text,answer}],marks,confidence}]',
-    math:       'Extract math: [{type:"math",question,equations:[],answer,marks,confidence}]',
-    passage:    'Extract passage: [{type:"passage",passage,questions:[{no,text,marks}],confidence}]',
-    accounting: 'Extract accounting table: [{type:"accounting",title_lines:[],headers:[],rows:[[]],total_row:[],notes,marks,confidence}]',
-    grammar:    'Extract grammar: [{type:"grammar",question,instruction,answer,marks,confidence}]',
-    poem:       'Extract poem: [{type:"poem",lines:[],author,marks,confidence}]',
-    essay:      'Extract essay: [{type:"essay",question,word_limit,marks,confidence}]',
-    paragraph:  'Extract paragraph topic: [{type:"paragraph",question,hints:[],marks,confidence}]',
-    translation:'Extract translation: [{type:"translation",question,marks,confidence}]',
-    arabic:     'Extract Arabic block: [{type:"arabic",arabic_text,question,marks,confidence}]',
-    hadith:     'Extract Hadith/Tafseer: [{type:"hadith",arabic_block,translation,question,marks,confidence}]',
-    fiqh:       'Extract Fiqh question: [{type:"fiqh",question,marks,confidence}]',
-    letter_app: 'Extract letter/application: [{type:"letter_app",question,marks,confidence}]',
-    rearrange:  'Extract rearrange: [{type:"rearrange",sentences:[],marks,confidence}]',
-    graph_chart:'Extract graph/chart: [{type:"graph_chart",question,marks,confidence}]',
-    summary:    'Extract summary/theme: [{type:"summary",passage,question,marks,confidence}]',
-    dialogue:   'Extract dialogue/story: [{type:"dialogue",question,marks,confidence}]'
+    mcq: [
+      'Read every MCQ question in this image from top to bottom. Do not skip any.',
+      'For each MCQ extract: question text, all 4 options (ক/খ/গ/ঘ or a/b/c/d), correct answer if marked, marks.',
+      'Output format: [{"type":"MCQ","question":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","correct_answer":"...","marks":1}]',
+    ].join(' '),
+
+    cq: [
+      'Read every creative/সৃজনশীল question in this image from top to bottom. Do not skip any.',
+      'Each CQ has a stimulus (উদ্দীপক) followed by sub-questions ক, খ, গ, ঘ.',
+      'Output format: [{"type":"CQ","stimulus":"...","sub_questions":[{"label":"ক","text":"...","marks":1}]}]',
+    ].join(' '),
+
+    creative: [
+      'Read every descriptive/broad question in this image from top to bottom. Do not skip any.',
+      'Output format: [{"type":"broad","question":"...","marks":5}]',
+    ].join(' '),
+
+    short: [
+      'Read every short question in this image from top to bottom. Do not skip any.',
+      'Output format: [{"type":"short","question":"...","marks":2}]',
+    ].join(' '),
+
+    fill_blank: [
+      'Read every fill-in-the-blank sentence in this image. Do not skip any.',
+      'Use ___ for the blank. Include any word clues given.',
+      'Output format: [{"type":"fill_blank","sentence":"... ___ ...","clues":"...","marks":1}]',
+    ].join(' '),
+
+    matching: [
+      'Read the matching question columns in this image exactly.',
+      'Output format: [{"type":"matching","column_a":["..."],"column_b":["..."],"marks":5}]',
+    ].join(' '),
+
+    true_false: [
+      'Read every true/false statement in this image. Do not skip any.',
+      'Output format: [{"type":"true_false","statements":[{"text":"...","answer":"true"}],"marks":1}]',
+    ].join(' '),
+
+    math: [
+      'Read every math problem in this image from top to bottom. Do not skip any.',
+      'Write all equations, fractions, symbols in LaTeX $...$.',
+      'Output format: [{"type":"math","question":"...","equations":["$...$"],"answer":"...","marks":5}]',
+    ].join(' '),
+
+    passage: [
+      'Read the full passage and all comprehension questions in this image. Do not skip any.',
+      'Output format: [{"type":"passage","passage":"...","questions":[{"no":1,"text":"...","marks":2}]}]',
+    ].join(' '),
+
+    accounting: [
+      'Read the full accounting table/ledger in this image exactly — every row, every column.',
+      'Output format: [{"type":"accounting","title_lines":["..."],"headers":["..."],"rows":[["..."]],"total_row":["..."],"notes":"...","marks":10}]',
+    ].join(' '),
+
+    grammar: [
+      'Read every grammar question in this image. Do not skip any.',
+      'Output format: [{"type":"grammar","question":"...","instruction":"...","answer":"...","marks":2}]',
+    ].join(' '),
+
+    poem: [
+      'Read the full poem in this image — every line, every stanza. Do not skip any lines.',
+      'Output format: [{"type":"poem","lines":["..."],"author":"...","marks":5}]',
+    ].join(' '),
+
+    essay: [
+      'Read every essay/রচনা question in this image. Do not skip any.',
+      'Output format: [{"type":"essay","question":"...","word_limit":"...","marks":10}]',
+    ].join(' '),
+
+    paragraph: [
+      'Read every paragraph writing topic in this image. Do not skip any.',
+      'Output format: [{"type":"paragraph","question":"...","hints":["..."],"marks":5}]',
+    ].join(' '),
+
+    translation: [
+      'Read every translation question in this image. Do not skip any.',
+      'Output format: [{"type":"translation","question":"...","marks":3}]',
+    ].join(' '),
+
+    arabic: [
+      'Read every Arabic text block in this image exactly — preserve all Arabic characters.',
+      'Output format: [{"type":"arabic","arabic_text":"...","question":"...","marks":5}]',
+    ].join(' '),
+
+    hadith: [
+      'Read every Hadith/Tafseer block in this image — Arabic text, translation, and question.',
+      'Output format: [{"type":"hadith","arabic_block":"...","translation":"...","question":"...","marks":5}]',
+    ].join(' '),
+
+    fiqh: [
+      'Read every Fiqh question in this image. Do not skip any.',
+      'Output format: [{"type":"fiqh","question":"...","marks":5}]',
+    ].join(' '),
+
+    letter_app: [
+      'Read every letter/application writing question in this image. Do not skip any.',
+      'Output format: [{"type":"letter_app","question":"...","marks":10}]',
+    ].join(' '),
+
+    rearrange: [
+      'Read every sentence rearrangement question in this image. Do not skip any.',
+      'Output format: [{"type":"rearrange","sentences":["..."],"marks":3}]',
+    ].join(' '),
+
+    graph_chart: [
+      'Read every graph/chart question in this image. Do not skip any.',
+      'Output format: [{"type":"graph_chart","question":"...","marks":5}]',
+    ].join(' '),
+
+    summary: [
+      'Read the full passage and summary/theme question in this image.',
+      'Output format: [{"type":"summary","passage":"...","question":"...","marks":5}]',
+    ].join(' '),
+
+    dialogue: [
+      'Read every dialogue/story writing question in this image. Do not skip any.',
+      'Output format: [{"type":"dialogue","question":"...","marks":5}]',
+    ].join(' '),
   }
-  const langRule = ' Preserve Bangla/Arabic/English exactly. Math in LaTeX $...$. Return ONLY JSON array.'
+
+  const langRule = ' Bangla text: copy Unicode exactly. Math: use $...$ LaTeX. Return ONLY the JSON array.'
   const userPrompt = (PROMPTS[questionType] || PROMPTS.mcq) + langRule
 
   const messages = [
@@ -492,4 +599,4 @@ ${mathBlock}
   return { questions, provider, source }
 }
 
-module.exports = { scanImage, generateFromBook, parseQuestionsJson }
+module.exports = { scanImage, generateFromBook, parseQuestionsJson, callWithFallback }
