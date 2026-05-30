@@ -1,33 +1,49 @@
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import AppShell from '@/components/shared/AppShell'
 import OutOfCreditModal from '@/components/shared/OutOfCreditModal'
-import AdminDashboard from '@/pages/AdminDashboard'
-import AuthCallback from '@/pages/AuthCallback'
-import Dashboard from '@/pages/Dashboard'
-import LearningHub from '@/pages/LearningHub'
-import ExamPortal from '@/pages/ExamPortal'
-import Login from '@/pages/Login'
-import OmrPreview from '@/pages/OmrPreview'
-import PaperEditor from '@/pages/PaperEditor'
-import PapersList from '@/pages/PapersList'
-import PDFPreview from '@/pages/PDFPreview'
-import Pricing from '@/pages/Pricing'
-import QuestionBank from '@/pages/QuestionBank'
-import Register from '@/pages/Register'
-import Results from '@/pages/Results'
-import ScanUpload from '@/pages/ScanUpload'
-import SettingsAIKeys from '@/pages/SettingsAIKeys'
-import NoticesList from '@/pages/NoticesList'
-import NoticeEditor from '@/pages/NoticeEditor'
-import NoticePreview from '@/pages/NoticePreview'
-import RoutinesList from '@/pages/RoutinesList'
-import RoutineEditor from '@/pages/RoutineEditor'
-import RoutinePreview from '@/pages/RoutinePreview'
-import TeachersList from '@/pages/TeachersList'
-import TeacherSchedulePage from '@/pages/TeacherSchedulePage'
 import useAuthStore from '@/store/authStore'
 import { AnimatePresence } from 'framer-motion'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
+/* ─── Lazy-loaded pages (code-split chunks) ─── */
+const AdminDashboard = lazy(() => import('@/pages/AdminDashboard'))
+const AuthCallback = lazy(() => import('@/pages/AuthCallback'))
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
+const LearningHub = lazy(() => import('@/pages/LearningHub'))
+const ExamPortal = lazy(() => import('@/pages/ExamPortal'))
+const Login = lazy(() => import('@/pages/Login'))
+const OmrPreview = lazy(() => import('@/pages/OmrPreview'))
+const PaperEditor = lazy(() => import('@/pages/PaperEditor'))
+const PapersList = lazy(() => import('@/pages/PapersList'))
+const PDFPreview = lazy(() => import('@/pages/PDFPreview'))
+const Pricing = lazy(() => import('@/pages/Pricing'))
+const QuestionBank = lazy(() => import('@/pages/QuestionBank'))
+const Register = lazy(() => import('@/pages/Register'))
+const Results = lazy(() => import('@/pages/Results'))
+const ScanUpload = lazy(() => import('@/pages/ScanUpload'))
+const SettingsAIKeys = lazy(() => import('@/pages/SettingsAIKeys'))
+const NoticesList = lazy(() => import('@/pages/NoticesList'))
+const NoticeEditor = lazy(() => import('@/pages/NoticeEditor'))
+const NoticePreview = lazy(() => import('@/pages/NoticePreview'))
+const RoutinesList = lazy(() => import('@/pages/RoutinesList'))
+const RoutineEditor = lazy(() => import('@/pages/RoutineEditor'))
+const RoutinePreview = lazy(() => import('@/pages/RoutinePreview'))
+const TeachersList = lazy(() => import('@/pages/TeachersList'))
+const TeacherSchedulePage = lazy(() => import('@/pages/TeacherSchedulePage'))
+
+/* ─── Page loading fallback ─── */
+function PageLoader() {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      minHeight: '60vh', color: '#64748b', fontSize: 14, fontWeight: 500,
+    }}>
+      লোড হচ্ছে...
+    </div>
+  )
+}
+
+/* ─── Route guards (unchanged) ─── */
 function ProtectedRoute({ children }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   if (!isAuthenticated) return <Navigate to="/login" replace />
@@ -49,21 +65,41 @@ function RegisterRoute({ children }) {
 function AdminRoute({ children }) {
   const user = useAuthStore((s) => s.user)
   const isHydrating = useAuthStore((s) => s.isHydrating)
-  // Wait for /auth/me to finish before checking role.
-  // Without this, a page refresh or cross-account login would redirect
-  // the admin to /dashboard because role is null until the fetch completes.
   if (isHydrating) return null
   if (user?.role !== 'admin') return <Navigate to="/dashboard" replace />
   return children
 }
 
+/* ─── Prefetch common pages after login (background, non-blocking) ─── */
+function usePrefetchPages() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const prefetched = useRef(false)
+
+  useEffect(() => {
+    if (isAuthenticated && !prefetched.current) {
+      prefetched.current = true
+      // Prefetch most-visited pages in background (low priority)
+      const prefetch = () => {
+        import('@/pages/Dashboard')
+        import('@/pages/PapersList')
+        import('@/pages/QuestionBank')
+      }
+      // Small delay so it doesn't compete with initial page load
+      setTimeout(prefetch, 1500)
+    }
+  }, [isAuthenticated])
+}
+
+/* ─── App (routes unchanged, just wrapped in Suspense) ─── */
 export default function App() {
   const location = useLocation()
+  usePrefetchPages()
 
   return (
     <>
       <OutOfCreditModal />
     <AnimatePresence mode="wait">
+      <Suspense fallback={<PageLoader />}>
       <Routes location={location} key={location.pathname}>
         {/* Public routes — no shell */}
         <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
@@ -109,6 +145,7 @@ export default function App() {
           />
         </Route>
       </Routes>
+      </Suspense>
     </AnimatePresence>
     </>
   )

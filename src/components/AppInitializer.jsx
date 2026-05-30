@@ -113,7 +113,7 @@ function PreloaderScreen({ status }) {
           </svg>
         </div>
 
-        <h1 style={styles.title}>প্রশ্ন শালা</h1>
+        <h1 style={styles.title}>প্রশ্নশালা</h1>
 
         {/* Spinner */}
         <div style={styles.spinnerWrap}>
