@@ -315,7 +315,7 @@ export default function MagicScanModal({ onClose }) {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-black flex justify-center max-h-[300px] sm:max-h-[500px]">
+                  <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-black flex justify-center max-h-[60vh]">
                     <ReactCrop
                       crop={crop}
                       onChange={(c) => setCrop(c)}
@@ -330,7 +330,7 @@ export default function MagicScanModal({ onClose }) {
                           const isBlurry = detectBlur(e.currentTarget)
                           if (isBlurry) toast.error('ছবিটি ঝাপসা মনে হচ্ছে — ভালো আলোতে আবার ছবি তুলুন', { duration: 5000 })
                         }}
-                        className="max-h-[300px] sm:max-h-[500px] w-auto object-contain" 
+                        className="max-h-[60vh] w-auto object-contain" 
                       />
                     </ReactCrop>
                     <button 
