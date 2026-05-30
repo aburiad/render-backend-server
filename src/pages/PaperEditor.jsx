@@ -420,7 +420,7 @@ export default function PaperEditor() {
     if (!quickPrompt.trim() || quickLoading) return
     setQuickLoading(true)
     try {
-      const { data } = await api.post('/book/smart-prompt', { prompt: quickPrompt.trim() })
+      const { data } = await api.post('/book/smart-prompt', { prompt: quickPrompt.trim() }, { timeout: 60_000 })
       window.dispatchEvent(new CustomEvent('credits-changed'))
       const qs = data.questions || []
       if (qs.length === 0) {
