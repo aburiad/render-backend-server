@@ -664,46 +664,51 @@ export default function MagicScanModal({ onClose }) {
                     সবগুলো পেপারে যোগ করুন
                   </button>
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      if (!croppedImagePreview) return
                       setStep('processing')
                       setLoading(true)
-                      const isRetryable = (err) => {
-                        const status = err.response?.status
-                        if (status === 502 || status === 503 || status === 504 || status === 408) return true
-                        if (err.code === 'ECONNABORTED') return true
-                        const msg = err.message || ''
-                        if (/timeout|network/i.test(msg) || err.code === 'ERR_NETWORK') return true
-                        return false
-                      }
-                      postScanOnce()
-                        .then(({ data }) => {
-                          if (data.success) {
-                            setExtractedQuestions(data.questions)
-                            setStep('review')
-                          }
-                        })
-                        .catch(async (firstErr) => {
-                          if (isRetryable(firstErr)) {
-                            toast.loading('আবার চেষ্টা করছি…', { id: 'scan-retry' })
-                            await new Promise((r) => setTimeout(r, 1500))
-                            try {
-                              const { data } = await postScanOnce()
-                              toast.dismiss('scan-retry')
-                              if (data.success) {
-                                setExtractedQuestions(data.questions)
-                                setStep('review')
-                              }
-                            } catch (err) {
-                              toast.dismiss('scan-retry')
-                              toast.error(err.response?.data?.message || err.response?.data?.error || 'স্ক্যান করতে ব্যর্থ হয়েছে')
+                      try {
+                        const { data } = await api.post(
+                          '/ai/scan',
+                          { image: croppedImagePreview, questionType },
+                          { timeout: 240000 }
+                        )
+                        if (data.success) {
+                          setExtractedQuestions(data.questions)
+                          setStep('review')
+                        }
+                      } catch (firstErr) {
+                        const status = firstErr.response?.status
+                        const isRetryable = status === 502 || status === 503 || status === 504 || status === 408 ||
+                          firstErr.code === 'ECONNABORTED' || /timeout|network/i.test(firstErr.message || '') ||
+                          firstErr.code === 'ERR_NETWORK'
+                        if (isRetryable) {
+                          toast.loading('আবার চেষ্টা করছি…', { id: 'scan-retry' })
+                          await new Promise((r) => setTimeout(r, 1500))
+                          try {
+                            const { data } = await api.post(
+                              '/ai/scan',
+                              { image: croppedImagePreview, questionType },
+                              { timeout: 240000 }
+                            )
+                            toast.dismiss('scan-retry')
+                            if (data.success) {
+                              setExtractedQuestions(data.questions)
                               setStep('review')
                             }
-                          } else {
-                            toast.error(firstErr.response?.data?.message || firstErr.response?.data?.error || 'স্ক্যান করতে ব্যর্থ হয়েছে')
+                          } catch (err) {
+                            toast.dismiss('scan-retry')
+                            toast.error(err.response?.data?.message || 'স্ক্যান করতে ব্যর্থ হয়েছে')
                             setStep('review')
                           }
-                        })
-                        .finally(() => setLoading(false))
+                        } else {
+                          toast.error(firstErr.response?.data?.message || 'স্ক্যান করতে ব্যর্থ হয়েছে')
+                          setStep('review')
+                        }
+                      } finally {
+                        setLoading(false)
+                      }
                     }}
                     className="w-full mt-2 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 transition-colors btn-press flex items-center justify-center gap-2"
                   >
