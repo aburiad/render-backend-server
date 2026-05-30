@@ -1,15 +1,34 @@
-export async function processExamImage(imgElement, completedCrop) {
+/**
+ * Process an exam image for AI scanning.
+ *
+ * @param {HTMLImageElement} imgElement
+ * @param {object} completedCrop  — percent crop from react-image-crop
+ * @param {object} options
+ * @param {number} options.maxDim  — max pixel dimension (default 1000 for Vercel, 1600 for Render)
+ * @param {number} options.quality — WebP quality 0-1 (default 0.75 for Vercel, 0.85 for Render)
+ */
+export async function processExamImage(imgElement, completedCrop, options = {}) {
   const canvas = document.createElement('canvas')
   const ctx = canvas.getContext('2d')
 
-  // Step 1: Crop (completedCrop is percentCrop from react-image-crop)
-  const cropX = (completedCrop.x / 100) * imgElement.naturalWidth
-  const cropY = (completedCrop.y / 100) * imgElement.naturalHeight
-  const cropWidth = (completedCrop.width / 100) * imgElement.naturalWidth
-  const cropHeight = (completedCrop.height / 100) * imgElement.naturalHeight
+  // Step 1: Crop
+  // react-image-crop v11 onComplete gives pixel crop directly.
+  // But the crop box is drawn on the *displayed* image (scaled by CSS),
+  // so we must scale pixel values back to the natural image dimensions.
+  const displayW = imgElement.width   // CSS-rendered width
+  const displayH = imgElement.height  // CSS-rendered height
+  const scaleX = imgElement.naturalWidth / displayW
+  const scaleY = imgElement.naturalHeight / displayH
 
-  // Step 2: Max 1000px resize
-  const maxDim = 1000
+  const cropX = completedCrop.x * scaleX
+  const cropY = completedCrop.y * scaleY
+  const cropWidth = completedCrop.width * scaleX
+  const cropHeight = completedCrop.height * scaleY
+
+  // Step 2: Resize — caller controls maxDim based on active backend
+  //   Vercel (10s limit) → 1000px keeps response fast
+  //   Render (no limit)  → 1600px preserves fine Bengali/Arabic text detail
+  const maxDim = options.maxDim || 1000
   let outW = cropWidth
   let outH = cropHeight
   if (outW > maxDim || outH > maxDim) {
@@ -21,18 +40,18 @@ export async function processExamImage(imgElement, completedCrop) {
   canvas.width = outW
   canvas.height = outH
 
-  // Step 3: Draw cropped area (White background for transparent images)
+  // Step 3: Draw cropped area (white background for transparent images)
   ctx.fillStyle = '#ffffff'
   ctx.fillRect(0, 0, outW, outH)
   ctx.drawImage(imgElement, cropX, cropY, cropWidth, cropHeight, 0, 0, outW, outH)
 
-  // We are removing the Grayscale + Contrast boost because it destroys fine details 
-  // in small, low-res images like Arabic text.
+  // Step 4: Quality — adaptive per backend + image size
+  //   Vercel: 0.75 default, 0.92 for small images (< 600px)
+  //   Render: 0.85 default, 0.95 for small images (< 600px)
+  const baseQuality = options.quality || 0.75
+  const quality = Math.max(outW, outH) < 600 ? Math.min(baseQuality + 0.10, 0.97) : baseQuality
 
-  // Adaptive quality: If the cropped image is very small, use higher quality to preserve details.
-  const quality = Math.max(outW, outH) < 600 ? 0.95 : 0.70;
-
-  // Step 5: WebP export
+  // Step 5: WebP export (smaller than JPEG at same quality — saves bandwidth)
   return new Promise((resolve) => {
     canvas.toBlob(
       (blob) => {

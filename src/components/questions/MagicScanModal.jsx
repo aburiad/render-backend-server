@@ -56,7 +56,19 @@ export default function MagicScanModal({ onClose }) {
 
   const postScanOnce = async () => {
     if (!imgRef.current || !completedCrop) return null
-    const processedDataUrl = await processExamImage(imgRef.current, completedCrop)
+
+    // Use higher quality/resolution when Render backend is active (no timeout).
+    // Vercel has a 10s hard limit → keep image small for fast response.
+    // Render has no timeout → use 1600px + 0.85 quality for better OCR accuracy
+    // on dense Bengali text, chemical formulas, and Arabic script.
+    const isRender = api.defaults.baseURL?.includes('onrender.com') ||
+                     (api.defaults.baseURL && !api.defaults.baseURL.startsWith('/') &&
+                      !api.defaults.baseURL.includes('vercel.app') &&
+                      !api.defaults.baseURL.includes('rongtonu.com'))
+    const processedDataUrl = await processExamImage(imgRef.current, completedCrop, {
+      maxDim: isRender ? 1600 : 1000,
+      quality: isRender ? 0.85 : 0.75,
+    })
     setCroppedImagePreview(processedDataUrl)
     return api.post('/ai/scan', { image: processedDataUrl, questionType }, { timeout: 240000 })
   }
@@ -305,8 +317,8 @@ export default function MagicScanModal({ onClose }) {
                   <div className="relative rounded-2xl overflow-hidden border border-gray-200 bg-black flex justify-center max-h-[300px] sm:max-h-[500px]">
                     <ReactCrop
                       crop={crop}
-                      onChange={(c, pc) => setCrop(pc)}
-                      onComplete={(c, pc) => setCompletedCrop(pc)}
+                      onChange={(c) => setCrop(c)}
+                      onComplete={(c) => setCompletedCrop(c)}
                       className="max-h-full"
                     >
                       <img 
