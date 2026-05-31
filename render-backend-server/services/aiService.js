@@ -34,14 +34,15 @@ function parseQuestionsJson(raw) {
   throw new Error('Could not parse JSON array from model output')
 }
 
-// Vercel Hobby plan hard limit is 10s per function invocation.
-// We give each provider up to 8s so there is still headroom for
-// HTTP overhead. Gemini vision calls on flash-lite typically take 3-7s.
-// Render free tier: 5-min HTTP timeout (300s). Our scans take 10-60s.
-// Setting 90s gives enough room for queue processing (50 users ÷ 5 concurrency
-// = 10 batches × ~10s = ~100s max). Falls back to other providers at 90s.
-const DEFAULT_TIMEOUT = process.env.VERCEL === '1' ? 8000 : 90000
-const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || DEFAULT_TIMEOUT
+// Provider timeout: how long we give a single provider's chat() call before
+// considering it failed and falling back.
+//   - Vercel: 8s (hard 10s function limit)
+//   - Render: 15s (no queue, direct calls)
+// Gemini vision typically responds in 3-7s. If all keys rate-limited,
+// hedge fires at 8s and fallbacks take over — total ~10-15s.
+// NOTE: hardcoded — env var AI_PROVIDER_TIMEOUT_MS is intentionally IGNORED
+// because old Render deployments may have it set to 90000 which causes 60s+ waits.
+const PROVIDER_TIMEOUT_MS = process.env.VERCEL === '1' ? 8000 : 15000
 
 // Hedging: fire fallbacks after this delay if preferred hasn't responded.
 // On Render (persistent server) the timeout is 30s, so we can afford a
