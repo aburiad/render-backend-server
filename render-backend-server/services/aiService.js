@@ -3,6 +3,9 @@ const configService = require('./configService')
 const { supabaseAdmin } = require('../config/supabase')
 const { AppError } = require('../middleware/errorHandler')
 const userApiKeyService = require('./userApiKeyService')
+const imagePreprocessor = require('../utils/imagePreprocessor')
+const imageQualityAssessor = require('../utils/imageQualityAssessor')
+const { buildPrompt } = require('../utils/strictOcrPrompts')
 
 /**
  * Robust JSON-array extraction from any LLM output.
@@ -325,152 +328,45 @@ async function callWithFallback(chain, params, label, userId = null) {
 async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, questionType = 'mcq') {
   if (!base64Image) throw new AppError('Image data is missing', 400)
 
-  const cleanBase64 = base64Image.replace(/^data:image\/\w+;base64,/, '')
+  console.log('[ai:scan] Starting image quality assessment...')
+  
+  // Step 1: Assess image quality
+  const quality = await imageQualityAssessor.assess(base64Image)
+  console.log(`[ai:scan] Image quality: ${quality.score}/100 (${quality.quality})`)
+  
+  if (!quality.isUsable) {
+    throw new AppError(
+      `ইমেজ কোয়ালিটি খুব খারাপ। ${quality.recommendations.join(' ')}`,
+      400
+    )
+  }
+  
+  // Step 2: Apply appropriate preprocessing based on quality
+  console.log(`[ai:scan] Applying ${quality.needsPreprocessing ? 'aggressive' : 'light'} preprocessing...`)
+  
+  let processedImage
+  if (quality.score < 70) {
+    // Low quality: aggressive processing
+    processedImage = await imagePreprocessor.aggressiveProcess(base64Image)
+  } else if (quality.score < 85) {
+    // Medium quality: standard processing
+    processedImage = await imagePreprocessor.process(base64Image)
+  } else {
+    // High quality: light processing only
+    processedImage = await imagePreprocessor.lightProcess(base64Image)
+  }
+  
+  console.log(`[ai:scan] Preprocessing complete. Original size: ${quality.metadata.sizeKB}KB`)
+  
+  const cleanBase64 = processedImage.replace(/^data:image\/\w+;base64,/, '')
   const dataUrl = `data:${mimeType};base64,${cleanBase64}`
 
   const config = await configService.getConfig()
   const providerNames = config?.aiProviderConfig?.vision_chain || DEFAULT_VISION.map(p => p.name)
   const visionChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
 
-  // System message: OCR-first instruction — read EVERYTHING, skip nothing.
-  // Key change from old prompt: removed "do not guess / output [unreadable]"
-  // which was causing Gemini to skip unclear words instead of reading them.
-  // Gemini vision is accurate enough that we want it to attempt every word.
-  const SYSTEM_MSG = [
-    'You are an expert OCR engine for Bengali/English question papers.',
-    'Your job: read EVERY line of the image from top to bottom, left to right — skip nothing.',
-    'Extract ALL questions exactly as written. Do NOT summarize, skip, merge, or reorder.',
-    'Preserve every word, number, punctuation, and symbol exactly as it appears.',
-    'CRITICAL: Copy text EXACTLY as it appears in the image. Do NOT paraphrase, substitute, or invent words. If a word is unclear, write your best reading of it — never replace it with a different word.',
-    'For Bangla text: copy Unicode characters exactly — do not transliterate.',
-    'For math: use LaTeX inline notation $...$ for all equations, fractions, symbols.',
-    'Output ONLY a valid JSON array. No markdown fences, no explanation, no extra text.',
-  ].join(' ')
-
-  // Per-type prompts: explicit "read every question" instruction + format.
-  const PROMPTS = {
-    mcq: [
-      'Read every MCQ question in this image from top to bottom. Do not skip any.',
-      'For each MCQ extract: question text, all 4 options (ক/খ/গ/ঘ or a/b/c/d), correct answer if marked, marks.',
-      'Output format: [{"type":"MCQ","question":"...","option_a":"...","option_b":"...","option_c":"...","option_d":"...","correct_answer":"...","marks":1}]',
-    ].join(' '),
-
-    cq: [
-      'Read every creative/সৃজনশীল question in this image from top to bottom. Do not skip any.',
-      'Each CQ has a stimulus (উদ্দীপক) followed by sub-questions ক, খ, গ, ঘ.',
-      'Output format: [{"type":"CQ","stimulus":"...","sub_questions":[{"label":"ক","text":"...","marks":1}]}]',
-    ].join(' '),
-
-    creative: [
-      'Read every descriptive/broad question in this image from top to bottom. Do not skip any.',
-      'Output format: [{"type":"broad","question":"...","marks":5}]',
-    ].join(' '),
-
-    short: [
-      'Read every short question in this image from top to bottom. Do not skip any.',
-      'Output format: [{"type":"short","question":"...","marks":2}]',
-    ].join(' '),
-
-    fill_blank: [
-      'Read every fill-in-the-blank sentence in this image. Do not skip any.',
-      'Use ___ for the blank. Include any word clues given.',
-      'Output format: [{"type":"fill_blank","sentence":"... ___ ...","clues":"...","marks":1}]',
-    ].join(' '),
-
-    matching: [
-      'Read the matching question columns in this image exactly.',
-      'Output format: [{"type":"matching","column_a":["..."],"column_b":["..."],"marks":5}]',
-    ].join(' '),
-
-    true_false: [
-      'Read every true/false statement in this image. Do not skip any.',
-      'Output format: [{"type":"true_false","statements":[{"text":"...","answer":"true"}],"marks":1}]',
-    ].join(' '),
-
-    math: [
-      'Read every math problem in this image from top to bottom. Do not skip any.',
-      'Write all equations, fractions, symbols in LaTeX $...$.',
-      'Output format: [{"type":"math","question":"...","equations":["$...$"],"answer":"...","marks":5}]',
-    ].join(' '),
-
-    passage: [
-      'Read the full passage and all comprehension questions in this image. Do not skip any.',
-      'Output format: [{"type":"passage","passage":"...","questions":[{"no":1,"text":"...","marks":2}]}]',
-    ].join(' '),
-
-    accounting: [
-      'Read the full accounting table/ledger in this image exactly — every row, every column.',
-      'Output format: [{"type":"accounting","title_lines":["..."],"headers":["..."],"rows":[["..."]],"total_row":["..."],"notes":"...","marks":10}]',
-    ].join(' '),
-
-    grammar: [
-      'Read every grammar question in this image. Do not skip any.',
-      'Output format: [{"type":"grammar","question":"...","instruction":"...","answer":"...","marks":2}]',
-    ].join(' '),
-
-    poem: [
-      'Read the full poem in this image — every line, every stanza. Do not skip any lines.',
-      'Output format: [{"type":"poem","lines":["..."],"author":"...","marks":5}]',
-    ].join(' '),
-
-    essay: [
-      'Read every essay/রচনা question in this image. Do not skip any.',
-      'Output format: [{"type":"essay","question":"...","word_limit":"...","marks":10}]',
-    ].join(' '),
-
-    paragraph: [
-      'Read every paragraph writing topic in this image. Do not skip any.',
-      'Output format: [{"type":"paragraph","question":"...","hints":["..."],"marks":5}]',
-    ].join(' '),
-
-    translation: [
-      'Read every translation question in this image. Do not skip any.',
-      'Output format: [{"type":"translation","question":"...","marks":3}]',
-    ].join(' '),
-
-    arabic: [
-      'Read every Arabic text block in this image exactly — preserve all Arabic characters.',
-      'Output format: [{"type":"arabic","arabic_text":"...","question":"...","marks":5}]',
-    ].join(' '),
-
-    hadith: [
-      'Read every Hadith/Tafseer block in this image — Arabic text, translation, and question.',
-      'Output format: [{"type":"hadith","arabic_block":"...","translation":"...","question":"...","marks":5}]',
-    ].join(' '),
-
-    fiqh: [
-      'Read every Fiqh question in this image. Do not skip any.',
-      'Output format: [{"type":"fiqh","question":"...","marks":5}]',
-    ].join(' '),
-
-    letter_app: [
-      'Read every letter/application writing question in this image. Do not skip any.',
-      'Output format: [{"type":"letter_app","question":"...","marks":10}]',
-    ].join(' '),
-
-    rearrange: [
-      'Read every sentence rearrangement question in this image. Do not skip any.',
-      'Output format: [{"type":"rearrange","sentences":["..."],"marks":3}]',
-    ].join(' '),
-
-    graph_chart: [
-      'Read every graph/chart question in this image. Do not skip any.',
-      'Output format: [{"type":"graph_chart","question":"...","marks":5}]',
-    ].join(' '),
-
-    summary: [
-      'Read the full passage and summary/theme question in this image.',
-      'Output format: [{"type":"summary","passage":"...","question":"...","marks":5}]',
-    ].join(' '),
-
-    dialogue: [
-      'Read every dialogue/story writing question in this image. Do not skip any.',
-      'Output format: [{"type":"dialogue","question":"...","marks":5}]',
-    ].join(' '),
-  }
-
-  const langRule = ' Bangla text: copy Unicode exactly. Math: use $...$ LaTeX. Return ONLY the JSON array.'
-  const userPrompt = (PROMPTS[questionType] || PROMPTS.mcq) + langRule
+  // Use strict OCR prompts for zero-hallucination accuracy
+  const { system: SYSTEM_MSG, user: userPrompt } = buildPrompt(questionType)
 
   const messages = [
     {

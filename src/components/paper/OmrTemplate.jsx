@@ -6,8 +6,11 @@ const toBengaliDigit = (num) => {
 }
 
 export default function OmrTemplate({ paper, settings }) {
-  const { schoolName, examType, year, totalQuestions } = settings
-  
+  const { schoolName, examType, year, totalQuestions, rules } = settings
+
+  // Parse rules text into individual rule lines
+  const ruleLines = (rules || '').split('\n').filter(r => r.trim())
+
   // Calculate grid dimensions
   const questionsPerColumn = Math.ceil(totalQuestions / 3)
   const columns = []
@@ -18,10 +21,12 @@ export default function OmrTemplate({ paper, settings }) {
     }
   }
 
+  // Exam type display: show presets + custom if not in presets
+  const presetExamTypes = ['অর্ধ-বার্ষিক', 'বার্ষিক', 'প্রাক-নির্বাচনী', 'নির্বাচনী পরীক্ষা']
+  const isCustomExam = !presetExamTypes.includes(examType)
+  const displayExamTypes = isCustomExam ? [...presetExamTypes, examType] : presetExamTypes
+
   const bubbleLabels = ['ক', 'খ', 'গ', 'ঘ']
-  const rollDigits = 6
-  const regDigits = 10
-  const subDigits = 3
   const classes = ['৬ষ্ঠ', '৭ম', '৮ম', '৯ম', '১০ম']
   const digits = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
@@ -40,7 +45,7 @@ export default function OmrTemplate({ paper, settings }) {
         <div className="text-center mb-3">
           <h1 className="text-[24px] font-black mb-1 tracking-tight leading-tight uppercase">{schoolName}</h1>
           <div className="flex justify-center items-center gap-4 font-bold mb-2.5">
-            {['অর্ধ-বার্ষিক', 'বার্ষিক', 'প্রাক-নির্বাচনী', 'নির্বাচনী পরীক্ষা'].map((type) => (
+            {displayExamTypes.map((type) => (
               <div key={type} className="flex items-center gap-1.5">
                 <div className={`w-3 h-3 rounded-full border border-black ${examType === type ? 'bg-black shadow-[inset_0_0_0_2px_white]' : ''}`} />
                 <span className="text-[10px]">{type}</span>
@@ -209,33 +214,18 @@ export default function OmrTemplate({ paper, settings }) {
               </div>
            </div>
 
-           {/* Rules Section */}
+           {/* Rules Section - Dynamic from settings */}
            <div className="text-[10px] space-y-1.5 font-bold leading-tight py-2.5 px-4 border border-gray-200 rounded bg-gray-50/20">
              <div className="font-black border-b border-black inline-block mb-1 text-[11px] text-black pb-0.5">নিয়মাবলি</div>
-             <p>১। বৃত্তাকার ঘরগুলো এমনভাবে ভরাট করতে হবে যাতে ভেতরের অক্ষরটি দেখা না যায়।</p>
-             
-             <div className="flex items-center gap-6 my-1">
-               <div className="flex items-center gap-2">
-                 <span className="text-green-600">সঠিক পদ্ধতি:</span>
-                 <div className="w-3.5 h-3.5 rounded-full bg-black shadow-sm" />
+             {ruleLines.length > 0 ? (
+               <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                 {ruleLines.map((rule, i) => (
+                   <p key={i} className={ruleLines.length <= 2 || i === ruleLines.length - 1 ? 'col-span-2' : ''}>{rule}</p>
+                 ))}
                </div>
-               <div className="flex items-center gap-2">
-                 <span className="text-red-500">ভুল পদ্ধতি:</span>
-                 <div className="flex gap-1.5">
-                    <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center text-[8px] bg-white opacity-50">×</div>
-                    <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center text-[10px] bg-white opacity-50">·</div>
-                    <div className="w-3.5 h-3.5 rounded-full border border-black flex items-center justify-center text-[8px] bg-white opacity-50">✓</div>
-                 </div>
-               </div>
-             </div>
-
-             <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                <p>২। বৃত্তাকার ঘরগুলো অবশ্যই বল-পয়েন্ট কলম দিয়ে ভরাট করতে হবে।</p>
-                <p>৩। উত্তরপত্রে কোন অবাঞ্ছিত দাগ দেওয়া যাবে না।</p>
-                <p>৪। উত্তরপত্রটিকে কোন অবস্থাতে ভাঁজ করা যাবে না।</p>
-                <p>৫। সেট কোড না লিখলে/ভুল ভরাট করলে উত্তরপত্র বাতিল হবে।</p>
-                <p className="col-span-2">৬। পরিষ্কার পরিচ্ছন্ন ও ভাঁজহীন উত্তরপত্র মেশিনে মূল্যায়নের জন্য অপরিহার্য।</p>
-             </div>
+             ) : (
+               <p className="text-gray-400 italic">কোন নিয়ম দেওয়া হয়নি</p>
+             )}
            </div>
         </div>
       </div>

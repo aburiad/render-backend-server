@@ -252,7 +252,7 @@ router.post(
  */
 router.post(
   '/smart-prompt',
-  checkAiCredit(() => 1),
+  checkAiCredit(1),
   async (req, res, next) => {
     try {
       const { prompt } = req.body

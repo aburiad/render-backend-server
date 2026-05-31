@@ -40,6 +40,7 @@
     "react-image-crop": "^11.0.10",
     "react-router-dom": "^7.13.2",
     "serverless-http": "^3.2.0",
+    "sharp": "^0.34.5",
     "zustand": "^5.0.12"
   },
   "devDependencies": {

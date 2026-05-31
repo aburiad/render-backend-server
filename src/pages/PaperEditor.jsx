@@ -48,33 +48,33 @@ import {
 } from '@/utils/sectionNumbering'
 
 const QUESTION_TYPES = [
-  { type: 'MCQ', label: 'MCQ', icon: 'list_alt', from: '#60a5fa', to: '#2563eb', shadow: 'rgba(59,130,246,0.25)' },
-  { type: 'CQ', label: 'সৃজনশীল', icon: 'edit_note', from: '#a78bfa', to: '#7c3aed', shadow: 'rgba(139,92,246,0.25)' },
-  { type: 'accounting', label: 'হিসাববিজ্ঞান', icon: 'account_balance_wallet', from: '#fb923c', to: '#ea580c', shadow: 'rgba(249,115,22,0.25)' },
-  { type: 'short', label: 'সংক্ষিপ্ত', icon: 'short_text', from: '#34d399', to: '#059669', shadow: 'rgba(16,185,129,0.25)' },
-  { type: 'broad', label: 'রচনামূলক', icon: 'article', from: '#22d3ee', to: '#0891b2', shadow: 'rgba(6,182,212,0.25)' },
-  { type: 'fill_blank', label: 'শূন্যস্থান', icon: 'horizontal_rule', from: '#f472b6', to: '#db2777', shadow: 'rgba(236,72,153,0.25)' },
-  { type: 'matching', label: 'মিলকরণ', icon: 'join_inner', from: '#f87171', to: '#dc2626', shadow: 'rgba(248,113,113,0.25)' },
-  { type: 'rearranging', label: 'পুনর্বিন্যাস', icon: 'low_priority', from: '#2dd4bf', to: '#0d9488', shadow: 'rgba(20,184,166,0.25)' },
-  { type: 'translation', label: 'অনুবাদ', icon: 'translate', from: '#818cf8', to: '#4f46e5', shadow: 'rgba(99,102,241,0.25)' },
-  { type: 'table', label: 'টেবিল', icon: 'table_chart', from: '#94a3b8', to: '#475569', shadow: 'rgba(100,116,139,0.25)' },
-  { type: 'short_question', label: 'সংক্ষিপ্ত প্রশ্ন', icon: 'qr_code_scanner', from: '#38bdf8', to: '#0284c7', shadow: 'rgba(14,165,233,0.25)' },
-  { type: 'one_word', label: 'এক কথায়', icon: 'chat_bubble', from: '#a78bfa', to: '#7c3aed', shadow: 'rgba(168,85,247,0.25)' },
-  { type: 'essay', label: 'প্রবন্ধ', icon: 'history_edu', from: '#fb7185', to: '#e11d48', shadow: 'rgba(225,29,72,0.25)' },
-  { type: 'paragraph', label: 'অনুচ্ছেদ', icon: 'format_align_left', from: '#34d399', to: '#047857', shadow: 'rgba(5,150,105,0.25)' },
-  { type: 'letter', label: 'চিঠি', icon: 'mail', from: '#3b82f6', to: '#4338ca', shadow: 'rgba(37,99,235,0.25)' },
-  { type: 'dialogue', label: 'কথোপকথন', icon: 'forum', from: '#a78bfa', to: '#6d28d9', shadow: 'rgba(124,58,237,0.25)' },
-  { type: 'grammar', label: 'ব্যাকরণ', icon: 'spellcheck', from: '#f472b6', to: '#be185d', shadow: 'rgba(219,39,119,0.25)' },
-  { type: 'math', label: 'গণিত', icon: 'calculate', from: '#fb923c', to: '#c2410c', shadow: 'rgba(234,88,12,0.25)' },
-  { type: 'finance', label: 'ফিন্যান্স', icon: 'payments', from: '#22d3ee', to: '#0e7490', shadow: 'rgba(8,145,178,0.25)' },
-  { type: 'diagram_question', label: 'চিত্রভিত্তিক', icon: 'image', from: '#a3e635', to: '#4d7c0f', shadow: 'rgba(101,163,13,0.25)' },
-  { type: 'arabic', label: 'আরবি', icon: 'auto_stories', from: '#2dd4bf', to: '#0f766e', shadow: 'rgba(13,148,136,0.25)' },
-  { type: 'hifz', label: 'হিফজ', icon: 'menu_book', from: '#22c55e', to: '#15803d', shadow: 'rgba(22,163,74,0.25)' },
-  { type: 'hadith', label: 'হাদীস', icon: 'book_4', from: '#fbbf24', to: '#b45309', shadow: 'rgba(180,83,9,0.25)' },
-  { type: 'ebtedayi', label: 'মাসআলা', icon: 'quiz', from: '#60a5fa', to: '#1d4ed8', shadow: 'rgba(29,78,216,0.25)' },
-  { type: 'poem', label: 'মূলভাব', icon: 'auto_awesome', from: '#c084fc', to: '#7e22ce', shadow: 'rgba(147,51,234,0.25)' },
-  { type: 'passage', label: 'প্যাসেজ', icon: 'chrome_reader_mode', from: '#38bdf8', to: '#0369a1', shadow: 'rgba(2,132,199,0.25)' },
-  { type: 'true_false', label: 'সত্য/মিথ্যা', icon: 'check_circle', from: '#4ade80', to: '#15803d', shadow: 'rgba(21,128,61,0.25)' },
+  { type: 'MCQ', label: 'MCQ', icon: 'list_alt', from: '#4c1d95', to: '#5b21b6', shadow: 'rgba(76,29,149,0.25)' },
+  { type: 'CQ', label: 'সৃজনশীল', icon: 'edit_note', from: '#5b21b6', to: '#6d28d9', shadow: 'rgba(91,33,182,0.25)' },
+  { type: 'accounting', label: 'হিসাববিজ্ঞান', icon: 'account_balance_wallet', from: '#92400e', to: '#b45309', shadow: 'rgba(146,64,14,0.25)' },
+  { type: 'short', label: 'সংক্ষিপ্ত', icon: 'short_text', from: '#065f46', to: '#047857', shadow: 'rgba(6,95,70,0.25)' },
+  { type: 'broad', label: 'রচনামূলক', icon: 'article', from: '#0e7490', to: '#155e75', shadow: 'rgba(14,116,144,0.25)' },
+  { type: 'fill_blank', label: 'শূন্যস্থান', icon: 'horizontal_rule', from: '#be185d', to: '#9d174d', shadow: 'rgba(190,24,93,0.25)' },
+  { type: 'matching', label: 'মিলকরণ', icon: 'join_inner', from: '#b91c1c', to: '#991b1b', shadow: 'rgba(185,28,28,0.25)' },
+  { type: 'rearranging', label: 'পুনর্বিন্যাস', icon: 'low_priority', from: '#115e59', to: '#0f766e', shadow: 'rgba(17,94,89,0.25)' },
+  { type: 'translation', label: 'অনুবাদ', icon: 'translate', from: '#4338ca', to: '#3730a3', shadow: 'rgba(67,56,202,0.25)' },
+  { type: 'table', label: 'টেবিল', icon: 'table_chart', from: '#475569', to: '#334155', shadow: 'rgba(71,85,105,0.25)' },
+  { type: 'short_question', label: 'সংক্ষিপ্ত প্রশ্ন', icon: 'qr_code_scanner', from: '#0369a1', to: '#075985', shadow: 'rgba(3,105,161,0.25)' },
+  { type: 'one_word', label: 'এক কথায়', icon: 'chat_bubble', from: '#7c3aed', to: '#6d28d9', shadow: 'rgba(124,58,237,0.25)' },
+  { type: 'essay', label: 'প্রবন্ধ', icon: 'history_edu', from: '#be123c', to: '#9f1239', shadow: 'rgba(190,18,60,0.25)' },
+  { type: 'paragraph', label: 'অনুচ্ছেদ', icon: 'format_align_left', from: '#15803d', to: '#166534', shadow: 'rgba(21,128,61,0.25)' },
+  { type: 'letter', label: 'চিঠি', icon: 'mail', from: '#1d4ed8', to: '#1e40af', shadow: 'rgba(29,78,216,0.25)' },
+  { type: 'dialogue', label: 'কথোপকথন', icon: 'forum', from: '#6d28d9', to: '#5b21b6', shadow: 'rgba(109,40,217,0.25)' },
+  { type: 'grammar', label: 'ব্যাকরণ', icon: 'spellcheck', from: '#a21caf', to: '#86198f', shadow: 'rgba(162,28,175,0.25)' },
+  { type: 'math', label: 'গণিত', icon: 'calculate', from: '#c2410c', to: '#9a3412', shadow: 'rgba(194,65,12,0.25)' },
+  { type: 'finance', label: 'ফিন্যান্স', icon: 'payments', from: '#0369a1', to: '#0c4a6e', shadow: 'rgba(3,105,161,0.25)' },
+  { type: 'diagram_question', label: 'চিত্রভিত্তিক', icon: 'image', from: '#4d7c0f', to: '#3f6212', shadow: 'rgba(77,124,15,0.25)' },
+  { type: 'arabic', label: 'আরবি', icon: 'auto_stories', from: '#0f766e', to: '#115e59', shadow: 'rgba(15,118,110,0.25)' },
+  { type: 'hifz', label: 'হিফজ', icon: 'menu_book', from: '#166534', to: '#14532d', shadow: 'rgba(22,101,52,0.25)' },
+  { type: 'hadith', label: 'হাদীস', icon: 'book_4', from: '#a16207', to: '#854d0e', shadow: 'rgba(161,98,7,0.25)' },
+  { type: 'ebtedayi', label: 'মাসআলা', icon: 'quiz', from: '#1d4ed8', to: '#1e3a8a', shadow: 'rgba(29,78,216,0.25)' },
+  { type: 'poem', label: 'মূলভাব', icon: 'auto_awesome', from: '#7c3aed', to: '#6b21a8', shadow: 'rgba(124,58,237,0.25)' },
+  { type: 'passage', label: 'প্যাসেজ', icon: 'chrome_reader_mode', from: '#0e7490', to: '#164e63', shadow: 'rgba(14,116,144,0.25)' },
+  { type: 'true_false', label: 'সত্য/মিথ্যা', icon: 'check_circle', from: '#166534', to: '#14532d', shadow: 'rgba(22,101,52,0.25)' },
 ]
 
 const PRIMARY_TYPES = QUESTION_TYPES.slice(0, 4) // MCQ, সৃজনশীল, হিসাববিজ্ঞান, সংক্ষিপ্ত
@@ -276,7 +276,7 @@ export default function PaperEditor() {
     } else if (type === 'MCQ') {
       Object.assign(defaults, { question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: null, marks: 1 })
     } else if (type === 'CQ') {
-      Object.assign(defaults, { stimulus: '', sub_questions: [{ label: 'ক', text: '', marks: 0 }, { label: 'খ', text: '', marks: 0 }, { label: 'গ', text: '', marks: 0 }, { label: 'ঘ', text: '', marks: 0 }] })
+      Object.assign(defaults, { stimulus: '', sub_questions: [{ label: 'ক', text: '', marks: 1 }, { label: 'খ', text: '', marks: 2 }, { label: 'গ', text: '', marks: 3 }, { label: 'ঘ', text: '', marks: 4 }] })
     } else if (type === 'fill_blank') {
       Object.assign(defaults, { sentence: '', clues: '', marks: 1 })
     } else if (type === 'matching') {
@@ -566,7 +566,7 @@ export default function PaperEditor() {
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {currentPaper?.id && (
                 <>
-                  <button onClick={() => navigate(`/papers/${currentPaper.id}/preview`)} className="btn-press" style={{ padding: '4px 8px', background: '#eff6ff', color: '#2563eb', borderRadius: '8px', fontSize: 9, fontWeight: 800, border: '1px solid #bfdbfe', whiteSpace: 'nowrap' }}>PDF Link</button>
+<button onClick={() => navigate(`/papers/${currentPaper.id}/preview`)} className="btn-press" style={{ padding: '4px 8px', background: '#eff6ff', color: '#2563eb', borderRadius: '8px', fontSize: 9, fontWeight: 800, border: '1px solid #bfdbfe', whiteSpace: 'nowrap' }}>PDF Preview</button>
                   <button onClick={() => setShowPublishModal(true)} className="btn-press" style={{ padding: '4px 8px', background: '#f5f3ff', color: '#7c3aed', borderRadius: '8px', fontSize: 9, fontWeight: 800, border: '1px solid #ddd6fe', whiteSpace: 'nowrap' }}>Publish</button>
                 </>
               )}
@@ -676,7 +676,6 @@ export default function PaperEditor() {
           <div style={{ padding: '32px 20px', background: '#fff', borderRadius: 24, border: '1px solid #f1f5f9' }}>
             {/* Smart Prompt Hero */}
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{ fontSize: 36, marginBottom: 8 }}>✨</div>
               <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>কী প্রশ্ন চান? লিখে বলুন</h3>
               <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>বাংলা বা ইংরেজিতে লিখুন — AI বুঝে নেবে</p>
             </div>
@@ -696,14 +695,14 @@ export default function PaperEditor() {
                 disabled={!quickPrompt.trim() || quickLoading}
                 className="btn-press"
                 style={{
-                  padding: '12px 20px', borderRadius: 14, border: 'none',
+                  padding: '8px 16px', borderRadius: 14, border: 'none',
                   background: quickPrompt.trim() ? '#7c3aed' : '#e2e8f0',
                   color: quickPrompt.trim() ? '#fff' : '#94a3b8',
                   fontSize: 13, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
                   boxShadow: quickPrompt.trim() ? '0 4px 12px rgba(124,58,237,0.3)' : 'none',
                 }}
               >
-                {quickLoading ? <Spinner size={14} color="#fff" /> : 'বানাও ✨'}
+                {quickLoading ? <Spinner size={14} color="#fff" /> : 'বানাও'}
               </button>
             </div>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
@@ -749,73 +748,69 @@ export default function PaperEditor() {
       </div>
 
       {/* ── Add Question FAB ───────────────────────────────── */}
-      <div style={{ position: 'fixed', bottom: 100, right: 20, zIndex: 45 }}>
-        <button
-          onClick={() => setShowAddMenu(true)}
-          className="btn-press"
-          style={{
-            width: 46, height: 46, borderRadius: 14, background: '#2563eb',
-            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 6px 14px rgba(37,99,235,0.3)', border: 'none'
-          }}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-        </button>
-      </div>
+      {questions.length > 0 && (
+        <div style={{ position: 'fixed', bottom: 100, right: 20, zIndex: 45 }}>
+          <button
+            onClick={() => setShowAddMenu(true)}
+            className="btn-press"
+            style={{
+              width: 46, height: 46, borderRadius: 14, background: '#2563eb',
+              color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 6px 14px rgba(37,99,235,0.3)', border: 'none'
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* ── Save FAB (Mobile Only) ─────────────────────────── */}
-      <button
-        onClick={handleManualSave}
-        disabled={!isDirty || saving}
-        className="btn-press lg:hidden"
-        style={{
-          position: 'fixed', bottom: 156, right: 20, zIndex: 45,
-          padding: '8px 16px', borderRadius: 999,
-          background: saving ? '#94a3b8' : (isDirty ? '#10b981' : '#cbd5e1'),
-          color: '#fff', border: 'none', fontSize: 12, fontWeight: 800,
-          boxShadow: isDirty ? '0 6px 14px rgba(16,185,129,0.3)' : '0 3px 8px rgba(0,0,0,0.08)',
-          transition: 'background 0.2s, box-shadow 0.2s',
-        }}
-      >
-        {saving ? 'সেভ হচ্ছে…' : 'সেভ'}
-      </button>
+      {questions.length > 0 && (
+        <button
+          onClick={handleManualSave}
+          disabled={!isDirty || saving}
+          className="btn-press lg:hidden"
+          style={{
+            position: 'fixed', bottom: 156, right: 20, zIndex: 45,
+            padding: '8px 16px', borderRadius: 999,
+            background: saving ? '#94a3b8' : (isDirty ? '#10b981' : '#cbd5e1'),
+            color: '#fff', border: 'none', fontSize: 12, fontWeight: 800,
+            boxShadow: isDirty ? '0 6px 14px rgba(16,185,129,0.3)' : '0 3px 8px rgba(0,0,0,0.08)',
+            transition: 'background 0.2s, box-shadow 0.2s',
+          }}
+        >
+          {saving ? 'সেভ হচ্ছে…' : 'সেভ'}
+        </button>
+      )}
 
       <Modal isOpen={showAddMenu} onClose={() => setShowAddMenu(false)} title="প্রশ্ন যোগ করুন">
         <div className="grid grid-cols-1 gap-2 sm:gap-2.5 py-1.5 sm:py-2.5">
-          <button
-            onClick={() => { setShowAddMenu(false); setShowMagicScan(true); }}
-            className="btn-press w-full flex items-center gap-2.5 sm:gap-3.5 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl text-left"
-            style={{
-              background: 'linear-gradient(135deg, #eff6ff, #dbeafe)',
-              border: '1px solid #bfdbfe',
-            }}
-          >
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-extrabold text-blue-900 m-0">AI ম্যাজিক স্ক্যান</p>
-              <p className="text-[10px] sm:text-[11px] text-blue-400 m-0 truncate">ছবি থেকে অটো প্রশ্ন তৈরি</p>
-            </div>
-          </button>
 
-          <button
-            onClick={() => { setShowAddMenu(false); setShowBookGenerate(true); }}
-            className="btn-press w-full flex items-center gap-2.5 sm:gap-3.5 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl text-left"
-            style={{ background: '#ecfdf5', border: '1px solid #a7f3d0' }}
-          >
-            <span className="text-base sm:text-xl">📚</span>
-            <div className="min-w-0">
-              <p className="text-xs sm:text-sm font-extrabold m-0" style={{ color: '#065f46' }}>বই থেকে</p>
-              <p className="text-[10px] sm:text-[11px] m-0" style={{ color: '#059669' }}>বই অনুযায়ী প্রশ্ন তৈরি</p>
-            </div>
-          </button>
-
-          <div className="h-px bg-slate-100 my-0.5 sm:my-1" />
+          {/* AI-powered buttons */}
+          <div className="grid grid-cols-2 gap-1.5 sm:gap-2 mb-2">
+            <button
+              onClick={() => { setShowAddMenu(false); setShowMagicScan(true) }}
+              className="btn-press flex items-center gap-2 p-2.5 sm:p-3 rounded-xl bg-blue-50 border border-blue-200 hover:bg-blue-100 transition-colors"
+            >
+              <span className="text-lg">📷</span>
+              <div className="text-left">
+                <div className="text-[10px] sm:text-[11px] font-bold text-blue-700">ছবি স্ক্যান</div>
+                <div className="text-[8px] sm:text-[9px] text-blue-400">AI দিয়ে স্ক্যান</div>
+              </div>
+            </button>
+            <button
+              onClick={() => { setShowAddMenu(false); setShowBookGenerate(true) }}
+              className="btn-press flex items-center gap-2 p-2.5 sm:p-3 rounded-xl bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 transition-colors"
+            >
+              <span className="text-lg">📚</span>
+              <div className="text-left">
+                <div className="text-[10px] sm:text-[11px] font-bold text-emerald-700">বই থেকে</div>
+                <div className="text-[8px] sm:text-[9px] text-emerald-400">অধ্যায় থেকে তৈরি</div>
+              </div>
+            </button>
+          </div>
 
           <p className="text-[9px] sm:text-[10px] font-extrabold text-slate-400 uppercase pl-1">ম্যানুয়ালি যোগ করুন</p>
           <div className="grid grid-cols-4 sm:grid-cols-5 gap-1.5 sm:gap-2 pb-2">
@@ -840,15 +835,15 @@ export default function PaperEditor() {
                 className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
               >
                 <div
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center"
                   style={{
                     background: `linear-gradient(145deg, ${qt.from}, ${qt.to})`,
                     boxShadow: `0 4px 14px ${qt.shadow}`,
                   }}
                 >
-                  <span className="material-symbols-outlined text-white text-xl sm:text-3xl leading-none">{qt.icon}</span>
+                  <span className="material-symbols-outlined text-white text-lg sm:text-2xl leading-none">{qt.icon}</span>
                 </div>
-                <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 leading-tight text-center">
+                <span className="text-[11px] sm:text-[12px] font-bold text-slate-500 leading-tight text-center">
                   {qt.label}
                 </span>
               </button>
@@ -858,15 +853,15 @@ export default function PaperEditor() {
               className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
             >
               <div
-                className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center"
+                className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center"
                 style={{
                   background: showMoreTypes ? 'linear-gradient(145deg, #94a3b8, #64748b)' : 'linear-gradient(145deg, #38bdf8, #0284c7)',
                   boxShadow: showMoreTypes ? '0 4px 14px rgba(100,116,139,0.25)' : '0 4px 14px rgba(14,165,233,0.25)',
                 }}
               >
-                <span className="material-symbols-outlined text-white text-xl sm:text-3xl leading-none">{showMoreTypes ? 'expand_less' : 'more_horiz'}</span>
+                <span className="material-symbols-outlined text-white text-lg sm:text-2xl leading-none">{showMoreTypes ? 'expand_less' : 'more_horiz'}</span>
               </div>
-              <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 leading-tight text-center">
+              <span className="text-[11px] sm:text-[12px] font-bold text-slate-500 leading-tight text-center">
                 {showMoreTypes ? 'কম' : 'আরও'}
               </span>
             </button>
@@ -877,15 +872,15 @@ export default function PaperEditor() {
                 className="btn-press flex flex-col items-center gap-1 active:scale-90 transition-transform duration-150"
               >
                 <div
-                  className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center"
                   style={{
                     background: `linear-gradient(145deg, ${qt.from}, ${qt.to})`,
                     boxShadow: `0 4px 14px ${qt.shadow}`,
                   }}
                 >
-                  <span className="material-symbols-outlined text-white text-xl sm:text-3xl leading-none">{qt.icon}</span>
+                  <span className="material-symbols-outlined text-white text-lg sm:text-2xl leading-none">{qt.icon}</span>
                 </div>
-                <span className="text-[9px] sm:text-[10px] font-bold text-slate-500 leading-tight text-center">
+                <span className="text-[11px] sm:text-[12px] font-bold text-slate-500 leading-tight text-center">
                   {qt.label}
                 </span>
               </button>
