@@ -5,7 +5,7 @@ import { buildPaperHtmlForServerPdf } from '@/utils/paperToPdfHtml'
  
 import useAuthStore from '@/store/authStore'
 import { oklchOnclone, stripOklchForPdf } from '@/utils/stripOklchForPdf'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence } from 'framer-motion'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -27,6 +27,8 @@ export default function PDFPreview() {
   const [previewScale, setPreviewScale] = useState(1)
   const [previewBox, setPreviewBox] = useState({ width: 0, height: 0 })
   const [manualZoom, setManualZoom] = useState(false)
+  const [initialPinchDistance, setInitialPinchDistance] = useState(null)
+  const [initialPinchScale, setInitialPinchScale] = useState(1)
 
   const [variant, setVariant] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -185,7 +187,7 @@ export default function PDFPreview() {
     }
   }, [isLandscape, paper?.id, renderedQuestions.length, font, size, spacing, columnGap, variant, loading, manualZoom])
 
-  // Update preview box when scale changes manually
+  // Update preview box when scale changes manually or via pinch
   useEffect(() => {
     if (manualZoom && paperSheetRef.current) {
       const sheet = paperSheetRef.current
@@ -201,6 +203,36 @@ export default function PDFPreview() {
       })
     }
   }, [previewScale, manualZoom])
+
+  // Pinch-to-zoom handling for mobile
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      setInitialPinchDistance(getDistance(e.touches))
+      setInitialPinchScale(previewScale)
+      setManualZoom(true)
+    }
+  }
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && initialPinchDistance !== null) {
+      e.preventDefault()
+      const currentDistance = getDistance(e.touches)
+      const scale = initialPinchScale * (currentDistance / initialPinchDistance)
+      const clampedScale = Math.max(0.3, Math.min(2, scale))
+      setPreviewScale(clampedScale)
+    }
+  }
+
+  const handleTouchEnd = () => {
+    setInitialPinchDistance(null)
+  }
+
+  const getDistance = (touches) => {
+    return Math.hypot(
+      touches[0].clientX - touches[1].clientX,
+      touches[0].clientY - touches[1].clientY
+    )
+  }
 
   async function handleDownload() {
     if (!paperRef.current || downloading) return
@@ -483,11 +515,7 @@ export default function PDFPreview() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="max-w-4xl mx-auto"
-    >
+    <div className="max-w-4xl mx-auto">
       {/* Top bar — hidden on print */}
       <div className="flex items-center justify-between gap-1.5 sm:gap-2 mb-3 sm:mb-4 no-print">
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
@@ -607,8 +635,8 @@ export default function PDFPreview() {
             <span>Print</span>
           </button>
 
-          {/* Zoom Controls */}
-          <div className="flex items-center gap-0 bg-gray-100 rounded-lg p-0.5">
+          {/* Zoom Controls - Desktop Only */}
+          <div className="hidden sm:flex items-center gap-0 bg-gray-100 rounded-lg p-0.5">
             <button
               onClick={() => {
                 setManualZoom(true)
@@ -659,6 +687,10 @@ export default function PDFPreview() {
 
       {/* Preview area — neutral desk-like backdrop, equal gap on all 4 sides */}
       <div
+        ref={previewWrapRef}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         className="rounded-2xl no-print-bg p-0 lg:px-3 lg:py-8"
         style={{
           background: '#e5e7eb',
@@ -766,7 +798,7 @@ export default function PDFPreview() {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </div>
   )
 }
 
@@ -788,29 +820,29 @@ function PDFSettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 bg-gradient-to-br from-gray-900/50 via-gray-900/40 to-blue-900/30 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 bg-black/40 backdrop-blur-sm overflow-y-auto">
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
         transition={{ type: "spring", damping: 20, stiffness: 300 }}
-        className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 rounded-2xl sm:rounded-3xl p-3 sm:p-5 w-full max-w-md shadow-2xl shadow-blue-900/10 border border-blue-100/50 relative my-2"
+        className="bg-white rounded-2xl sm:rounded-3xl p-3 sm:p-5 w-full max-w-md shadow-2xl relative my-2"
       >
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 sm:top-4 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200 hover:shadow-lg rounded-full transition-all duration-200 group"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition-colors"
         >
-          <span className="text-lg sm:text-xl group-hover:rotate-90 transition-transform duration-200">✕</span>
+          ✕
         </button>
 
-        <h3 className="text-base sm:text-lg font-black mb-3 sm:mb-5 flex items-center gap-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-          <span className="text-sm sm:text-base animate-pulse">⚙️</span> প্রিন্ট সেটিংস
+        <h3 className="text-base sm:text-lg font-black mb-3 sm:mb-5 flex items-center gap-2 text-gray-900">
+          ⚙️ প্রিন্ট সেটিংস
         </h3>
 
         <div className="space-y-3 sm:space-y-5 max-h-[75vh] overflow-y-auto pr-1 custom-scrollbar">
 
           {/* ─── Page Format ─── */}
-          <div className="bg-gradient-to-r from-gray-50/50 to-blue-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-gray-100/50">
+          <div>
             <SectionLabel>পেজ সাইজ</SectionLabel>
             <div className="grid grid-cols-5 gap-1">
               {['A3', 'A4', 'A5', 'Legal', 'Letter'].map((fmt) => {
@@ -822,21 +854,14 @@ function PDFSettingsModal({
                     key={fmt}
                     type="button"
                     onClick={() => setPageFormat(fmt)}
-                    className={`flex flex-col items-center gap-0.5 py-1.5 px-0.5 rounded-lg border-2 transition-all btn-press relative ${
+                    className={`flex flex-col items-center gap-0.5 py-1.5 px-0.5 rounded-lg border-2 transition-all btn-press ${
                       active 
-                        ? 'border-blue-600 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 shadow-lg shadow-blue-600/20' 
-                        : 'border-gray-200 bg-white/50 text-gray-500 hover:border-blue-300 hover:bg-blue-50/50'
+                        ? 'border-blue-600 bg-blue-50 text-blue-700' 
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300'
                     }`}
                   >
-                    {active && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full flex items-center justify-center shadow-md">
-                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </span>
-                    )}
                     <span
-                      className={`block border-2 rounded-[2px] transition-all ${active ? 'border-blue-600' : 'border-gray-300 group-hover:border-blue-400'}`}
+                      className={`block border-2 rounded-[2px] transition-all ${active ? 'border-blue-600' : 'border-gray-300'}`}
                       style={{ width: Math.round(dims.w * scaleIcon * 0.45), height: Math.round(dims.h * scaleIcon * 0.45) }}
                     />
                     <span className="text-[9px] sm:text-[10px] font-bold leading-none">{fmt}</span>
@@ -847,12 +872,12 @@ function PDFSettingsModal({
           </div>
 
           {/* ─── Orientation ─── */}
-          <div className="bg-gradient-to-r from-purple-50/50 to-pink-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-purple-100/50">
+          <div>
             <SectionLabel>পেজ লেআউট</SectionLabel>
             <div className="grid grid-cols-2 gap-1.5">
               {[
-                { val: 'portrait', label: 'পোর্ট্রেট', sub: 'Portrait', icon: '📄' },
-                { val: 'landscape', label: 'ল্যান্ডস্কেপ', sub: 'Landscape', icon: '📄' },
+                { val: 'portrait', label: 'পোর্ট্রেট', sub: 'Portrait' },
+                { val: 'landscape', label: 'ল্যান্ডস্কেপ', sub: 'Landscape' },
               ].map((opt) => {
                 const active = orientation === opt.val
                 const isPortrait = opt.val === 'portrait'
@@ -861,22 +886,14 @@ function PDFSettingsModal({
                     key={opt.val}
                     type="button"
                     onClick={() => setOrientation(opt.val)}
-                    className={`flex flex-col items-center gap-1 py-2 sm:py-3 rounded-lg sm:rounded-xl border-2 transition-all btn-press relative ${
+                    className={`flex flex-col items-center gap-1 py-2 sm:py-3 rounded-lg sm:rounded-xl border-2 transition-all btn-press ${
                       active 
-                        ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-purple-100 text-purple-700 shadow-lg shadow-purple-600/20' 
-                        : 'border-gray-200 bg-white/50 text-gray-500 hover:border-purple-300 hover:bg-purple-50/50'
+                        ? 'border-blue-600 bg-blue-50 text-blue-700' 
+                        : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300'
                     }`}
                   >
-                    {active && (
-                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full flex items-center justify-center shadow-md">
-                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                        </svg>
-                      </span>
-                    )}
-                    <span className="text-lg sm:text-xl">{opt.icon}</span>
                     <span
-                      className={`block border-2 rounded-sm transition-all ${active ? 'border-purple-600' : 'border-gray-400 group-hover:border-purple-400'}`}
+                      className={`block border-2 rounded-sm transition-all ${active ? 'border-blue-600' : 'border-gray-400'}`}
                       style={{ width: isPortrait ? 16 : 22, height: isPortrait ? 22 : 16 }}
                     />
                     <span className="text-[10px] sm:text-[12px] font-bold leading-none">{opt.label}</span>
@@ -888,47 +905,39 @@ function PDFSettingsModal({
           </div>
 
           {/* ─── Page Margin ─── */}
-          <div className="bg-gradient-to-r from-emerald-50/50 to-teal-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-emerald-100/50">
+          <div>
             <SectionLabel>পেজ মার্জিন</SectionLabel>
             <div className="grid grid-cols-4 gap-1">
               {[
-                { val: 'none', label: 'কোনো না', icon: '∅', emoji: '⬛' },
-                { val: 'narrow', label: 'সরু', icon: '◂▸', emoji: '▫️' },
-                { val: 'normal', label: 'স্বাভাবিক', icon: '◀▶', emoji: '◽' },
-                { val: 'wide', label: 'প্রশস্ত', icon: '◁▷', emoji: '⬜' },
+                { val: 'none', label: 'কোনো না' },
+                { val: 'narrow', label: 'সরু' },
+                { val: 'normal', label: 'স্বাভাবিক' },
+                { val: 'wide', label: 'প্রশস্ত' },
               ].map((opt) => (
                 <button
                   key={opt.val}
                   type="button"
                   onClick={() => setPageMargin(opt.val)}
-                  className={`flex flex-col items-center gap-0.5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl border-2 transition-all btn-press relative ${
+                  className={`flex flex-col items-center gap-0.5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl border-2 transition-all btn-press ${
                     pageMargin === opt.val 
-                      ? 'border-emerald-600 bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-700 shadow-lg shadow-emerald-600/20' 
-                      : 'border-gray-200 bg-white/50 text-gray-500 hover:border-emerald-300 hover:bg-emerald-50/50'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700' 
+                      : 'border-gray-200 bg-white text-gray-500 hover:border-blue-300'
                   }`}
                 >
-                  {pageMargin === opt.val && (
-                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-600 rounded-full flex items-center justify-center shadow-md">
-                      <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </span>
-                  )}
-                  <span className="text-lg sm:text-xl">{opt.emoji}</span>
                   <span className="text-[8px] sm:text-[10px] font-bold leading-none">{opt.label}</span>
                 </button>
               ))}
             </div>
-            <p className="text-[8px] sm:text-[9px] text-gray-500/80 mt-0.5 sm:mt-1">পেজের চারধারের ফাঁকা জায়গা নিয়ন্ত্রণ করে</p>
+            <p className="text-[8px] sm:text-[9px] text-gray-400 mt-0.5 sm:mt-1">পেজের চারধারের ফাঁকা জায়গা নিয়ন্ত্রণ করে</p>
           </div>
 
           {/* ─── Font Family ─── */}
-          <div className="bg-gradient-to-r from-amber-50/50 to-orange-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-amber-100/50">
+          <div>
             <SectionLabel>ফন্ট পরিবার</SectionLabel>
             <select
               value={font}
               onChange={(e) => setFont(e.target.value)}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-white/70 to-amber-50/30 border border-amber-200/50 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-bold text-xs sm:text-sm outline-none transition-all shadow-sm"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-white border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-xs sm:text-sm outline-none transition-all"
             >
               <option value="Noto Serif Bengali">Noto Serif Bengali (Classic)</option>
               <option value="Hind Siliguri">Hind Siliguri (Modern)</option>
@@ -938,12 +947,12 @@ function PDFSettingsModal({
           </div>
 
           {/* ─── Font Size ─── */}
-          <div className="bg-gradient-to-r from-rose-50/50 to-pink-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-rose-100/50">
+          <div>
             <SectionLabel>ফন্ট সাইজ</SectionLabel>
             <select
               value={size}
               onChange={(e) => setSize(e.target.value)}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-white/70 to-rose-50/30 border border-rose-200/50 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 font-bold text-xs sm:text-sm outline-none transition-all shadow-sm"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-white border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-xs sm:text-sm outline-none transition-all"
             >
               <option value="10pt">ছোট (10pt)</option>
               <option value="11pt">স্বাভাবিক (11pt)</option>
@@ -954,12 +963,12 @@ function PDFSettingsModal({
           </div>
 
           {/* ─── Line Spacing ─── */}
-          <div className="bg-gradient-to-r from-cyan-50/50 to-sky-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-cyan-100/50">
+          <div>
             <SectionLabel>লাইন স্পেসিং</SectionLabel>
             <select
               value={spacing}
               onChange={(e) => setSpacing(e.target.value)}
-              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-white/70 to-cyan-50/30 border border-cyan-200/50 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 font-bold text-xs sm:text-sm outline-none transition-all shadow-sm"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-white border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-xs sm:text-sm outline-none transition-all"
             >
               <option value="1.2">কমপ্যাক্ট (1.2)</option>
               <option value="1.6">স্বাভাবিক (1.6)</option>
@@ -969,12 +978,12 @@ function PDFSettingsModal({
 
           {/* ─── Column Gap (multi-column only) ─── */}
           {isMultiColumn && (
-            <div className="bg-gradient-to-r from-indigo-50/50 to-violet-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-indigo-100/50">
+            <div>
               <SectionLabel>কলাম গ্যাপ</SectionLabel>
               <select
                 value={columnGap || ''}
                 onChange={(e) => setColumnGap(e.target.value)}
-                className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-white/70 to-indigo-50/30 border border-indigo-200/50 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-bold text-xs sm:text-sm outline-none transition-all shadow-sm"
+                className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-white border border-gray-200 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-bold text-xs sm:text-sm outline-none transition-all"
               >
                 <option value="">{defaultGapLabel}</option>
                 <option value="3mm">টাইট (৩ মিমি)</option>
@@ -983,51 +992,33 @@ function PDFSettingsModal({
                 <option value="12mm">আরও প্রশস্ত (১২ মিমি)</option>
                 <option value="16mm">সর্বোচ্চ (১৬ মিমি)</option>
               </select>
-              <p className="text-[8px] sm:text-[9px] text-gray-500/80 mt-0.5 sm:mt-1">দুই কলামের মাঝখানের ফাঁকা জায়গা</p>
+              <p className="text-[8px] sm:text-[9px] text-gray-400 mt-0.5 sm:mt-1">দুই কলামের মাঝখানের ফাঁকা জায়গা</p>
             </div>
           )}
 
           {/* ─── Header & Footer ─── */}
-          <div className="bg-gradient-to-r from-slate-50/50 to-gray-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-slate-100/50">
+          <div>
             <SectionLabel>হেডার ও ফুটার</SectionLabel>
             <div className="space-y-1.5 sm:space-y-2">
-              <label className="flex items-center gap-2 sm:gap-3 py-2 sm:py-2.5 px-2 sm:px-3 bg-gradient-to-r from-white/70 to-slate-50/30 rounded-lg sm:rounded-xl cursor-pointer hover:from-slate-100 hover:to-gray-100 transition-all shadow-sm border border-slate-200/50 hover:border-slate-300/50">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={showHeader}
-                    onChange={(e) => setShowHeader(e.target.checked)}
-                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  {showHeader && (
-                    <span className="absolute inset-0 flex items-center justify-center">
-                      <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </span>
-                  )}
-                </div>
+              <label className="flex items-center gap-2 sm:gap-3 py-2 sm:py-2.5 px-2 sm:px-3 bg-gray-50 rounded-lg sm:rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showHeader}
+                  onChange={(e) => setShowHeader(e.target.checked)}
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
                 <div>
                   <span className="text-xs sm:text-sm font-bold text-gray-700">হেডার দেখান</span>
                   <p className="text-[8px] sm:text-[9px] text-gray-500 truncate max-w-[180px] sm:max-w-[200px]">প্রতি পেজের উপরে: {examTitle || 'পরীক্ষার শিরোনাম'}</p>
                 </div>
               </label>
-              <label className="flex items-center gap-2 sm:gap-3 py-2 sm:py-2.5 px-2 sm:px-3 bg-gradient-to-r from-white/70 to-slate-50/30 rounded-lg sm:rounded-xl cursor-pointer hover:from-slate-100 hover:to-gray-100 transition-all shadow-sm border border-slate-200/50 hover:border-slate-300/50">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    checked={showPageNumbers}
-                    onChange={(e) => setShowPageNumbers(e.target.checked)}
-                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
-                  />
-                  {showPageNumbers && (
-                    <span className="absolute inset-0 flex items-center justify-center">
-                      <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    </span>
-                  )}
-                </div>
+              <label className="flex items-center gap-2 sm:gap-3 py-2 sm:py-2.5 px-2 sm:px-3 bg-gray-50 rounded-lg sm:rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={showPageNumbers}
+                  onChange={(e) => setShowPageNumbers(e.target.checked)}
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                />
                 <div>
                   <span className="text-xs sm:text-sm font-bold text-gray-700">পেজ নম্বর</span>
                   <p className="text-[8px] sm:text-[9px] text-gray-500">প্রতি পেজের নিচে ১, ২, ৩… দেখাবে</p>
@@ -1041,25 +1032,9 @@ function PDFSettingsModal({
             <button
               onClick={onApply || onClose}
               disabled={saving}
-              className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-lg sm:rounded-xl font-bold hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 transition-all shadow-lg shadow-blue-600/30 btn-press text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
+              className="w-full py-2.5 sm:py-3 bg-blue-600 text-white rounded-lg sm:rounded-xl font-bold hover:bg-blue-700 transition-all btn-press text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <span className="relative z-10 flex items-center justify-center gap-2">
-                {saving ? (
-                  <>
-                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    সেভ হচ্ছে...
-                  </>
-                ) : (
-                  <>
-                    <span className="text-lg">✨</span>
-                    প্রয়োগ ও সেভ করুন
-                  </>
-                )}
-              </span>
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-white/20 to-blue-600/0 -translate-x-full group-hover:animate-shimmer"></div>
+              {saving ? 'সেভ হচ্ছে...' : '✅ প্রয়োগ ও সেভ করুন'}
             </button>
           </div>
         </div>
