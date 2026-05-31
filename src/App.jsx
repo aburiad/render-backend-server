@@ -1,8 +1,8 @@
-import { lazy, Suspense, useEffect, useRef } from 'react'
 import AppShell from '@/components/shared/AppShell'
 import OutOfCreditModal from '@/components/shared/OutOfCreditModal'
 import useAuthStore from '@/store/authStore'
 import { AnimatePresence } from 'framer-motion'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 
 /* ─── Lazy-loaded pages (code-split chunks) ─── */
@@ -17,7 +17,6 @@ const PaperEditor = lazy(() => import('@/pages/PaperEditor'))
 const PapersList = lazy(() => import('@/pages/PapersList'))
 const PDFPreview = lazy(() => import('@/pages/PDFPreview'))
 const Pricing = lazy(() => import('@/pages/Pricing'))
-const QuestionBank = lazy(() => import('@/pages/QuestionBank'))
 const Register = lazy(() => import('@/pages/Register'))
 const Results = lazy(() => import('@/pages/Results'))
 const ScanUpload = lazy(() => import('@/pages/ScanUpload'))
@@ -82,7 +81,6 @@ function usePrefetchPages() {
       const prefetch = () => {
         import('@/pages/Dashboard')
         import('@/pages/PapersList')
-        import('@/pages/QuestionBank')
       }
       // Small delay so it doesn't compete with initial page load
       setTimeout(prefetch, 1500)
@@ -123,7 +121,6 @@ export default function App() {
           <Route path="papers/:id/preview" element={<PDFPreview />} />
           <Route path="papers/:id/omr" element={<OmrPreview />} />
           <Route path="scan" element={<ScanUpload />} />
-          <Route path="bank" element={<QuestionBank />} />
           <Route path="results" element={<Results />} />
           <Route path="notices" element={<NoticesList />} />
           <Route path="notices/new" element={<NoticeEditor />} />

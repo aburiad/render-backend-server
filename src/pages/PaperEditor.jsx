@@ -13,7 +13,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { AnimatePresence, motion } from 'framer-motion'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import toast from 'react-hot-toast'
 import { useLocation, useNavigate, useParams } from 'react-router-dom'
 
@@ -24,7 +24,6 @@ import usePaperStore from '@/store/paperStore'
 import ExamPublishModal from '@/components/paper/ExamPublishModal'
 import PaperSetupForm from '@/components/paper/PaperSetupForm'
 import BookGenerateModal from '@/components/questions/BookGenerateModal'
-import ImportFromBankModal from '@/components/questions/ImportFromBankModal'
 import MagicScanModal from '@/components/questions/MagicScanModal'
 import QuestionWrapper from '@/components/questions/QuestionWrapper'
 import CreditBalance from '@/components/shared/CreditBalance'
@@ -165,13 +164,11 @@ export default function PaperEditor() {
   const [showAddMenu, setShowAddMenu] = useState(false)
   const [showMagicScan, setShowMagicScan] = useState(false)
   const [showBookGenerate, setShowBookGenerate] = useState(false)
-  const [showBankImport, setShowBankImport] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showMoreTypes, setShowMoreTypes] = useState(false)
   const [quickPrompt, setQuickPrompt] = useState('')
   const [quickLoading, setQuickLoading] = useState(false)
   const [quickProgress, setQuickProgress] = useState(null) // { chapter, type, total, done }
-  const autoSaveTimer = useRef(null)
 
   const currentPaper = usePaperStore((s) => s.currentPaper)
   const questions = usePaperStore((s) => s.questions)
@@ -222,7 +219,7 @@ export default function PaperEditor() {
     try {
       const { data } = await api.get(`/papers/${paperId}`)
       setPaper(data.paper)
-    } catch (err) {
+    } catch {
       toast.error('প্রশ্নপত্র লোড করতে ব্যর্থ')
       navigate('/dashboard')
     } finally {
@@ -360,14 +357,6 @@ export default function PaperEditor() {
 
     addQuestion(defaults)
     setShowAddMenu(false)
-  }
-
-  const handleImportFromBank = (importedQuestions) => {
-    importedQuestions.forEach(q => {
-      const { id, _id, ...cleanData } = q
-      addQuestion(cleanData)
-    })
-    toast.success(`${importedQuestions.length} টি প্রশ্ন যোগ করা হয়েছে`)
   }
 
   const handleDragEnd = (event) => {
@@ -556,31 +545,32 @@ export default function PaperEditor() {
         {/* Floating/Fixed Summary Bar */}
         {(questions.length > 0 || currentPaper?.id) && (
           <div style={{
-            background: '#fff', padding: '8px 16px', borderRadius: 100,
+            background: '#fff', padding: '6px 10px', borderRadius: 100,
             border: '1px solid #f1f5f9', boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between'
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'nowrap'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 24, height: 24, borderRadius: 8, background: marksMatch ? '#ecfdf5' : '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={marksMatch ? '#10b981' : '#f59e0b'} strokeWidth={3}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
+              <div style={{ width: 20, height: 20, borderRadius: 6, background: marksMatch ? '#ecfdf5' : '#fff7ed', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={marksMatch ? '#10b981' : '#f59e0b'} strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d={marksMatch ? "M4.5 12.75l6 6 9-13.5" : "M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"} />
                 </svg>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 900, color: '#1e293b' }}>
+              <span style={{ fontSize: 11, fontWeight: 900, color: '#1e293b', whiteSpace: 'nowrap' }}>
                 {totalMarks}/{targetMarks || '—'} নম্বর
               </span>
-              <span className="lg:hidden" style={{ fontSize: 10, fontWeight: 700, color: isDirty ? '#3b82f6' : '#10b981' }}>
-                {isDirty ? (saving ? 'সেভ…' : '• অসেভ') : '✓'}
+              <span className="lg:hidden" style={{ fontSize: 9, fontWeight: 700, color: isDirty ? '#3b82f6' : '#10b981', flexShrink: 0 }}>
+                {isDirty ? (saving ? 'সেভ…' : '• Unsaved') : '✓'}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               {currentPaper?.id && (
                 <>
-                  <button onClick={() => navigate(`/papers/${currentPaper.id}/preview`)} className="btn-press" style={{ padding: '6px 12px', background: '#eff6ff', color: '#2563eb', borderRadius: '10px', fontSize: 11, fontWeight: 800, border: '1px solid #bfdbfe' }}>PDF Link</button>
-                  <button onClick={() => setShowPublishModal(true)} className="btn-press" style={{ padding: '6px 12px', background: '#f5f3ff', color: '#7c3aed', borderRadius: '10px', fontSize: 11, fontWeight: 800, border: '1px solid #ddd6fe' }}>Publish</button>
+                  <button onClick={() => navigate(`/papers/${currentPaper.id}/preview`)} className="btn-press" style={{ padding: '4px 8px', background: '#eff6ff', color: '#2563eb', borderRadius: '8px', fontSize: 9, fontWeight: 800, border: '1px solid #bfdbfe', whiteSpace: 'nowrap' }}>PDF Link</button>
+                  <button onClick={() => setShowPublishModal(true)} className="btn-press" style={{ padding: '4px 8px', background: '#f5f3ff', color: '#7c3aed', borderRadius: '8px', fontSize: 9, fontWeight: 800, border: '1px solid #ddd6fe', whiteSpace: 'nowrap' }}>Publish</button>
                 </>
               )}
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>{questions.length} প্রশ্ন</span>
+              <span style={{ fontSize: 9, fontWeight: 700, color: '#94a3b8', whiteSpace: 'nowrap' }}>{questions.length} প্রশ্ন</span>
             </div>
           </div>
         )}
@@ -728,7 +718,7 @@ export default function PaperEditor() {
               <div style={{ flex: 1, height: 1, background: '#f1f5f9' }} />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               <button
                 onClick={() => { setShowMagicScan(true) }}
                 className="btn-press"
@@ -752,14 +742,6 @@ export default function PaperEditor() {
               >
                 <span style={{ fontSize: 22 }}>✏️</span>
                 <span style={{ fontSize: 11, fontWeight: 700, color: '#854d0e' }}>নিজে লিখুন</span>
-              </button>
-              <button
-                onClick={() => { setShowBankImport(true) }}
-                className="btn-press"
-                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '16px 8px', borderRadius: 16, background: '#f5f3ff', border: '1px solid #ddd6fe', cursor: 'pointer' }}
-              >
-                <span style={{ fontSize: 22 }}>🏦</span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#5b21b6' }}>ব্যাংক থেকে</span>
               </button>
             </div>
           </div>
@@ -821,24 +803,17 @@ export default function PaperEditor() {
             </div>
           </button>
 
-          <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-            <button
-              onClick={() => { setShowAddMenu(false); setShowBankImport(true); }}
-              className="btn-press flex flex-col items-center gap-1 sm:gap-2 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl text-center"
-              style={{ background: '#f5f3ff', border: '1px solid #ddd6fe' }}
-            >
-              <span className="text-base sm:text-xl">🏦</span>
-              <p className="text-[10px] sm:text-[11px] font-extrabold m-0" style={{ color: '#5b21b6' }}>প্রশ্ন ব্যাংক</p>
-            </button>
-            <button
-              onClick={() => { setShowAddMenu(false); setShowBookGenerate(true); }}
-              className="btn-press flex flex-col items-center gap-1 sm:gap-2 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl text-center"
-              style={{ background: '#ecfdf5', border: '1px solid #a7f3d0' }}
-            >
-              <span className="text-base sm:text-xl">📚</span>
-              <p className="text-[10px] sm:text-[11px] font-extrabold m-0" style={{ color: '#065f46' }}>বই থেকে</p>
-            </button>
-          </div>
+          <button
+            onClick={() => { setShowAddMenu(false); setShowBookGenerate(true); }}
+            className="btn-press w-full flex items-center gap-2.5 sm:gap-3.5 p-2.5 sm:p-3.5 rounded-xl sm:rounded-2xl text-left"
+            style={{ background: '#ecfdf5', border: '1px solid #a7f3d0' }}
+          >
+            <span className="text-base sm:text-xl">📚</span>
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-extrabold m-0" style={{ color: '#065f46' }}>বই থেকে</p>
+              <p className="text-[10px] sm:text-[11px] m-0" style={{ color: '#059669' }}>বই অনুযায়ী প্রশ্ন তৈরি</p>
+            </div>
+          </button>
 
           <div className="h-px bg-slate-100 my-0.5 sm:my-1" />
 
@@ -922,10 +897,7 @@ export default function PaperEditor() {
       {/* Modals */}
       {showMagicScan && <MagicScanModal onClose={() => setShowMagicScan(false)} />}
       {showBookGenerate && <BookGenerateModal onClose={() => setShowBookGenerate(false)} />}
-      <AnimatePresence>
-        {showBankImport && <ImportFromBankModal onClose={() => setShowBankImport(false)} onImport={handleImportFromBank} />}
-        {showPublishModal && <ExamPublishModal paperId={id} onClose={() => setShowPublishModal(false)} />}
-      </AnimatePresence>
+      {showPublishModal && <ExamPublishModal paperId={id} onClose={() => setShowPublishModal(false)} />}
     </>
   )
 }

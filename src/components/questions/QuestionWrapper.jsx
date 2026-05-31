@@ -1,7 +1,4 @@
-import { useState } from 'react'
 import usePaperStore from '@/store/paperStore'
-import api from '@/services/api'
-import toast from 'react-hot-toast'
 
 const TYPE_LABELS = {
   MCQ: 'MCQ',
@@ -66,27 +63,7 @@ const TYPE_COLORS = {
 export default function QuestionWrapper({ question, index, displayNumber, questionDirection = 'ltr', children, dragHandleProps }) {
   const removeQuestion = usePaperStore((s) => s.removeQuestion)
   const duplicateQuestion = usePaperStore((s) => s.duplicateQuestion)
-  const currentPaper = usePaperStore((s) => s.currentPaper)
-  const [saving, setSaving] = useState(false)
-
   const colors = TYPE_COLORS[question.type] || { bg: '#f8fafc', border: '#f1f5f9', text: '#64748b' }
-
-  const handleSaveToBank = async () => {
-    setSaving(true)
-    try {
-      await api.post('/questions', {
-        type: question.type,
-        data: question,
-        subject: currentPaper?.subject || '',
-        chapter: question.section || '',
-      })
-      toast.success('প্রশ্নটি ব্যাংক-এ সেভ হয়েছে')
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'ব্যাংক-এ সেভ করতে ব্যর্থ')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   return (
     <div
@@ -137,16 +114,6 @@ export default function QuestionWrapper({ question, index, displayNumber, questi
 
         {/* Action Group */}
         <div className="flex items-center gap-1 sm:gap-1.5">
-          <button
-            onClick={handleSaveToBank}
-            disabled={saving}
-            className="btn-press p-1 sm:p-2 rounded-lg sm:rounded-xl flex items-center justify-center bg-white border border-slate-200 text-blue-600"
-            title="ব্যাংকে সেভ"
-          >
-             <svg className="w-3.5 h-3.5 sm:w-[18px] sm:h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18c-2.305 0-4.408.867-6 2.292m0-14.25v14.25" />
-             </svg>
-          </button>
           <button
             onClick={() => duplicateQuestion(question.id)}
             className="btn-press p-1 sm:p-2 rounded-lg sm:rounded-xl flex items-center justify-center bg-white border border-slate-200 text-amber-500"

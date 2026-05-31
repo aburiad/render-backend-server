@@ -79,7 +79,7 @@
 
   /* Nav heights */
   --header-height: 56px;
-  --nav-height: 64px;
+  --nav-height: 80px;
 
   /* App container */
   --app-max-width: 480px;
@@ -565,6 +565,40 @@ input, select, textarea {
   scrollbar-width: thin;
   scrollbar-color: rgba(15, 23, 42, 0.25) rgba(15, 23, 42, 0.04);
   -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Custom Scrollbar ───────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.5);
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.7);
+}
+
+/* ─── Button Shimmer Animation ───────────────────────────── */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
 }
 
 /* ─── Print overrides ────────────────────────────────────── */

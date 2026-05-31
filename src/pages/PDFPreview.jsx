@@ -2,9 +2,9 @@ import PaperTemplate from '@/components/paper/PaperTemplate'
 import Loader from '@/components/shared/Loader'
 import api, { getRenderPdfUrl } from '@/services/api'
 import { buildPaperHtmlForServerPdf } from '@/utils/paperToPdfHtml'
-// eslint-disable-next-line no-unused-vars
+ 
 import useAuthStore from '@/store/authStore'
-import { stripOklchForPdf, oklchOnclone } from '@/utils/stripOklchForPdf'
+import { oklchOnclone, stripOklchForPdf } from '@/utils/stripOklchForPdf'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import toast from 'react-hot-toast'
@@ -26,9 +26,11 @@ export default function PDFPreview() {
   const [downloadingServer, setDownloadingServer] = useState(false)
   const [previewScale, setPreviewScale] = useState(1)
   const [previewBox, setPreviewBox] = useState({ width: 0, height: 0 })
+  const [manualZoom, setManualZoom] = useState(false)
 
   const [variant, setVariant] = useState(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
   // Defaults match the values used by paper rows that pre-date the
   // print_settings column. Once the paper loads, the useEffect below
   // overwrites these with whatever is in paper.print_settings.
@@ -132,6 +134,9 @@ export default function PDFPreview() {
   // useLayoutEffect so the scale is applied BEFORE first paint (no flash
   // of overflowing unscaled paper).
   useLayoutEffect(() => {
+    // Skip auto-scale if user is manually zooming
+    if (manualZoom) return
+
     const wrap = previewWrapRef.current
     const sheet = paperSheetRef.current
     if (!wrap || !sheet) return
@@ -178,7 +183,24 @@ export default function PDFPreview() {
       window.removeEventListener('resize', onResize)
       window.removeEventListener('orientationchange', onResize)
     }
-  }, [isLandscape, paper?.id, renderedQuestions.length, font, size, spacing, columnGap, variant, loading])
+  }, [isLandscape, paper?.id, renderedQuestions.length, font, size, spacing, columnGap, variant, loading, manualZoom])
+
+  // Update preview box when scale changes manually
+  useEffect(() => {
+    if (manualZoom && paperSheetRef.current) {
+      const sheet = paperSheetRef.current
+      const sheetW = Math.max(
+        sheet.offsetWidth,
+        sheet.scrollWidth,
+        paperRef.current?.scrollWidth || 0,
+      )
+      const sheetH = Math.max(sheet.offsetHeight, sheet.scrollHeight)
+      setPreviewBox({
+        width: Math.ceil(sheetW * previewScale),
+        height: Math.ceil(sheetH * previewScale) + 8,
+      })
+    }
+  }, [previewScale, manualZoom])
 
   async function handleDownload() {
     if (!paperRef.current || downloading) return
@@ -478,50 +500,84 @@ export default function PDFPreview() {
             </svg>
           </Link>
           <div className="min-w-0">
-            <h1 className="text-xs sm:text-lg font-bold text-gray-900 truncate leading-tight">PDF প্রিভিউ</h1>
+            <h1 className="text-xs sm:text-lg font-bold text-gray-900 truncate leading-tight">PDF Link</h1>
             <p className="text-[9px] sm:text-[11px] text-gray-400 truncate leading-tight hidden sm:block">
               {loading ? 'লোড হচ্ছে...' : error ? 'ত্রুটি' : downloading ? 'PDF তৈরি হচ্ছে...' : 'প্রস্তুত'}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-0.5 sm:gap-2 flex-shrink-0">
-          {/* Set toggle — ultra compact on mobile */}
-          <div className="flex bg-gray-100 rounded-md sm:rounded-xl p-0.5">
-            {[
-              { val: null, label: 'A' },
-              { val: 'B', label: 'B' },
-            ].map((opt) => (
-              <button
-                key={opt.label}
-                onClick={() => setVariant(opt.val)}
-                className={`px-1.5 sm:px-3 py-0.5 sm:py-1.5 rounded sm:rounded-lg font-bold transition-colors text-[10px] sm:text-xs ${
-                  variant === opt.val ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-0.5 sm:gap-2 flex-shrink-0 relative">
+          {/* More Menu Button */}
+          <div className="relative">
+            <button
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              className="w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 btn-press flex-shrink-0"
+              title="আরো অপশন"
+            >
+              <svg className="w-3.5 h-3.5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+              </svg>
+            </button>
 
-          <button
-            onClick={() => setShowSettings(true)}
-            className="w-7 h-7 sm:w-9 sm:h-9 flex items-center justify-center rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 btn-press flex-shrink-0"
-            title="সেটিংস"
-          >
-            <svg className="w-3.5 h-3.5 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
+            {/* Dropdown Menu */}
+            {showMoreMenu && (
+              <>
+                <div
+                  className="fixed inset-0 z-50"
+                  onClick={() => setShowMoreMenu(false)}
+                />
+                <div className="absolute left-0 top-full mt-1 z-50 bg-white rounded-xl shadow-2xl border border-gray-100 min-w-[140px] overflow-hidden">
+                  {/* Set Toggle */}
+                  <div className="p-2 border-b border-gray-100">
+                    <p className="text-[9px] text-gray-400 font-bold px-1 mb-1">SET</p>
+                    <div className="flex bg-gray-100 rounded-lg p-0.5">
+                      {[
+                        { val: null, label: 'A' },
+                        { val: 'B', label: 'B' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.label}
+                          onClick={() => {
+                            setVariant(opt.val)
+                            setShowMoreMenu(false)
+                          }}
+                          className={`flex-1 py-1.5 rounded-md font-bold transition-colors text-xs ${
+                            variant === opt.val ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Settings Button */}
+                  <button
+                    onClick={() => {
+                      setShowSettings(true)
+                      setShowMoreMenu(false)
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-gray-50 transition-colors"
+                  >
+                    <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-xs font-bold text-gray-700">সেটিংস</span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
 
           <button
             onClick={handleDownload}
             disabled={!paper || downloading}
             title="দ্রুত PDF"
-            className="px-3 sm:px-4 h-10 sm:h-9 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-blue-600 text-white text-xs sm:text-sm font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-blue-600/25 flex-shrink-0"
+            className="px-2 sm:px-3 h-8 sm:h-9 flex items-center gap-0.5 sm:gap-1.5 rounded-lg bg-blue-600 text-white text-[10px] sm:text-xs font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-blue-600/25 flex-shrink-0"
           >
-            <svg className="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
             </svg>
             <span>{downloading ? '...' : 'PDF'}</span>
@@ -531,9 +587,9 @@ export default function PDFPreview() {
             onClick={handleServerDownload}
             disabled={!paper || downloadingServer}
             title="সার্ভার PDF (উচ্চ গুণমান)"
-            className="px-3 sm:px-4 h-10 sm:h-9 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-violet-600 text-white text-xs sm:text-sm font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-violet-600/25 flex-shrink-0"
+            className="px-2 sm:px-3 h-8 sm:h-9 flex items-center gap-0.5 sm:gap-1.5 rounded-lg bg-violet-600 text-white text-[10px] sm:text-xs font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-violet-600/25 flex-shrink-0"
           >
-            <svg className="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15a4.5 4.5 0 004.5 4.5H18a3.75 3.75 0 001.332-7.257 3 3 0 00-3.758-3.848 5.25 5.25 0 00-10.233 2.33A4.502 4.502 0 002.25 15z" />
             </svg>
             <span>{downloadingServer ? '...' : 'Server'}</span>
@@ -543,13 +599,61 @@ export default function PDFPreview() {
             onClick={handleNativePdf}
             disabled={!paper}
             title='Print → Save as PDF'
-            className="px-3 sm:px-4 h-10 sm:h-9 flex items-center gap-1 sm:gap-1.5 rounded-lg bg-emerald-600 text-white text-xs sm:text-sm font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-emerald-600/25 flex-shrink-0"
+            className="px-2 sm:px-3 h-8 sm:h-9 flex items-center gap-0.5 sm:gap-1.5 rounded-lg bg-emerald-600 text-white text-[10px] sm:text-xs font-bold disabled:opacity-40 btn-press shadow-sm sm:shadow-lg shadow-emerald-600/25 flex-shrink-0"
           >
-            <svg className="w-4 h-4 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span>Print</span>
           </button>
+
+          {/* Zoom Controls */}
+          <div className="flex items-center gap-0 bg-gray-100 rounded-lg p-0.5">
+            <button
+              onClick={() => {
+                setManualZoom(true)
+                setPreviewScale(Math.max(0.3, previewScale - 0.1))
+              }}
+              disabled={!paper || previewScale <= 0.3}
+              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-md bg-white text-gray-700 hover:bg-gray-200 btn-press disabled:opacity-40"
+              title="Zoom Out"
+            >
+              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 12h-15" />
+              </svg>
+            </button>
+            <span className="px-0.5 sm:px-1 text-[9px] sm:text-[10px] font-bold text-gray-600 min-w-[2rem] sm:min-w-[2.5rem] text-center">
+              {Math.round(previewScale * 100)}%
+            </span>
+            <button
+              onClick={() => {
+                setManualZoom(true)
+                setPreviewScale(Math.min(2, previewScale + 0.1))
+              }}
+              disabled={!paper || previewScale >= 2}
+              className="w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-md bg-white text-gray-700 hover:bg-gray-200 btn-press disabled:opacity-40"
+              title="Zoom In"
+            >
+              <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+            </button>
+            {manualZoom && (
+              <div
+                onClick={() => {
+                  setManualZoom(false)
+                  setPreviewScale(1)
+                }}
+                className="w-5 h-5 sm:w-6 sm:h-6 flex items-center justify-center rounded-md bg-amber-100 text-amber-700 hover:bg-amber-200 btn-press cursor-pointer"
+                title="Reset to Fit"
+              >
+                <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+                </svg>
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
 
@@ -559,7 +663,7 @@ export default function PDFPreview() {
         style={{
           background: '#e5e7eb',
           minHeight: '60vh',
-          overflow: 'hidden',
+          overflow: 'auto',
         }}
       >
         {loading ? (
@@ -586,7 +690,7 @@ export default function PDFPreview() {
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'flex-start',
-              overflow: 'hidden',
+              minHeight: '60vh',
             }}
           >
             <div
@@ -684,30 +788,31 @@ function PDFSettingsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 bg-gray-900/40 backdrop-blur-sm overflow-y-auto">
+    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-2 sm:p-4 bg-gradient-to-br from-gray-900/50 via-gray-900/40 to-blue-900/30 backdrop-blur-sm overflow-y-auto">
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-3xl p-5 sm:p-6 w-full max-w-md shadow-2xl relative my-4"
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        transition={{ type: "spring", damping: 20, stiffness: 300 }}
+        className="bg-gradient-to-br from-white via-blue-50/30 to-purple-50/20 rounded-2xl sm:rounded-3xl p-3 sm:p-5 w-full max-w-md shadow-2xl shadow-blue-900/10 border border-blue-100/50 relative my-2"
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+          className="absolute top-3 right-3 sm:top-4 sm:right-4 w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gradient-to-br hover:from-gray-100 hover:to-gray-200 hover:shadow-lg rounded-full transition-all duration-200 group"
         >
-          ✕
+          <span className="text-lg sm:text-xl group-hover:rotate-90 transition-transform duration-200">✕</span>
         </button>
 
-        <h3 className="text-lg sm:text-xl font-black mb-5 flex items-center gap-2">
-          <span>⚙️</span> প্রিন্ট সেটিংস
+        <h3 className="text-base sm:text-lg font-black mb-3 sm:mb-5 flex items-center gap-2 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          <span className="text-sm sm:text-base animate-pulse">⚙️</span> প্রিন্ট সেটিংস
         </h3>
 
-        <div className="space-y-5 max-h-[75vh] overflow-y-auto pr-1">
+        <div className="space-y-3 sm:space-y-5 max-h-[75vh] overflow-y-auto pr-1 custom-scrollbar">
 
           {/* ─── Page Format ─── */}
-          <div>
+          <div className="bg-gradient-to-r from-gray-50/50 to-blue-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-gray-100/50">
             <SectionLabel>পেজ সাইজ</SectionLabel>
-            <div className="grid grid-cols-5 gap-1.5">
+            <div className="grid grid-cols-5 gap-1">
               {['A3', 'A4', 'A5', 'Legal', 'Letter'].map((fmt) => {
                 const active = pageFormat === fmt
                 const dims = formatDims[fmt] || formatDims.A4
@@ -717,15 +822,24 @@ function PDFSettingsModal({
                     key={fmt}
                     type="button"
                     onClick={() => setPageFormat(fmt)}
-                    className={`flex flex-col items-center gap-1 py-2 px-1 rounded-xl border-2 transition-all btn-press ${
-                      active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                    className={`flex flex-col items-center gap-0.5 py-1.5 px-0.5 rounded-lg border-2 transition-all btn-press relative ${
+                      active 
+                        ? 'border-blue-600 bg-gradient-to-br from-blue-50 to-blue-100 text-blue-700 shadow-lg shadow-blue-600/20' 
+                        : 'border-gray-200 bg-white/50 text-gray-500 hover:border-blue-300 hover:bg-blue-50/50'
                     }`}
                   >
+                    {active && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-blue-600 rounded-full flex items-center justify-center shadow-md">
+                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                    )}
                     <span
-                      className={`block border-2 rounded-[2px] ${active ? 'border-blue-600' : 'border-gray-300'}`}
+                      className={`block border-2 rounded-[2px] transition-all ${active ? 'border-blue-600' : 'border-gray-300 group-hover:border-blue-400'}`}
                       style={{ width: Math.round(dims.w * scaleIcon * 0.45), height: Math.round(dims.h * scaleIcon * 0.45) }}
                     />
-                    <span className="text-[10px] font-bold leading-none">{fmt}</span>
+                    <span className="text-[9px] sm:text-[10px] font-bold leading-none">{fmt}</span>
                   </button>
                 )
               })}
@@ -733,12 +847,12 @@ function PDFSettingsModal({
           </div>
 
           {/* ─── Orientation ─── */}
-          <div>
+          <div className="bg-gradient-to-r from-purple-50/50 to-pink-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-purple-100/50">
             <SectionLabel>পেজ লেআউট</SectionLabel>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               {[
-                { val: 'portrait', label: 'পোর্ট্রেট', sub: 'Portrait' },
-                { val: 'landscape', label: 'ল্যান্ডস্কেপ', sub: 'Landscape' },
+                { val: 'portrait', label: 'পোর্ট্রেট', sub: 'Portrait', icon: '📄' },
+                { val: 'landscape', label: 'ল্যান্ডস্কেপ', sub: 'Landscape', icon: '📄' },
               ].map((opt) => {
                 const active = orientation === opt.val
                 const isPortrait = opt.val === 'portrait'
@@ -747,16 +861,26 @@ function PDFSettingsModal({
                     key={opt.val}
                     type="button"
                     onClick={() => setOrientation(opt.val)}
-                    className={`flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 transition-all btn-press ${
-                      active ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                    className={`flex flex-col items-center gap-1 py-2 sm:py-3 rounded-lg sm:rounded-xl border-2 transition-all btn-press relative ${
+                      active 
+                        ? 'border-purple-600 bg-gradient-to-br from-purple-50 to-purple-100 text-purple-700 shadow-lg shadow-purple-600/20' 
+                        : 'border-gray-200 bg-white/50 text-gray-500 hover:border-purple-300 hover:bg-purple-50/50'
                     }`}
                   >
+                    {active && (
+                      <span className="absolute -top-1 -right-1 w-3 h-3 bg-purple-600 rounded-full flex items-center justify-center shadow-md">
+                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </span>
+                    )}
+                    <span className="text-lg sm:text-xl">{opt.icon}</span>
                     <span
-                      className={`block border-2 rounded-sm ${active ? 'border-blue-600' : 'border-gray-400'}`}
-                      style={{ width: isPortrait ? 18 : 26, height: isPortrait ? 26 : 18 }}
+                      className={`block border-2 rounded-sm transition-all ${active ? 'border-purple-600' : 'border-gray-400 group-hover:border-purple-400'}`}
+                      style={{ width: isPortrait ? 16 : 22, height: isPortrait ? 22 : 16 }}
                     />
-                    <span className="text-[12px] font-bold leading-none">{opt.label}</span>
-                    <span className="text-[9px] uppercase tracking-wider opacity-60 leading-none">{opt.sub}</span>
+                    <span className="text-[10px] sm:text-[12px] font-bold leading-none">{opt.label}</span>
+                    <span className="text-[8px] sm:text-[9px] uppercase tracking-wider opacity-60 leading-none">{opt.sub}</span>
                   </button>
                 )
               })}
@@ -764,38 +888,47 @@ function PDFSettingsModal({
           </div>
 
           {/* ─── Page Margin ─── */}
-          <div>
+          <div className="bg-gradient-to-r from-emerald-50/50 to-teal-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-emerald-100/50">
             <SectionLabel>পেজ মার্জিন</SectionLabel>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-4 gap-1">
               {[
-                { val: 'none', label: 'কোনো না', icon: '∅' },
-                { val: 'narrow', label: 'সরু', icon: '◂▸' },
-                { val: 'normal', label: 'স্বাভাবিক', icon: '◀▶' },
-                { val: 'wide', label: 'প্রশস্ত', icon: '◁▷' },
+                { val: 'none', label: 'কোনো না', icon: '∅', emoji: '⬛' },
+                { val: 'narrow', label: 'সরু', icon: '◂▸', emoji: '▫️' },
+                { val: 'normal', label: 'স্বাভাবিক', icon: '◀▶', emoji: '◽' },
+                { val: 'wide', label: 'প্রশস্ত', icon: '◁▷', emoji: '⬜' },
               ].map((opt) => (
                 <button
                   key={opt.val}
                   type="button"
                   onClick={() => setPageMargin(opt.val)}
-                  className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border-2 transition-all btn-press ${
-                    pageMargin === opt.val ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-gray-100 bg-gray-50 text-gray-500 hover:border-gray-200'
+                  className={`flex flex-col items-center gap-0.5 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl border-2 transition-all btn-press relative ${
+                    pageMargin === opt.val 
+                      ? 'border-emerald-600 bg-gradient-to-br from-emerald-50 to-emerald-100 text-emerald-700 shadow-lg shadow-emerald-600/20' 
+                      : 'border-gray-200 bg-white/50 text-gray-500 hover:border-emerald-300 hover:bg-emerald-50/50'
                   }`}
                 >
-                  <span className="text-[11px] font-bold">{opt.icon}</span>
-                  <span className="text-[10px] font-bold leading-none">{opt.label}</span>
+                  {pageMargin === opt.val && (
+                    <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-600 rounded-full flex items-center justify-center shadow-md">
+                      <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  )}
+                  <span className="text-lg sm:text-xl">{opt.emoji}</span>
+                  <span className="text-[8px] sm:text-[10px] font-bold leading-none">{opt.label}</span>
                 </button>
               ))}
             </div>
-            <p className="text-[9px] text-gray-400 mt-1">পেজের চারধারের ফাঁকা জায়গা নিয়ন্ত্রণ করে</p>
+            <p className="text-[8px] sm:text-[9px] text-gray-500/80 mt-0.5 sm:mt-1">পেজের চারধারের ফাঁকা জায়গা নিয়ন্ত্রণ করে</p>
           </div>
 
           {/* ─── Font Family ─── */}
-          <div>
+          <div className="bg-gradient-to-r from-amber-50/50 to-orange-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-amber-100/50">
             <SectionLabel>ফন্ট পরিবার</SectionLabel>
             <select
               value={font}
               onChange={(e) => setFont(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold text-sm outline-none"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-white/70 to-amber-50/30 border border-amber-200/50 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-bold text-xs sm:text-sm outline-none transition-all shadow-sm"
             >
               <option value="Noto Serif Bengali">Noto Serif Bengali (Classic)</option>
               <option value="Hind Siliguri">Hind Siliguri (Modern)</option>
@@ -805,12 +938,12 @@ function PDFSettingsModal({
           </div>
 
           {/* ─── Font Size ─── */}
-          <div>
+          <div className="bg-gradient-to-r from-rose-50/50 to-pink-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-rose-100/50">
             <SectionLabel>ফন্ট সাইজ</SectionLabel>
             <select
               value={size}
               onChange={(e) => setSize(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold text-sm outline-none"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-white/70 to-rose-50/30 border border-rose-200/50 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-rose-500 focus:border-rose-500 font-bold text-xs sm:text-sm outline-none transition-all shadow-sm"
             >
               <option value="10pt">ছোট (10pt)</option>
               <option value="11pt">স্বাভাবিক (11pt)</option>
@@ -821,12 +954,12 @@ function PDFSettingsModal({
           </div>
 
           {/* ─── Line Spacing ─── */}
-          <div>
+          <div className="bg-gradient-to-r from-cyan-50/50 to-sky-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-cyan-100/50">
             <SectionLabel>লাইন স্পেসিং</SectionLabel>
             <select
               value={spacing}
               onChange={(e) => setSpacing(e.target.value)}
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold text-sm outline-none"
+              className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-white/70 to-cyan-50/30 border border-cyan-200/50 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 font-bold text-xs sm:text-sm outline-none transition-all shadow-sm"
             >
               <option value="1.2">কমপ্যাক্ট (1.2)</option>
               <option value="1.6">স্বাভাবিক (1.6)</option>
@@ -836,12 +969,12 @@ function PDFSettingsModal({
 
           {/* ─── Column Gap (multi-column only) ─── */}
           {isMultiColumn && (
-            <div>
+            <div className="bg-gradient-to-r from-indigo-50/50 to-violet-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-indigo-100/50">
               <SectionLabel>কলাম গ্যাপ</SectionLabel>
               <select
                 value={columnGap || ''}
                 onChange={(e) => setColumnGap(e.target.value)}
-                className="w-full px-4 py-3 bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-blue-600 font-bold text-sm outline-none"
+                className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-gradient-to-r from-white/70 to-indigo-50/30 border border-indigo-200/50 rounded-lg sm:rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 font-bold text-xs sm:text-sm outline-none transition-all shadow-sm"
               >
                 <option value="">{defaultGapLabel}</option>
                 <option value="3mm">টাইট (৩ মিমি)</option>
@@ -850,49 +983,83 @@ function PDFSettingsModal({
                 <option value="12mm">আরও প্রশস্ত (১২ মিমি)</option>
                 <option value="16mm">সর্বোচ্চ (১৬ মিমি)</option>
               </select>
-              <p className="text-[9px] text-gray-400 mt-1">দুই কলামের মাঝখানের ফাঁকা জায়গা</p>
+              <p className="text-[8px] sm:text-[9px] text-gray-500/80 mt-0.5 sm:mt-1">দুই কলামের মাঝখানের ফাঁকা জায়গা</p>
             </div>
           )}
 
           {/* ─── Header & Footer ─── */}
-          <div>
+          <div className="bg-gradient-to-r from-slate-50/50 to-gray-50/30 rounded-xl sm:rounded-2xl p-2 sm:p-3 border border-slate-100/50">
             <SectionLabel>হেডার ও ফুটার</SectionLabel>
-            <div className="space-y-2">
-              <label className="flex items-center gap-3 py-2.5 px-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={showHeader}
-                  onChange={(e) => setShowHeader(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
+            <div className="space-y-1.5 sm:space-y-2">
+              <label className="flex items-center gap-2 sm:gap-3 py-2 sm:py-2.5 px-2 sm:px-3 bg-gradient-to-r from-white/70 to-slate-50/30 rounded-lg sm:rounded-xl cursor-pointer hover:from-slate-100 hover:to-gray-100 transition-all shadow-sm border border-slate-200/50 hover:border-slate-300/50">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={showHeader}
+                    onChange={(e) => setShowHeader(e.target.checked)}
+                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  {showHeader && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
                 <div>
-                  <span className="text-sm font-bold">হেডার দেখান</span>
-                  <p className="text-[9px] text-gray-400 truncate max-w-[200px]">প্রতি পেজের উপরে: {examTitle || 'পরীক্ষার শিরোনাম'}</p>
+                  <span className="text-xs sm:text-sm font-bold text-gray-700">হেডার দেখান</span>
+                  <p className="text-[8px] sm:text-[9px] text-gray-500 truncate max-w-[180px] sm:max-w-[200px]">প্রতি পেজের উপরে: {examTitle || 'পরীক্ষার শিরোনাম'}</p>
                 </div>
               </label>
-              <label className="flex items-center gap-3 py-2.5 px-3 bg-gray-50 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
-                <input
-                  type="checkbox"
-                  checked={showPageNumbers}
-                  onChange={(e) => setShowPageNumbers(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
+              <label className="flex items-center gap-2 sm:gap-3 py-2 sm:py-2.5 px-2 sm:px-3 bg-gradient-to-r from-white/70 to-slate-50/30 rounded-lg sm:rounded-xl cursor-pointer hover:from-slate-100 hover:to-gray-100 transition-all shadow-sm border border-slate-200/50 hover:border-slate-300/50">
+                <div className="relative">
+                  <input
+                    type="checkbox"
+                    checked={showPageNumbers}
+                    onChange={(e) => setShowPageNumbers(e.target.checked)}
+                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                  />
+                  {showPageNumbers && (
+                    <span className="absolute inset-0 flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    </span>
+                  )}
+                </div>
                 <div>
-                  <span className="text-sm font-bold">পেজ নম্বর</span>
-                  <p className="text-[9px] text-gray-400">প্রতি পেজের নিচে ১, ২, ৩… দেখাবে</p>
+                  <span className="text-xs sm:text-sm font-bold text-gray-700">পেজ নম্বর</span>
+                  <p className="text-[8px] sm:text-[9px] text-gray-500">প্রতি পেজের নিচে ১, ২, ৩… দেখাবে</p>
                 </div>
               </label>
             </div>
           </div>
 
           {/* ─── Apply Button ─── */}
-          <div className="pt-2 pb-1">
+          <div className="pt-1.5 sm:pt-2 pb-1">
             <button
               onClick={onApply || onClose}
               disabled={saving}
-              className="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-600/30 btn-press text-sm disabled:opacity-50"
+              className="w-full py-2.5 sm:py-3 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-lg sm:rounded-xl font-bold hover:from-blue-700 hover:via-purple-700 hover:to-pink-700 transition-all shadow-lg shadow-blue-600/30 btn-press text-xs sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
             >
-              {saving ? 'সেভ হচ্ছে...' : '✅ প্রয়োগ ও সেভ করুন'}
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                {saving ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    সেভ হচ্ছে...
+                  </>
+                ) : (
+                  <>
+                    <span className="text-lg">✨</span>
+                    প্রয়োগ ও সেভ করুন
+                  </>
+                )}
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-blue-600/0 via-white/20 to-blue-600/0 -translate-x-full group-hover:animate-shimmer"></div>
             </button>
           </div>
         </div>
@@ -903,7 +1070,7 @@ function PDFSettingsModal({
 
 function SectionLabel({ children }) {
   return (
-    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+    <label className="block text-[9px] sm:text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 sm:mb-1.5">
       {children}
     </label>
   )
