@@ -80,6 +80,10 @@ export default function CqEditor({ question }) {
         <StimulusImage
           value={question.stimulus_image}
           onChange={(v) => updateQuestion(question.id, { stimulus_image: v })}
+          imageHeight={question.stimulus_image_height}
+          imageWidth={question.stimulus_image_width}
+          onHeightChange={(v) => updateQuestion(question.id, { stimulus_image_height: v })}
+          onWidthChange={(v) => updateQuestion(question.id, { stimulus_image_width: v })}
           accentColor="#7c3aed"
         />
       </div>

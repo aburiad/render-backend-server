@@ -8,6 +8,7 @@ import Spinner from '@/components/shared/Spinner'
 import ReactCrop from 'react-image-crop'
 import 'react-image-crop/dist/ReactCrop.css'
 import { processExamImage, detectBlur } from '@/lib/imageProcessor'
+import { cropAndEnhance } from '@/lib/enhanceImage'
 import CameraCapture from '@/components/shared/CameraCapture'
 
 export default function MagicScanModal({ onClose }) {
@@ -25,6 +26,13 @@ export default function MagicScanModal({ onClose }) {
   const [crop, setCrop] = useState({ unit: '%', width: 90, x: 5, y: 5, height: 90 })
   const [completedCrop, setCompletedCrop] = useState(null)
   const imgRef = useRef(null)
+  
+  // Diagram crop state
+  const [diagramCropIdx, setDiagramCropIdx] = useState(null) // which question index
+  const [diagramCrop, setDiagramCrop] = useState({ unit: '%', width: 30, x: 5, y: 5, height: 30 })
+  const [completedDiagramCrop, setCompletedDiagramCrop] = useState(null)
+  const diagramImgRef = useRef(null)
+  const [diagramCropping, setDiagramCropping] = useState(false)
   
   const updateExtractedQuestion = (idx, fields) => {
     const newQuestions = [...extractedQuestions]
@@ -104,8 +112,17 @@ export default function MagicScanModal({ onClose }) {
         }
       }
       if (data.success) {
-        setExtractedQuestions(data.questions)
+        const questions = data.questions
+        setExtractedQuestions(questions)
         setStep('review')
+        // Auto-open diagram crop for first CQ question that has a stimulus image
+        const firstCqWithImage = questions.findIndex(
+          q => (q.type === 'CQ' || q.type === 'cq') && q.has_stimulus_image === true && !q.stimulus_image
+        )
+        if (firstCqWithImage !== -1) {
+          setDiagramCrop({ unit: '%', width: 30, x: 5, y: 5, height: 30 })
+          setDiagramCropIdx(firstCqWithImage)
+        }
       }
     } catch (err) {
       toast.dismiss('scan-retry')
@@ -384,10 +401,80 @@ export default function MagicScanModal({ onClose }) {
             <div className="flex flex-col lg:flex-row gap-6 lg:h-[600px] h-auto">
               {/* Left: Image Side */}
               <div className="lg:flex-1 h-[250px] lg:h-full bg-gray-200 rounded-2xl overflow-hidden relative group flex items-center justify-center">
-                <img src={croppedImagePreview || imagePreview} alt="Original" className="max-w-full max-h-full object-contain bg-gray-900" />
-                <div className="absolute top-4 left-4 px-3 py-1 bg-gray-900/50 text-white text-[10px] rounded-full backdrop-blur-md">
-                  ক্রপ করা ছবি
-                </div>
+                {diagramCropIdx !== null ? (
+                  <div className="flex flex-col h-full w-full">
+                    <div className="flex items-center justify-between px-3 py-2 bg-blue-600 text-white">
+                      <span className="text-xs font-bold">📷 ডায়াগ্রাম ক্রপ — প্রশ্ন #{diagramCropIdx + 1}</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={async () => {
+                            if (!diagramImgRef.current || !completedDiagramCrop || completedDiagramCrop.width === 0) return
+                            setDiagramCropping(true)
+                            try {
+                              const enhanced = await cropAndEnhance(diagramImgRef.current, completedDiagramCrop)
+                              const cq = extractedQuestions[diagramCropIdx]
+                              const isCq = cq && (cq.type === 'CQ' || cq.type === 'cq')
+                              // For CQ questions, save as stimulus_image; for others, save as generic image
+                              if (isCq) {
+                                updateExtractedQuestion(diagramCropIdx, { stimulus_image: enhanced })
+                              } else {
+                                updateExtractedQuestion(diagramCropIdx, { image: enhanced })
+                              }
+                              toast.success(isCq ? 'উদ্দীপক ছবি ক্রপ হয়েছে!' : 'ডায়াগ্রাম ক্রপ হয়েছে!')
+                              // Auto-open diagram crop for next CQ question with has_stimulus_image
+                              const nextCqWithImage = extractedQuestions.findIndex(
+                                (q, idx) => idx > diagramCropIdx && (q.type === 'CQ' || q.type === 'cq') && q.has_stimulus_image === true && !q.stimulus_image
+                              )
+                              if (nextCqWithImage !== -1) {
+                                setDiagramCrop({ unit: '%', width: 30, x: 5, y: 5, height: 30 })
+                                setDiagramCropIdx(nextCqWithImage)
+                                setCompletedDiagramCrop(null)
+                              } else {
+                                setDiagramCropIdx(null)
+                                setCompletedDiagramCrop(null)
+                              }
+                            } catch {
+                              toast.error('ক্রপ করতে সমস্যা হয়েছে')
+                            } finally {
+                              setDiagramCropping(false)
+                            }
+                          }}
+                          disabled={!completedDiagramCrop || completedDiagramCrop.width === 0 || diagramCropping}
+                          className="px-3 py-1 bg-white text-blue-600 text-[10px] font-bold rounded-lg disabled:opacity-50"
+                        >
+                          {diagramCropping ? 'প্রসেসিং...' : '✅ ক্রপ করুন'}
+                        </button>
+                        <button
+                          onClick={() => { setDiagramCropIdx(null); setCompletedDiagramCrop(null) }}
+                          className="px-2 py-1 bg-white/20 text-white text-[10px] font-bold rounded-lg"
+                        >
+                          ✕ বাদ
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex-1 overflow-hidden flex items-center justify-center bg-gray-900">
+                      <ReactCrop
+                        crop={diagramCrop}
+                        onChange={(c) => setDiagramCrop(c)}
+                        onComplete={(c) => setCompletedDiagramCrop(c)}
+                      >
+                        <img
+                          ref={diagramImgRef}
+                          src={croppedImagePreview || imagePreview}
+                          alt="Crop diagram"
+                          className="max-h-[55vh] w-auto object-contain"
+                        />
+                      </ReactCrop>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <img src={croppedImagePreview || imagePreview} alt="Original" className="max-w-full max-h-full object-contain bg-gray-900" />
+                    <div className="absolute top-4 left-4 px-3 py-1 bg-gray-900/50 text-white text-[10px] rounded-full backdrop-blur-md">
+                      ক্রপ করা ছবি
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Right: Questions Side */}
@@ -474,6 +561,15 @@ export default function MagicScanModal({ onClose }) {
                                     <span className="text-[9px] sm:text-[10px] font-bold hidden sm:inline">ব্যাংকে সেভ</span>
                                   </>
                                 )}
+                              </button>
+                              <button 
+                                onClick={() => { setDiagramCrop({ unit: '%', width: 30, x: 5, y: 5, height: 30 }); setDiagramCropIdx(i) }}
+                                className="p-1.5 text-gray-400 hover:text-emerald-500 hover:bg-emerald-50 rounded-lg transition-colors"
+                                title="📷 ডায়াগ্রাম ক্রপ"
+                              >
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                                </svg>
                               </button>
                               <button 
                                 onClick={() => setEditingIndex(i)}
@@ -641,6 +737,28 @@ export default function MagicScanModal({ onClose }) {
                               )}
                             </div>
                           )}
+                          {q.image && !q.stimulus_image && (
+                            <div className="mt-2">
+                              <img src={q.image} alt="Diagram" className="max-h-20 rounded-lg border border-gray-200 object-contain bg-white" />
+                            </div>
+                          )}
+                          {q.stimulus_image && (
+                            <div className="mt-2">
+                              <div className="text-[9px] font-bold text-purple-600 mb-1">📷 উদ্দীপক ছবি</div>
+                              <img src={q.stimulus_image} alt="Stimulus" className="max-h-24 rounded-lg border border-purple-200 object-contain bg-white" />
+                            </div>
+                          )}
+                          {(q.type === 'CQ' || q.type === 'cq') && q.has_stimulus_image === true && !q.stimulus_image && (
+                            <button
+                              onClick={() => { setDiagramCrop({ unit: '%', width: 30, x: 5, y: 5, height: 30 }); setDiagramCropIdx(i) }}
+                              className="mt-2 flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-700 text-[10px] font-bold rounded-lg hover:bg-amber-100 transition-colors"
+                            >
+                              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.41a2.25 2.25 0 013.182 0l2.909 2.91m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                              </svg>
+                              ⚠️ উদ্দীপকে ছবি আছে — ক্রপ করুন
+                            </button>
+                          )}
                           {q.sub_questions && (
                             <div className="mt-2 space-y-1 pl-4 border-l-2 border-gray-100">
                               {q.sub_questions.map((sq, si) => (
@@ -676,8 +794,17 @@ export default function MagicScanModal({ onClose }) {
                           { timeout: 240000 }
                         )
                         if (data.success) {
-                          setExtractedQuestions(data.questions)
+                          const retryQuestions = data.questions
+                          setExtractedQuestions(retryQuestions)
                           setStep('review')
+                          // Auto-open diagram crop for first CQ with stimulus image
+                          const firstCqImg = retryQuestions.findIndex(
+                            q => (q.type === 'CQ' || q.type === 'cq') && q.has_stimulus_image === true && !q.stimulus_image
+                          )
+                          if (firstCqImg !== -1) {
+                            setDiagramCrop({ unit: '%', width: 30, x: 5, y: 5, height: 30 })
+                            setDiagramCropIdx(firstCqImg)
+                          }
                         }
                       } catch (firstErr) {
                         const status = firstErr.response?.status
@@ -695,8 +822,17 @@ export default function MagicScanModal({ onClose }) {
                             )
                             toast.dismiss('scan-retry')
                             if (data.success) {
-                              setExtractedQuestions(data.questions)
+                              const retryQuestions2 = data.questions
+                              setExtractedQuestions(retryQuestions2)
                               setStep('review')
+                              // Auto-open diagram crop for first CQ with stimulus image
+                              const firstCqImg2 = retryQuestions2.findIndex(
+                                q => (q.type === 'CQ' || q.type === 'cq') && q.has_stimulus_image === true && !q.stimulus_image
+                              )
+                              if (firstCqImg2 !== -1) {
+                                setDiagramCrop({ unit: '%', width: 30, x: 5, y: 5, height: 30 })
+                                setDiagramCropIdx(firstCqImg2)
+                              }
                             }
                           } catch (err) {
                             toast.dismiss('scan-retry')

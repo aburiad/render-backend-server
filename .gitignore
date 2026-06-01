@@ -31,6 +31,9 @@ proshno-shala-v1-server
 *.sln
 *.sw?
 
+# Nested repo disabled git
+.git_disabled/
+
 # Env
 .env
 .env.local

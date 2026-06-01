@@ -682,7 +682,50 @@ function QuestionBody({ q, outerColumns = 1 }) {
 }
 
 function SimpleQuestion({ q }) {
-  return <MathText text={q.question || q.text || ''} />
+  const imgMaxH = q.image_height ? pxToMm(q.image_height) : undefined
+  const imgMaxW = q.image_width ? pxToMm(q.image_width) : undefined
+  return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'baseline' }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <MathText text={q.question || q.text || ''} />
+        {q.image && <QuestionImage src={q.image} maxHeight={imgMaxH} maxWidth={imgMaxW} />}
+      </div>
+      {q.marks ? (
+        <span style={{ fontWeight: 600, flexShrink: 0, whiteSpace: 'nowrap' }}>{q.marks}</span>
+      ) : null}
+    </div>
+  )
+}
+
+/** Convert px to mm (96 DPI: 1mm ≈ 3.78px). */
+function pxToMm(px) {
+  return typeof px === 'number' && px > 0 ? `${(px / 3.78).toFixed(1)}mm` : undefined
+}
+
+/** Reusable image renderer for question diagrams in PDF/print output. */
+function QuestionImage({ src, maxHeight = '60mm', maxWidth = '100%' }) {
+  return (
+    <div
+      style={{
+        margin: '6px 0',
+        textAlign: 'center',
+        breakInside: 'avoid',
+        pageBreakInside: 'avoid',
+      }}
+    >
+      <img
+        src={src}
+        alt=""
+        style={{
+          maxWidth,
+          maxHeight,
+          objectFit: 'contain',
+          display: 'inline-block',
+        }}
+        crossOrigin="anonymous"
+      />
+    </div>
+  )
 }
 
 function McqQuestion({ q, outerColumns = 1 }) {
@@ -731,6 +774,8 @@ function McqQuestion({ q, outerColumns = 1 }) {
 }
 
 function CqQuestion({ q }) {
+  const stimImgH = q.stimulus_image_height ? pxToMm(q.stimulus_image_height) : undefined
+  const stimImgW = q.stimulus_image_width ? pxToMm(q.stimulus_image_width) : undefined
   return (
     <div>
       {q.stimulus && (
@@ -739,33 +784,17 @@ function CqQuestion({ q }) {
           text={q.stimulus}
           style={{
             margin: '2px 0 4px',
-            // Stimulus often spans multiple lines — keep it together on one page
             breakInside: 'avoid',
             pageBreakInside: 'avoid',
           }}
         />
       )}
       {q.stimulus_image && (
-        <div
-          style={{
-            margin: '6px 0',
-            textAlign: 'center',
-            breakInside: 'avoid',
-            pageBreakInside: 'avoid',
-          }}
-        >
-          <img
-            src={q.stimulus_image}
-            alt=""
-            style={{
-              maxWidth: '100%',
-              maxHeight: '90mm',
-              objectFit: 'contain',
-              display: 'inline-block',
-            }}
-            crossOrigin="anonymous"
-          />
-        </div>
+        <QuestionImage
+          src={q.stimulus_image}
+          maxHeight={stimImgH || '90mm'}
+          maxWidth={stimImgW}
+        />
       )}
       <SubQuestionGrid
         subs={q.sub_questions || []}

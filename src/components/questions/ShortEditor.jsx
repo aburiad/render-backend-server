@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathLiveEditor from './MathLiveEditor'
 import AutoTextarea from '@/components/shared/AutoTextarea'
+import ImageUploadButton from '@/components/shared/ImageUploadButton'
 import { MathPreview } from '@/utils/mathRender'
 
 export default function ShortEditor({ question }) {
@@ -26,6 +27,11 @@ export default function ShortEditor({ question }) {
         </div>
         <MathPreview text={question.question} />
       </div>
+      <ImageUploadButton
+        value={question.image || null}
+        onChange={(img) => updateQuestion(question.id, { image: img })}
+        label="📷 ডায়াগ্রাম/ছবি"
+      />
       <div className="flex items-center gap-2">
         <label className="text-xs text-gray-500">নম্বর:</label>
         <input

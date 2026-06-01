@@ -91,6 +91,7 @@ const QUESTION_TYPE_PROMPTS = {
     format: {
       type: 'CQ',
       stimulus: 'উদ্দীপক - copy exactly the full stimulus/passage',
+      has_stimulus_image: 'true if the stimulus contains a diagram, figure, chart, graph, map, or image; false if text-only',
       sub_questions: 'array of sub-questions ক, খ, গ, ঘ'
     },
     examples: `Example output:
@@ -98,6 +99,7 @@ const QUESTION_TYPE_PROMPTS = {
   {
     "type": "CQ",
     "stimulus": "পদ্মা সেতু বাংলাদেশের সবচেয়ে বড় সেতু। এটি ঢাকা থেকে মাওয়া পর্যন্ত বিস্তৃত।",
+    "has_stimulus_image": false,
     "sub_questions": [
       {
         "label": "ক",
@@ -119,6 +121,8 @@ const QUESTION_TYPE_PROMPTS = {
 ]`,
     specialRules: [
       'Extract the FULL stimulus - every word, every sentence',
+      'If the stimulus has a diagram, figure, chart, graph, map, or any image, set has_stimulus_image to true',
+      'If the stimulus is text-only (no images/diagrams), set has_stimulus_image to false',
       'Extract ALL sub-questions ক, খ, গ, ঘ if visible',
       'Copy the label exactly (ক, খ, গ, ঘ or a, b, c, d)',
       'Extract marks for each sub-question if visible',

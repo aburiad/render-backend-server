@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import usePaperStore from '@/store/paperStore'
 import MathLiveEditor from './MathLiveEditor'
 import AutoTextarea from '@/components/shared/AutoTextarea'
+import ImageUploadButton from '@/components/shared/ImageUploadButton'
 import { MathPreview } from '@/utils/mathRender'
 
 // Reusable textarea + math/arabic keyboard buttons — same pattern as CqEditor
@@ -633,6 +634,15 @@ export default function GenericEditor({ question }) {
     <div className="flex flex-col gap-4">
       {renderFields()}
 
+      <ImageUploadButton
+        value={question.image || null}
+        onChange={(img) => handleUpdate({ image: img })}
+        imageHeight={question.image_height}
+        imageWidth={question.image_width}
+        onHeightChange={(v) => handleUpdate({ image_height: v })}
+        onWidthChange={(v) => handleUpdate({ image_width: v })}
+        label="📷 ডায়াগ্রাম/ছবি"
+      />
       {!isPassage && (
         <div className="flex flex-col gap-1.5 pt-2.5 border-t border-slate-100">
           <label className="text-xs font-bold text-gray-500">নম্বর (Marks)</label>
