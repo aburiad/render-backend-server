@@ -37,12 +37,14 @@ function parseQuestionsJson(raw) {
 // Provider timeout: how long we give a single provider's chat() call before
 // considering it failed and falling back.
 //   - Vercel: 8s (hard 10s function limit)
-//   - Render: 15s (no queue, direct calls)
-// Gemini vision typically responds in 3-7s. If all keys rate-limited,
-// hedge fires at 8s and fallbacks take over — total ~10-15s.
-// NOTE: hardcoded — env var AI_PROVIDER_TIMEOUT_MS is intentionally IGNORED
-// because old Render deployments may have it set to 90000 which causes 60s+ waits.
-const PROVIDER_TIMEOUT_MS = process.env.VERCEL === '1' ? 8000 : 15000
+//   - Render: 60s (includes queue wait time — Gemini's async.queue with
+//     concurrency=4 means 20 requests = 5 batches × ~5s = 25s queue wait.
+//     The actual API call takes 3-7s. 60s gives plenty of room.)
+//
+// This is NOT user-facing latency — the hedge mechanism (8-10s) fires
+// fallbacks quickly so users get responses from Mistral within ~13s even
+// while Gemini is still queued.
+const PROVIDER_TIMEOUT_MS = process.env.VERCEL === '1' ? 8000 : 60000
 
 // Hedging: fire fallbacks after this delay if preferred hasn't responded.
 // On Render (persistent server) the timeout is 30s, so we can afford a
@@ -91,8 +93,10 @@ function getHedgeDelay(params) {
     // gemini module not loaded — use base delay
   }
 
-  // Cap at provider timeout minus 2s safety buffer
-  return Math.min(delay, PROVIDER_TIMEOUT_MS - 2000)
+  // Cap hedge at 10s — even with queue, we want fallbacks to fire quickly.
+  // Users get Mistral response in ~13s while Gemini processes through queue.
+  // Provider timeout (60s) gives Gemini enough room to finish all batches.
+  return Math.min(delay, 10000)
 }
 
 function withTimeout(promise, ms, label) {

@@ -166,9 +166,6 @@ export default function PaperEditor() {
   const [showBookGenerate, setShowBookGenerate] = useState(false)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showMoreTypes, setShowMoreTypes] = useState(false)
-  const [quickPrompt, setQuickPrompt] = useState('')
-  const [quickLoading, setQuickLoading] = useState(false)
-  const [quickProgress, setQuickProgress] = useState(null) // { chapter, type, total, done }
 
   const currentPaper = usePaperStore((s) => s.currentPaper)
   const questions = usePaperStore((s) => s.questions)
@@ -389,76 +386,6 @@ export default function PaperEditor() {
     }
   }
 
-  // Helper: convert class number to Bengali display format
-  const toBengaliClass = (num) => {
-    const map = { 6: '৬ম', 7: '৭ম', 8: '৮ম', 9: '৯ম', 10: '১০ম' }
-    return map[num] || (num ? `${num}ম` : '')
-  }
-
-  // Helper: convert English subject key to Bengali display name
-  const toBengaliSubject = (key) => {
-    const map = {
-      bangla: 'বাংলা', english: 'ইংরেজি', math: 'গণিত', science: 'বিজ্ঞান',
-      accounting: 'হিসাববিজ্ঞান', physics: 'পদার্থবিজ্ঞান', chemistry: 'রসায়ন',
-      biology: 'জীববিজ্ঞান', ict: 'তথ্য ও যোগাযোগ প্রযুক্তি',
-      bgs: 'বাংলাদেশ ও বিশ্বপরিচয়', religion: 'ধর্ম', islam: 'ইসলাম',
-    }
-    return map[key?.toLowerCase()] || key || ''
-  }
-
-  const handleQuickPrompt = async () => {
-    if (!quickPrompt.trim() || quickLoading) return
-    setQuickLoading(true)
-    setQuickProgress({ step: 'parsing', message: 'প্রম্পট বিশ্লেষণ করা হচ্ছে...' })
-    try {
-      const { data } = await api.post('/book/smart-prompt', { prompt: quickPrompt.trim() }, { timeout: 60_000 })
-      
-      // Filter out empty questions
-      const validQuestions = (data.questions || []).filter(q => {
-        const hasContent = q.type === 'MCQ' ? q.question?.trim() :
-                          q.type === 'CQ' ? (q.question?.trim() || q.stimulus?.trim()) :
-                          q.question?.trim()
-        return hasContent
-      })
-      
-      window.dispatchEvent(new CustomEvent('credits-changed'))
-      
-      if (validQuestions.length === 0) {
-        toast.error('প্রশ্ন তৈরি করতে ব্যর্থ। AI rate limit পার হয়ে গেছে। ১-২ মিনিট পর আবার চেষ্টা করুন।')
-      } else {
-        validQuestions.forEach(q => addQuestion(q))
-        const dbCount = data.dbCount || 0
-        const aiCount = data.aiCount || 0
-        if (aiCount > 0) {
-          toast.success(`📚 ${dbCount}টি + 🤖 ${aiCount}টি = ${data.count}টি প্রশ্ন যোগ হয়েছে`)
-        } else {
-          toast.success(`${validQuestions.length}টি প্রশ্ন যোগ হয়েছে`)
-        }
-
-        // Auto-fill paper setup from parsed prompt data
-        if (data.parsed) {
-          const updates = {}
-          if (data.parsed.class && !currentPaper?.class_name?.trim()) {
-            updates.class_name = toBengaliClass(data.parsed.class)
-          }
-          if (data.parsed.subject && !currentPaper?.subject?.trim()) {
-            updates.subject = toBengaliSubject(data.parsed.subject)
-          }
-          if (Object.keys(updates).length > 0) {
-            updatePaper(updates)
-          }
-        }
-
-        setQuickPrompt('')
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'প্রশ্ন তৈরি করতে ব্যর্থ')
-    } finally {
-      setQuickLoading(false)
-      setQuickProgress(null)
-    }
-  }
-
   if (loading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
@@ -473,39 +400,6 @@ export default function PaperEditor() {
 
   return (
     <>
-      {/* ── Full-screen Loading Overlay for Smart Prompt ────────────────────── */}
-      <AnimatePresence>
-        {quickLoading && quickProgress && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 9999,
-              background: 'rgba(255, 255, 255, 0.95)',
-              backdropFilter: 'blur(8px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexDirection: 'column',
-              gap: 20,
-            }}
-          >
-            <Spinner size={48} color="#7c3aed" />
-            <div style={{ textAlign: 'center' }}>
-              <h3 style={{ fontSize: 18, fontWeight: 800, color: '#1e293b', margin: '0 0 8px' }}>
-                {quickProgress.message}
-              </h3>
-              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-                দয়া করে অপেক্ষা করুন, প্রশ্ন তৈরি হচ্ছে...
-              </p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
       
       {/* ── Top Bar (Desktop Only) /*─────────────────────────────────────────── */}
       <div className="hidden lg:flex items-center justify-between mb-5">
@@ -674,47 +568,9 @@ export default function PaperEditor() {
 
         {questions.length === 0 && (
           <div style={{ padding: '32px 20px', background: '#fff', borderRadius: 24, border: '1px solid #f1f5f9' }}>
-            {/* Smart Prompt Hero */}
             <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>কী প্রশ্ন চান? লিখে বলুন</h3>
-              <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>বাংলা বা ইংরেজিতে লিখুন — AI বুঝে নেবে</p>
-            </div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-              <input
-                value={quickPrompt}
-                onChange={(e) => setQuickPrompt(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleQuickPrompt()}
-                placeholder="যেমন: ক্লাস ৯ গণিত ২য় অধ্যায় থেকে ১০টা MCQ দাও"
-                style={{
-                  flex: 1, padding: '12px 16px', borderRadius: 14, border: '1px solid #e2e8f0',
-                  fontSize: 13, fontWeight: 500, outline: 'none', background: '#f8fafc',
-                }}
-              />
-              <button
-                onClick={handleQuickPrompt}
-                disabled={!quickPrompt.trim() || quickLoading}
-                className="btn-press"
-                style={{
-                  padding: '8px 16px', borderRadius: 14, border: 'none',
-                  background: quickPrompt.trim() ? '#7c3aed' : '#e2e8f0',
-                  color: quickPrompt.trim() ? '#fff' : '#94a3b8',
-                  fontSize: 13, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap',
-                  boxShadow: quickPrompt.trim() ? '0 4px 12px rgba(124,58,237,0.3)' : 'none',
-                }}
-              >
-                {quickLoading ? <Spinner size={14} color="#fff" /> : 'বানাও'}
-              </button>
-            </div>
-            <div style={{ textAlign: 'center', marginBottom: 20 }}>
-              <p style={{ fontSize: 10, color: '#cbd5e1', margin: 0 }}>
-                💡 উদাহরণ: "class 8 science chapter 3 theke 5ta creative question"
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <div style={{ flex: 1, height: 1, background: '#f1f5f9' }} />
-              <span style={{ fontSize: 10, fontWeight: 700, color: '#cbd5e1' }}>অন্য উপায়</span>
-              <div style={{ flex: 1, height: 1, background: '#f1f5f9' }} />
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: '#1e293b', margin: '0 0 4px' }}>প্রশ্ন তৈরি করুন</h3>
+              <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>নিচের যেকোনো উপায় বেছে নিন</p>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>

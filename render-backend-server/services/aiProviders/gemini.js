@@ -12,10 +12,6 @@
 //
 // Gemma 4 models: Unlimited TPM + 1.5K RPD × 5 keys = 15K text calls/day!
 // Per-key total (all models): ~3.5K RPD × 5 keys = 17.5K calls/day on Gemini
-//
-// Updated: Removed async.queue bottleneck. Direct calls with round-robin
-// key distribution handles concurrent load efficiently — matches Vercel's
-// proven approach (20/20 Gemini, avg 8.9s vs old queue's 15/20, avg 10.2s).
 const VISION_MODELS = [
   'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD 🏆 HIGHEST QUOTA
   'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
@@ -23,13 +19,46 @@ const VISION_MODELS = [
   'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
 ]
 const TEXT_MODELS = [
-  'gemma-4-31b-it',          // 15 RPM, Unlimited TPM, 1.5K RPD 🏆 TEXT #1
-  'gemma-4-26b-a4b-it',      // 15 RPM, Unlimited TPM, 1.5K RPD 🏆 TEXT #2
-  'gemini-3.1-flash-lite',   // 15 RPM, 500 RPD — fallback
-  'gemini-3.5-flash',        // 5 RPM, 20 RPD — fast (~5s)
-  'gemini-2.5-flash-lite',   // 10 RPM, 20 RPD — fast (~5.5s)
-  'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
+  'gemini-3.1-flash-lite',   // 15 RPM, 250K TPM, 500 RPD 🏆 TEXT #1 (native JSON)
+  'gemini-3.5-flash',        // 5 RPM, 250K TPM, 20 RPD — fast (~5s)
+  'gemini-2.5-flash-lite',   // 10 RPM, 250K TPM, 20 RPD — fast (~5.5s)
+  'gemini-2.5-flash',        // 5 RPM, 250K TPM, 20 RPD — good quality (~9s)
+  'gemma-4-31b-it',          // 15 RPM, Unlimited TPM, 1.5K RPD — fallback (echoes JSON)
+  'gemma-4-26b-a4b-it',      // 15 RPM, Unlimited TPM, 1.5K RPD — fallback
 ]
+
+const async = require('async')
+
+// ── Queue (async.queue, concurrency=4) ──────────────────────────────────
+// Render = single persistent process with a shared event loop. Without a
+// queue, 20 concurrent requests all hit Gemini simultaneously, causing
+// retry cascades (20 requests × 20 attempts = 400 API calls) that choke
+// the event loop → 60s+ response times and 5-15% failure rate.
+//
+// With concurrency=4, the queue processes 4 requests at a time. This
+// matches Gemini's rate limits (5 keys × 15 RPM = ~1 request/200ms per key)
+// and keeps the event loop calm. Queue-aware hedge delay in aiService.js
+// adjusts the hedge timer based on queue depth so fallbacks fire at the
+// right time.
+//
+// Vercel = serverless (isolated per request) — queue is harmless there
+// since each function invocation has at most 1 request.
+const QUEUE_CONCURRENCY = 4
+
+const geminiQueue = async.queue(async (task) => {
+  return await task.fn()
+}, QUEUE_CONCURRENCY)
+
+// NOTE: async.queue push() is callback-based, NOT Promise-based.
+// We wrap push in a Promise so chat() can await the result.
+function queuePush(fn) {
+  return new Promise((resolve, reject) => {
+    geminiQueue.push({ fn }, (err, result) => {
+      if (err) reject(err)
+      else resolve(result)
+    })
+  })
+}
 
 // Translate OpenAI-style messages to Gemini-style contents
 function convertMessagesToGemini(messages) {
@@ -70,7 +99,7 @@ function convertMessagesToGemini(messages) {
   })
 }
 
-async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision }) {
+async function tryModel({ apiKey, model, messages, jsonMode, temperature }) {
   const URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
 
   const contents = convertMessagesToGemini(messages.filter(m => m.role !== 'system'))
@@ -90,7 +119,16 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   ]
 
   if (jsonMode) {
-    generationConfig.responseMimeType = 'application/json'
+    // Gemma models don't support responseMimeType — they return JSON schemas
+    // like {"type": string} instead of actual data. Skip for Gemma; the prompt
+    // already asks for JSON output and parseQuestionsJson() handles extraction.
+    // Gemini Flash models (vision) are unaffected — they support it fully.
+    if (!model.startsWith('gemma')) {
+      generationConfig.responseMimeType = 'application/json'
+      console.log(`[gemini] model=${model} → responseMimeType=application/json`)
+    } else {
+      console.log(`[gemini] model=${model} → SKIPPING responseMimeType (Gemma fix)`)
+    }
   }
 
   const body = { contents, generationConfig, safetySettings }
@@ -138,7 +176,13 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   }
 
   const data = await res.json()
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  if (text) {
+    console.log(`[gemini] ✓ model=${model} response (${text.length} chars): ${text.slice(0, 200)}`)
+  } else {
+    console.warn(`[gemini] ⚠ model=${model} returned empty. Full response:`, JSON.stringify(data).slice(0, 500))
+  }
+  return text
 }
 
 // Cache quota-exhausted models so we don't waste time retrying them.
@@ -159,10 +203,8 @@ function isModelQuotaExhausted(model) {
 let rrCounter = 0
 const cooldowns = {}
 
-// Direct chat — no queue bottleneck. Round-robin distributes concurrent
-// requests across keys automatically. Each of 5 keys handles 15 RPM,
-// so 5 keys × 15 RPM = 75 RPM sustained throughput without queuing.
-async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
+// Core logic — tries models × keys with retry. Runs INSIDE the queue.
+async function _chatDirect({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey }) {
   let apiKeys = []
   if (providedKey) {
     apiKeys.push(providedKey)
@@ -223,7 +265,7 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
 
     for (const apiKey of apiKeys) {
       try {
-        const text = await tryModel({ apiKey, model, messages, jsonMode, temperature, vision })
+        const text = await tryModel({ apiKey, model, messages, jsonMode, temperature })
         if (text) return text
       } catch (err) {
         lastErr = err
@@ -252,9 +294,21 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   throw lastErr || new Error('Gemini: all keys failed')
 }
 
-// Stub getQueueInfo for aiService compatibility (no queue = always empty)
+// Public chat — queues requests with concurrency control.
+// On Render (persistent server), this prevents event loop congestion by
+// limiting concurrent Gemini API calls to 4. On Vercel (serverless), each
+// function has at most 1 request so the queue is effectively a no-op.
+async function chat(params) {
+  return queuePush(() => _chatDirect(params))
+}
+
+// Queue info for aiService.js queue-aware hedge delay
 function getQueueInfo() {
-  return { waiting: 0, active: 0, concurrency: 5 }
+  return {
+    waiting: geminiQueue.waiting,
+    active: geminiQueue.active,
+    concurrency: QUEUE_CONCURRENCY,
+  }
 }
 
 module.exports = { name: 'gemini', supportsVision: true, supportsText: true, chat, getQueueInfo }

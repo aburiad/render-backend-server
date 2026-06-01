@@ -183,10 +183,18 @@ app.get('/api/health', async (_req, res) => {
       supabaseOk = !error
     }
   } catch { /* swallow */ }
+  // Read provider timeout for diagnostic purposes
+  const timeoutMs = process.env.VERCEL === '1' ? 8000 : 60000
+
   res.json({
     status: 'ok',
     supabase: supabaseOk ? 'reachable' : 'unreachable',
     timestamp: new Date().toISOString(),
+    debug: {
+      providerTimeoutMs: timeoutMs,
+      envTimeout: process.env.AI_PROVIDER_TIMEOUT_MS || 'not set',
+      vercel: process.env.VERCEL || 'not set',
+    },
   })
 })
 
