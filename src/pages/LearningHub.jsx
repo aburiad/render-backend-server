@@ -835,109 +835,150 @@ function ExtraTab() {
 
 /* ─── Tab 5: Plans & Payment ────────────────────────────────── */
 function PlanTab() {
-  const plans = [
-    {
-      tier: 'ফ্রি (Free)',
-      color: '#94a3b8',
-      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth={1.8}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>,
-      features: ['১০টি প্রশ্নপত্র', '৩০টি প্রশ্ন ব্যাংকে সেভ', 'মাসে ৩০টি AI স্ক্যান', 'ওয়াটারমার্ক থাকবে'],
-    },
-    {
-      tier: 'ট্রায়াল (Trial)',
-      color: '#2563eb',
-      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth={1.8}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" /></svg>,
-      features: ['আনলিমিটেড প্রশ্নপত্র', 'আনলিমিটেড প্রশ্ন ব্যাংক', 'আনলিমিটেড AI স্ক্যান', 'OMR শিট', 'নিজের লোগো', 'ওয়াটারমার্ক ছাড়া'],
-      popular: true,
-    },
-    {
-      tier: 'প্রো (Pro)',
-      color: '#7c3aed',
-      icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth={1.8}><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg>,
-      features: ['ট্রায়ালের সব ফিচার', 'সর্বোচ্চ ক্রেডিট ব্যালেন্স', 'প্রায়োরিটি সাপোর্ট'],
-    },
-  ]
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Plan Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
-        {plans.map((plan) => (
-          <div key={plan.tier} style={{
-            background: '#fff', border: `1.5px solid \${plan.color}33`,
-            borderRadius: 16, padding: 16, display: 'flex',
-            flexDirection: 'column', gap: 8, position: 'relative',
-          }}>
-            {plan.popular && (
-              <div style={{
-                position: 'absolute', top: -8, right: 12,
-                background: plan.color, color: '#fff',
-                padding: '2px 8px', borderRadius: 6,
-                fontSize: 8, fontWeight: 800, letterSpacing: '0.05em',
-              }}>POPULAR</div>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {plan.icon}
-              <h3 style={{ fontSize: 15, fontWeight: 800, color: plan.color, margin: 0 }}>
-                {plan.tier}
-              </h3>
-            </div>
-            <ul style={{ paddingLeft: 8, margin: 0, fontSize: 11.5, color: '#334155', lineHeight: 1.8, listStyle: 'none' }}>
-              {plan.features.map((f, i) => (
-                <li key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <IconCheck size={12} color={plan.color} />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
+      {/* Credit System Banner */}
+      <div style={{
+        background: 'linear-gradient(135deg, #0f172a, #1e293b)',
+        borderRadius: 18, padding: 20, color: '#fff',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        <div style={{ position: 'absolute', top: -15, right: -15, width: 70, height: 70, borderRadius: '50%', background: 'rgba(255,255,255,0.05)' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+          <span style={{ fontSize: 22 }}>💰</span>
+          <h3 style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>
+            ক্রেডিট সিস্টেম
+          </h3>
+        </div>
+        <p style={{ fontSize: 13, lineHeight: 1.7, margin: 0, color: '#e2e8f0' }}>
+          কোনো সাবস্ক্রিপশন নেই! যত ব্যবহার, তত খরচ। ক্রেডিট কখনো expire হবে না।
+        </p>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
+            🎯 মাত্র <span style={{ color: '#60a5fa' }}>১০ ৳</span> প্রতি পেপার
           </div>
-        ))}
+          <div style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.1)', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>
+            ⚡ ১ পেপার = <span style={{ color: '#60a5fa' }}>২৫ AI prompt</span>
+          </div>
+        </div>
+      </div>
+
+      {/* How Credit Works */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
+        <div style={{
+          background: '#fff', border: '1.5px solid #dbeafe',
+          borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eff6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+            💰
+          </div>
+          <h4 style={{ fontSize: 14, fontWeight: 800, color: '#1e40af', margin: 0 }}>টপ-আপ করুন</h4>
+          <ul style={{ paddingLeft: 0, margin: 0, fontSize: 11, color: '#334155', lineHeight: 1.8, listStyle: 'none' }}>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconCheck size={12} color="#2563eb" />
+              <span>১০ ৳ থেকে শুরু</span>
+            </li>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconCheck size={12} color="#2563eb" />
+              <span>bKash / Nagad / Rocket</span>
+            </li>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconCheck size={12} color="#2563eb" />
+              <span>ক্রেডিট কখনো expire নয়</span>
+            </li>
+          </ul>
+        </div>
+
+        <div style={{
+          background: '#fff', border: '1.5px solid #d1fae5',
+          borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#ecfdf5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+            ⚡
+          </div>
+          <h4 style={{ fontSize: 14, fontWeight: 800, color: '#065f46', margin: 0 }}>AI ব্যবহার করুন</h4>
+          <ul style={{ paddingLeft: 0, margin: 0, fontSize: 11, color: '#334155', lineHeight: 1.8, listStyle: 'none' }}>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconCheck size={12} color="#059669" />
+              <span>ছবি স্ক্যান (AI)</span>
+            </li>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconCheck size={12} color="#059669" />
+              <span>বই থেকে প্রশ্ন জেনারেট</span>
+            </li>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconCheck size={12} color="#059669" />
+              <span>AI fail = ক্রেডিট ফেরত</span>
+            </li>
+          </ul>
+        </div>
+
+        <div style={{
+          background: '#fff', border: '1.5px solid #ede9fe',
+          borderRadius: 16, padding: 16, display: 'flex', flexDirection: 'column', gap: 8,
+        }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#f5f3ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+            📝
+          </div>
+          <h4 style={{ fontSize: 14, fontWeight: 800, color: '#5b21b6', margin: 0 }}>ফ্রি ফিচার</h4>
+          <ul style={{ paddingLeft: 0, margin: 0, fontSize: 11, color: '#334155', lineHeight: 1.8, listStyle: 'none' }}>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconCheck size={12} color="#7c3aed" />
+              <span>ম্যানুয়াল টাইপ ফ্রি</span>
+            </li>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconCheck size={12} color="#7c3aed" />
+              <span>Edit, PDF ডাউনলোড ফ্রি</span>
+            </li>
+            <li style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <IconCheck size={12} color="#7c3aed" />
+              <span>প্রিন্ট ফ্রি</span>
+            </li>
+          </ul>
+        </div>
       </div>
 
       {/* Payment Steps */}
       <div style={{
-        background: 'linear-gradient(135deg, #0f172a, #1e293b)',
-        borderRadius: 18, padding: 20, color: '#fff',
+        background: '#fff', border: '1px solid #e2e8f0',
+        borderRadius: 18, padding: 18,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.8}>
-            <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
-            <line x1="1" y1="10" x2="23" y2="10" />
-          </svg>
-          <h3 style={{ fontSize: 15, fontWeight: 800, margin: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 12,
+            background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth={1.8}>
+              <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
+              <line x1="1" y1="10" x2="23" y2="10" />
+            </svg>
+          </div>
+          <h3 style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0 }}>
             পেমেন্ট কীভাবে করবেন?
           </h3>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {[
-            'সাইডবার থেকে "Pricing" বা আপগ্রেড ব্যানারে ক্লিক করুন',
-            'Pro প্ল্যান সিলেক্ট করুন',
-            'পেমেন্ট নম্বর দেখাবে — bKash/Nagad/Rocket-এ টাকা পাঠান',
+            'সাইডবার থেকে "Pricing" পেজে যান',
+            'টপ-আপ অপশন থেকে amount বাছাই করুন (১০ ৳ থেকে শুরু)',
+            'bKash / Nagad / Rocket-এ টাকা পাঠান',
             'Transaction ID লিখুন এবং স্ক্রিনশট আপলোড করুন',
-            'অ্যাডমিন ভেরিফাই করলে আপনার অ্যাকাউন্ট Pro হয়ে যাবে!',
+            'ভেরিফাই হলে ক্রেডিট যোগ হবে — সাথে সাথে ব্যবহার শুরু!',
           ].map((step, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
-                width: 20, height: 20, borderRadius: 6,
-                background: 'rgba(255,255,255,0.1)',
+                width: 22, height: 22, borderRadius: 6,
+                background: '#eff6ff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontSize: 9, fontWeight: 800, color: '#60a5fa', flexShrink: 0,
+                fontSize: 10, fontWeight: 800, color: '#2563eb', flexShrink: 0,
               }}>{i + 1}</div>
-              <span style={{ fontSize: 12, color: '#e2e8f0', lineHeight: 1.55 }}>{step}</span>
+              <span style={{ fontSize: 12, color: '#334155', lineHeight: 1.55 }}>{step}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* Tips */}
-      <div style={{
-        background: '#eff6ff', border: '1px solid #bfdbfe',
-        borderRadius: 14, padding: 14, textAlign: 'center',
-      }}>
-        <p style={{ fontSize: 12, color: '#1e40af', margin: 0, lineHeight: 1.65 }}>
-          🎁 নতুন অ্যাকাউন্ট খুললেই <strong>ফ্রি ট্রায়াল</strong> পাবেন! ট্রায়াল চলাকালীন সব Pro ফিচার ব্যবহার করুন।
-        </p>
-      </div>
-
       <div style={{
         background: '#fefce8', border: '1px solid #fde68a',
         borderRadius: 14, padding: 14, textAlign: 'center',
