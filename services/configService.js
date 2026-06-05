@@ -11,6 +11,12 @@ const DEFAULT_BACKEND_CONFIG = {
   render_url: '',     // e.g. https://proshno-api.onrender.com
 }
 
+const DEFAULT_PDF_SERVER_CONFIG = {
+  active: 'auto',                                                          // 'auto' | 'render' | 'hfspace'
+  render_url: 'https://proshno-shala-pdf.onrender.com',
+  hfspace_url: 'https://riadahsan-proshno-shala-pdf.hf.space',
+}
+
 const DEFAULT_RATE_LIMITS = {
   ai: {
     max: 30, // limit when user uses SYSTEM AI keys (our cost)
@@ -155,6 +161,15 @@ function normalizeBackendConfig(input) {
   return out
 }
 
+function normalizePdfServerConfig(input) {
+  const out = { ...DEFAULT_PDF_SERVER_CONFIG }
+  if (!input || typeof input !== 'object') return out
+  if (['auto', 'render', 'hfspace'].includes(input.active)) out.active = input.active
+  if (typeof input.render_url === 'string') out.render_url = input.render_url.trim().replace(/\/$/, '')
+  if (typeof input.hfspace_url === 'string') out.hfspace_url = input.hfspace_url.trim().replace(/\/$/, '')
+  return out
+}
+
 function rowToConfig(row) {
   if (!row) return null
   return {
@@ -167,6 +182,7 @@ function rowToConfig(row) {
     creditConfig: normalizeCreditConfig(row.credit_config),
     aiProviderConfig: normalizeAiProviderConfig(row.ai_provider_config),
     backendConfig: normalizeBackendConfig(row.backend_config),
+    pdfServerConfig: normalizePdfServerConfig(row.pdf_server_config),
     updatedAt: row.updated_at,
   }
 }
@@ -235,6 +251,12 @@ const configService = {
           : newConfig.backendConfig !== undefined
           ? normalizeBackendConfig(newConfig.backendConfig)
           : undefined,
+      pdf_server_config:
+        newConfig.pdf_server_config !== undefined
+          ? normalizePdfServerConfig(newConfig.pdf_server_config)
+          : newConfig.pdfServerConfig !== undefined
+          ? normalizePdfServerConfig(newConfig.pdfServerConfig)
+          : undefined,
       updated_at: new Date().toISOString(),
     }
     Object.keys(patch).forEach((k) => patch[k] === undefined && delete patch[k])
@@ -254,3 +276,4 @@ module.exports.DEFAULT_RATE_LIMITS = DEFAULT_RATE_LIMITS
 module.exports.DEFAULT_CREDIT_CONFIG = DEFAULT_CREDIT_CONFIG
 module.exports.DEFAULT_AI_PROVIDER_CONFIG = DEFAULT_AI_PROVIDER_CONFIG
 module.exports.DEFAULT_BACKEND_CONFIG = DEFAULT_BACKEND_CONFIG
+module.exports.DEFAULT_PDF_SERVER_CONFIG = DEFAULT_PDF_SERVER_CONFIG
