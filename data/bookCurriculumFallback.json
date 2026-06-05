@@ -1,4 +1,156 @@
 {
+  "6": {
+    "label": "Class 6 — ষষ্ঠ শ্রেণি",
+    "icon": "📚",
+    "subjects": {
+      "math": {
+        "label": "গণিত",
+        "labelEn": "Mathematics",
+        "icon": "🔢",
+        "color": "#3498db",
+        "chapters": [
+          {
+            "id": "ch-1",
+            "title": "১. স্বাভাবিক সংখ্যা ও ভগ্নাংশ",
+            "icon": "🔢",
+            "pages": "1-37",
+            "subchapters": [
+              { "id": "1.1", "title": "অঙ্কপাতন", "titleEn": "Number Notation", "type": "concept" },
+              { "id": "1.2", "title": "দেশীয় সংখ্যাপঠন রীতি", "titleEn": "Bangla Number System", "type": "concept" },
+              { "id": "1.3", "title": "আন্তর্জাতিক গণনা পদ্ধতি", "titleEn": "International Number System", "type": "concept" },
+              { "id": "1.4", "title": "দেশীয় ও আন্তর্জাতিক গণনা রীতির পারস্পরিক সম্পর্ক", "titleEn": "Relation Between Systems", "type": "concept" },
+              { "id": "1.ex1", "title": "অনুশীলনী ১·১", "titleEn": "Exercise 1.1", "type": "exercise" },
+              { "id": "1.5", "title": "মৌলিক ও যৌগিক সংখ্যা", "titleEn": "Prime and Composite Numbers", "type": "concept" },
+              { "id": "1.6", "title": "সহমৌলিক সংখ্যা", "titleEn": "Co-prime Numbers", "type": "concept" },
+              { "id": "1.7", "title": "বিভাজ্যতা", "titleEn": "Divisibility", "type": "concept" },
+              { "id": "1.ex2", "title": "অনুশীলনী ১·২", "titleEn": "Exercise 1.2", "type": "exercise" },
+              { "id": "1.8", "title": "গরিষ্ঠ সাধারণ গুণনীয়ক (গসাগু)", "titleEn": "GCD/HCF", "type": "concept" },
+              { "id": "1.9", "title": "লঘিষ্ঠ সাধারণ গুণিতক (লসাগু)", "titleEn": "LCM", "type": "concept" },
+              { "id": "1.ex3", "title": "অনুশীলনী ১·৩", "titleEn": "Exercise 1.3", "type": "exercise" },
+              { "id": "1.10", "title": "সাধারণ ভগ্নাংশ", "titleEn": "Common Fractions", "type": "concept" },
+              { "id": "1.11", "title": "ভগ্নাংশের তুলনা", "titleEn": "Comparison of Fractions", "type": "concept" },
+              { "id": "1.12", "title": "ভগ্নাংশের যোগ ও বিয়োগ", "titleEn": "Addition & Subtraction of Fractions", "type": "concept" },
+              { "id": "1.ex4", "title": "অনুশীলনী ১·৪", "titleEn": "Exercise 1.4", "type": "exercise" },
+              { "id": "1.13", "title": "ভগ্নাংশের গুণ", "titleEn": "Multiplication of Fractions", "type": "concept" },
+              { "id": "1.14", "title": "ভগ্নাংশের ভাগ", "titleEn": "Division of Fractions", "type": "concept" },
+              { "id": "1.15", "title": "ভগ্নাংশের গুণনীয়ক ও গুণিতক", "titleEn": "Factors & Multiples of Fractions", "type": "concept" },
+              { "id": "1.16", "title": "ভগ্নাংশের গসাগু", "titleEn": "GCD of Fractions", "type": "concept" },
+              { "id": "1.17", "title": "ভগ্নাংশের লসাগু", "titleEn": "LCM of Fractions", "type": "concept" },
+              { "id": "1.18", "title": "ভগ্নাংশের সরলীকরণ", "titleEn": "Simplification of Fractions", "type": "concept" },
+              { "id": "1.ex5", "title": "অনুশীলনী ১·৫", "titleEn": "Exercise 1.5", "type": "exercise" },
+              { "id": "1.19", "title": "দশমিক ভগ্নাংশ", "titleEn": "Decimal Fractions", "type": "concept" },
+              { "id": "1.ex6", "title": "অনুশীলনী ১·৬", "titleEn": "Exercise 1.6", "type": "exercise" },
+              { "id": "1.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
+            ]
+          },
+          {
+            "id": "ch-2",
+            "title": "২. সংখ্যার ধারণা",
+            "icon": "🔢",
+            "pages": "38-46",
+            "subchapters": [
+              { "id": "2.1", "title": "পূর্ণ সংখ্যা", "titleEn": "Integers", "type": "concept" },
+              { "id": "2.ex1", "title": "অনুশীলনী ২·১", "titleEn": "Exercise 2.1", "type": "exercise" },
+              { "id": "2.2", "title": "পূর্ণ সংখ্যার যোগ ও বিয়োগ", "titleEn": "Addition & Subtraction of Integers", "type": "concept" },
+              { "id": "2.ex2", "title": "অনুশীলনী ২·২", "titleEn": "Exercise 2.2", "type": "exercise" },
+              { "id": "2.3", "title": "পূর্ণ সংখ্যার গুণ ও ভাগ", "titleEn": "Multiplication & Division of Integers", "type": "concept" },
+              { "id": "2.ex3", "title": "অনুশীলনী ২·৩", "titleEn": "Exercise 2.3", "type": "exercise" },
+              { "id": "2.4", "title": "পূর্ববর্তী ও পরবর্তী", "titleEn": "Predecessor & Successor", "type": "concept" },
+              { "id": "2.5", "title": "জোড় ও বিজোড়", "titleEn": "Even & Odd", "type": "concept" },
+              { "id": "2.6", "title": "প্রাকৃতিক সংখ্যার সংখ্যারেখায় প্রকাশ", "titleEn": "Numbers on Number Line", "type": "concept" },
+              { "id": "2.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
+            ]
+          },
+          {
+            "id": "ch-3",
+            "title": "৩. সংখ্যার ব্যবহার",
+            "icon": "🔢",
+            "pages": "47-52",
+            "subchapters": [
+              { "id": "3.1", "title": "সংখ্যার ব্যবহার", "titleEn": "Use of Numbers", "type": "concept" },
+              { "id": "3.ex", "title": "অনুশীলনী ৩", "titleEn": "Exercise 3", "type": "exercise" },
+              { "id": "3.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
+            ]
+          },
+          {
+            "id": "ch-4",
+            "title": "৪. বীজগাণিতিক রাশির ধারণা",
+            "icon": "🧮",
+            "pages": "53-57",
+            "subchapters": [
+              { "id": "4.1", "title": "চলক বা চল রাশি", "titleEn": "Variables", "type": "concept" },
+              { "id": "4.2", "title": "সমীকরণ", "titleEn": "Equations", "type": "concept" },
+              { "id": "4.3", "title": "বীজগাণিতিক প্রতীক", "titleEn": "Algebraic Symbols", "type": "concept" },
+              { "id": "4.4", "title": "একপদী, দ্বিপদী ও বহুপদী রাশি", "titleEn": "Monomial, Binomial & Polynomial", "type": "concept" },
+              { "id": "4.5", "title": "বীজগাণিতিক সংক্রিয়া", "titleEn": "Algebraic Operations", "type": "concept" },
+              { "id": "4.ex", "title": "অনুশীলনী ৪", "titleEn": "Exercise 4", "type": "exercise" },
+              { "id": "4.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
+            ]
+          },
+          {
+            "id": "ch-5",
+            "title": "৫. সরল সমীকরণ",
+            "icon": "🟰",
+            "pages": "53-62",
+            "subchapters": [
+              { "id": "5.1", "title": "সমীকরণ", "titleEn": "Equation", "type": "concept" },
+              { "id": "5.2", "title": "সরল সমীকরণ", "titleEn": "Simple Equation", "type": "concept" },
+              { "id": "5.3", "title": "সরল সমীকরণের সমাধান", "titleEn": "Solving Simple Equations", "type": "concept" },
+              { "id": "5.4", "title": "বাস্তব সমস্যার বিচারে সমীকরণ গঠন ও সমাধান", "titleEn": "Word Problems", "type": "concept" },
+              { "id": "5.ex", "title": "অনুশীলনী ৫", "titleEn": "Exercise 5", "type": "exercise" },
+              { "id": "5.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
+            ]
+          },
+          {
+            "id": "ch-6",
+            "title": "৬. জ্যামিতির মৌলিক ধারণা",
+            "icon": "📐",
+            "pages": "63-78",
+            "subchapters": [
+              { "id": "6.1", "title": "স্থান, তল, রেখা ও বিন্দু", "titleEn": "Space, Plane, Line & Point", "type": "concept" },
+              { "id": "6.2", "title": "রেখা, রেখাংশ ও রশ্মি", "titleEn": "Line, Line Segment & Ray", "type": "concept" },
+              { "id": "6.3", "title": "কোণ", "titleEn": "Angle", "type": "concept" },
+              { "id": "6.4", "title": "সমান্তরাল রেখা", "titleEn": "Parallel Lines", "type": "concept" },
+              { "id": "6.ex1", "title": "অনুশীলনী ৬·১", "titleEn": "Exercise 6.1", "type": "exercise" },
+              { "id": "6.5", "title": "ত্রিভুজ", "titleEn": "Triangle", "type": "concept" },
+              { "id": "6.6", "title": "চতুর্ভুজ", "titleEn": "Quadrilateral", "type": "concept" },
+              { "id": "6.ex2", "title": "অনুশীলনী ৬·২", "titleEn": "Exercise 6.2", "type": "exercise" },
+              { "id": "6.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
+            ]
+          },
+          {
+            "id": "ch-7",
+            "title": "৭. ব্যবহারিক জ্যামিতি",
+            "icon": "📏",
+            "pages": "79-88",
+            "subchapters": [
+              { "id": "7.1", "title": "রেখা", "titleEn": "Line", "type": "concept" },
+              { "id": "7.2", "title": "লম্ব", "titleEn": "Perpendicular", "type": "concept" },
+              { "id": "7.3", "title": "কোণ অঙ্কন", "titleEn": "Drawing Angles", "type": "concept" },
+              { "id": "7.ex", "title": "অনুশীলনী ৭", "titleEn": "Exercise 7", "type": "exercise" },
+              { "id": "7.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
+            ]
+          },
+          {
+            "id": "ch-8",
+            "title": "৮. তথ্য ও উপাত্ত",
+            "icon": "📊",
+            "pages": "89-100",
+            "subchapters": [
+              { "id": "8.1", "title": "তথ্য", "titleEn": "Data", "type": "concept" },
+              { "id": "8.2", "title": "বিন্যস্ত ও অবিন্যস্ত উপাত্ত", "titleEn": "Organized & Unorganized Data", "type": "concept" },
+              { "id": "8.3", "title": "গড়", "titleEn": "Mean", "type": "concept" },
+              { "id": "8.4", "title": "মধ্যক", "titleEn": "Median", "type": "concept" },
+              { "id": "8.5", "title": "প্রচুরক", "titleEn": "Mode", "type": "concept" },
+              { "id": "8.6", "title": "রেখাচিত্র", "titleEn": "Line Graph", "type": "concept" },
+              { "id": "8.ex", "title": "অনুশীলনী ৮", "titleEn": "Exercise 8", "type": "exercise" },
+              { "id": "8.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
+            ]
+          }
+        ]
+      }
+    }
+  },
   "7": {
     "label": "Class 7 — সপ্তম শ্রেণি",
     "icon": "📚",
