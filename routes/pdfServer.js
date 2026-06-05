@@ -24,6 +24,40 @@ router.get('/status', (_req, res) => {
   res.json({ success: true, configured: pdfServerClient.isConfigured() })
 })
 
+// GET /api/pdf-server/health-proxy?url=... — server-side proxy to avoid CORS.
+// Admin frontend calls this instead of hitting the PDF server directly.
+router.get('/health-proxy', async (req, res) => {
+  const targetUrl = String(req.query.url || '').trim()
+  if (!targetUrl) return res.status(400).json({ success: false, error: 'url query param required' })
+
+  // Only allow our known PDF server URLs (prevent SSRF)
+  const allowed = [
+    'https://proshno-shala-pdf.onrender.com',
+    'https://riadahsan-proshno-shala-pdf.hf.space',
+  ]
+  const matched = allowed.find(u => targetUrl.startsWith(u))
+  if (!matched) return res.status(403).json({ success: false, error: 'URL not allowed' })
+
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 15000)
+    const healthRes = await fetch(targetUrl, {
+      signal: controller.signal,
+      headers: { 'X-API-Key': process.env.PDF_SERVER_API_KEY || '' },
+    })
+    clearTimeout(timer)
+    const text = await healthRes.text().catch(() => '')
+    res.status(healthRes.status).setHeader('Content-Type', 'application/json')
+    res.send(text)
+  } catch (err) {
+    res.status(502).json({
+      success: false,
+      status: 'unreachable',
+      error: err.name === 'AbortError' ? 'Timeout (15s)' : err.message,
+    })
+  }
+})
+
 // Auth gate for everything after this — the actual PDF render needs
 // a logged-in user (paper ownership check).
 router.use(requireAuth)
