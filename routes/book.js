@@ -86,6 +86,7 @@ router.get('/subchapters/:classNum/:subject/:chapterId', async (req, res, next) 
 router.post('/existing-questions', async (req, res, next) => {
   try {
     const { classNum, subject, selections, filters } = req.body
+    console.log('[existing-questions] body:', JSON.stringify({ classNum, subject, selCount: selections?.length, filters, firstSel: selections?.[0] }))
 
     if (!classNum || !subject || !Array.isArray(selections) || selections.length === 0) {
       throw new AppError('ক্লাস, বিষয় এবং কমপক্ষে ১টি অধ্যায় সিলেক্ট করুন', 400)

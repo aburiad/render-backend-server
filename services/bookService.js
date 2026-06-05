@@ -271,10 +271,19 @@ const bookService = {
         q = q.in('question_type', filters.types)
       }
 
-      const { data, error } = await q.order('ordering', { ascending: true })
+      const limit = sel.count ? Math.min(Math.max(1, sel.count), 50) : 999
+
+      const { data, error } = await q
+        .order('ordering', { ascending: true })
+        .limit(limit)
       if (error) throw error
 
-      for (const row of data || []) {
+      console.log(`[getExistingQuestions] ch=${sel.chapterId} count=${sel.count} limit=${limit} dbRows=${(data || []).length}`)
+
+      // Double-safety: also slice in JS (in case Supabase limit is ignored)
+      const rows = (data || []).slice(0, limit)
+
+      for (const row of rows) {
         results.push({
           id: row.id,
           chapterId: row.chapter_id,
