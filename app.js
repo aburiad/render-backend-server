@@ -27,6 +27,7 @@ const routineRoutes = require('./routes/routine')
 const limitsRoutes = require('./routes/limits')
 const pdfServerRoutes = require('./routes/pdfServer')
 const geometryRoutes = require('./routes/geometry')
+const vaultRoutes = require('./routes/vault')
 
 const app = express()
 // trust proxy: 1 = trust EXACTLY the last hop (Vercel's edge proxy).
@@ -262,8 +263,7 @@ app.use('/api/limits', limitsRoutes)
 app.use('/api/pdf-server', pdfServerRoutes)
 // Geometry AI translation — same limiter as /api/ai (credit-gated, text-only)
 app.use('/api/geometry', requireAuth, isProd ? aiLimiter : noop, geometryRoutes)
-app.use('/api', requireAuth, isProd ? aiLimiter : noop, generateRoutes)
-
+app.use('/api/vault', vaultRoutes)
 app.use(errorHandler)
 
 module.exports = app
