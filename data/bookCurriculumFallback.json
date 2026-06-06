@@ -209,6 +209,23 @@
               { "id": "3.ex", "title": "অনুশীলনী ৩", "titleEn": "Exercise 3", "type": "exercise" },
               { "id": "3.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
             ]
+          },
+          {
+            "id": "ch-11",
+            "title": "১১. তথ্য ও উপাত্ত",
+            "icon": "📊",
+            "pages": "159-174",
+            "subchapters": [
+              { "id": "11.1", "title": "তথ্য ও উপাত্ত", "titleEn": "Information & Data", "type": "concept" },
+              { "id": "11.2", "title": "গণসংখ্যা নিবেশন সারণি", "titleEn": "Frequency Distribution", "type": "concept" },
+              { "id": "11.3", "title": "লেখচিত্র (Histogram + Pie Chart)", "titleEn": "Diagrams", "type": "concept" },
+              { "id": "11.4", "title": "কেন্দ্রীয় প্রবণতা", "titleEn": "Central Tendency", "type": "concept" },
+              { "id": "11.5", "title": "গাণিতিক গড়", "titleEn": "Arithmetic Mean", "type": "concept" },
+              { "id": "11.6", "title": "মধ্যক", "titleEn": "Median", "type": "concept" },
+              { "id": "11.7", "title": "প্রচুরক", "titleEn": "Mode", "type": "concept" },
+              { "id": "11.ex", "title": "অনুশীলনী ১১", "titleEn": "Exercise 11", "type": "exercise" },
+              { "id": "11.sample", "title": "নমুনা প্রশ্ন", "titleEn": "Sample Questions", "type": "sample" }
+            ]
           }
         ]
       }
