@@ -124,17 +124,21 @@ const bookService = {
         chapterNumber: p.metadata?.chapterNumber ?? null,
       }
     })
-    if (fromDb.length > 0) {
-      // Sort by chapter number
-      return fromDb.sort((a, b) => {
-        const aNum = a.chapterNumber ?? parseInt(a.id.replace(/\D/g, '')) ?? 0
-        const bNum = b.chapterNumber ?? parseInt(b.id.replace(/\D/g, '')) ?? 0
-        return aNum - bNum
-      })
-    }
 
     const curriculum = await loadCurriculum()
-    return fallbackChapters(curriculum, classNum, subject)
+    const fromFallback = fallbackChapters(curriculum, classNum, subject)
+
+    // Merge DB + fallback (DB takes priority for matching IDs, fallback fills gaps)
+    const map = new Map()
+    for (const ch of [...fromFallback, ...fromDb]) {
+      map.set(ch.id, ch) // DB entries overwrite fallback for same ID
+    }
+
+    return [...map.values()].sort((a, b) => {
+      const aNum = a.chapterNumber ?? parseInt(String(a.id).replace(/\D/g, '')) ?? 0
+      const bNum = b.chapterNumber ?? parseInt(String(b.id).replace(/\D/g, '')) ?? 0
+      return aNum - bNum
+    })
   },
 
   async getChapterPoints(classNum, subject, chapterIds) {
@@ -236,14 +240,19 @@ const bookService = {
       type: r.payload?.type || 'concept',
       questionCounts: counts[r.subchapter_id] || { mcq: 0, cq: 0, saq: 0, total: 0 },
     }))
-    if (fromDb.length > 0) {
-      return fromDb.sort((a, b) =>
-        String(a.id).localeCompare(String(b.id), 'en', { numeric: true }),
-      )
-    }
 
     const curriculum = await loadCurriculum()
-    return fallbackSubchapters(curriculum, classNum, subject, parentChapterId)
+    const fromFallback = fallbackSubchapters(curriculum, classNum, subject, parentChapterId)
+
+    // Merge DB + fallback (DB takes priority for matching IDs, fallback fills gaps)
+    const map = new Map()
+    for (const s of [...fromFallback, ...fromDb]) {
+      map.set(s.id, s) // DB entries overwrite fallback for same ID
+    }
+
+    return [...map.values()].sort((a, b) =>
+      String(a.id).localeCompare(String(b.id), 'en', { numeric: true }),
+    )
   },
 
   /**
