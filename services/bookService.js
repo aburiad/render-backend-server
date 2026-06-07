@@ -113,7 +113,7 @@ const bookService = {
       .select('chapter_id, title, payload')
       .eq('class_num', classNum)
       .eq('subject', subject)
-      .eq('is_subchapter', false)
+      .neq('is_subchapter', true)   // matches both false AND null (seeded without flag)
     if (error) throw error
     const fromDb = (data || []).map((row) => {
       const p = row.payload || {}
@@ -190,6 +190,7 @@ const bookService = {
         subject,
         chapter_id: chapterId,
         title: chapterData.title || chapterId,
+        is_subchapter: false,   // explicit flag so queries can filter
         payload,
         updated_at: new Date().toISOString(),
       },
