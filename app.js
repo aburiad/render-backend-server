@@ -29,6 +29,7 @@ const pdfServerRoutes = require('./routes/pdfServer')
 const geometryRoutes = require('./routes/geometry')
 const vaultRoutes = require('./routes/vault')
 const primaryRoutes = require('./routes/primary')
+const boardQuestionRoutes = require('./routes/boardQuestions')
 
 const app = express()
 // trust proxy: 1 = trust EXACTLY the last hop (Vercel's edge proxy).
@@ -266,6 +267,8 @@ app.use('/api/pdf-server', pdfServerRoutes)
 app.use('/api/geometry', requireAuth, isProd ? aiLimiter : noop, geometryRoutes)
 app.use('/api/vault', vaultRoutes)
 app.use('/api/primary', primaryRoutes)
+// Board Questions (SSC/HSC board exam questions, read-only from DB)
+app.use('/api/board-questions', boardQuestionRoutes)
 app.use(errorHandler)
 
 module.exports = app
