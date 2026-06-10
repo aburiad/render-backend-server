@@ -1214,6 +1214,114 @@ const QUESTION_TYPE_PROMPTS = {
       'Each question becomes a separate object',
       'space_level is "short" by default — use "none" for higher-class questions'
     ]
+  },
+
+  primary_tracing: {
+    instruction: 'Extract tracing letters/numbers from this nursery/KG worksheet. Output type MUST be "standard_text". Identify each letter or number to be traced.',
+    format: {
+      type: 'standard_text',
+      instruction: 'header instruction if visible, e.g. "নিচের অক্ষরগুলো ট্রেস করো:"',
+      question: 'tracing',
+      tracing_type: '"letter" for alphabets, "number" for digits',
+      tracing_chars: ['array', 'of', 'chars', 'to', 'trace'],
+      space_level: 'none',
+      line_style: 'none',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "নিচের অক্ষরগুলো ডটের ওপর দিয়ে আঁকো:",
+    "question": "tracing",
+    "tracing_type": "letter",
+    "tracing_chars": ["অ", "আ", "ই", "ঈ"],
+    "space_level": "none",
+    "line_style": "none",
+    "marks": "৪"
+  }
+]`,
+    specialRules: [
+      'Output type MUST be "standard_text"',
+      'question field value MUST be the literal string "tracing"',
+      'tracing_type: use "letter" for Bengali/English alphabets, "number" for digits',
+      'tracing_chars: list each character/number visible in the worksheet',
+      'If both letters and numbers are mixed, use tracing_type "letter"'
+    ]
+  },
+
+  primary_number_line: {
+    instruction: 'Extract a number line exercise from this worksheet. Output type MUST be "standard_text". Identify start, end, and the missing/marked numbers.',
+    format: {
+      type: 'standard_text',
+      instruction: 'header instruction if visible',
+      question: 'number_line',
+      nl_start: 'starting number of the line (integer)',
+      nl_end: 'ending number of the line (integer)',
+      nl_jumps: ['array of missing or highlighted numbers'],
+      nl_question: 'the sub-question text if any, e.g. "শূন্যস্থান পূরণ করো"',
+      space_level: 'none',
+      line_style: 'none',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "সংখ্যা রেখায় শূন্যস্থান পূরণ করো:",
+    "question": "number_line",
+    "nl_start": 0,
+    "nl_end": 10,
+    "nl_jumps": [3, 6, 9],
+    "nl_question": "৩, ৬ এবং ৯ এর স্থানে সংখ্যা বসাও।",
+    "space_level": "none",
+    "line_style": "none",
+    "marks": "৩"
+  }
+]`,
+    specialRules: [
+      'Output type MUST be "standard_text"',
+      'question field value MUST be the literal string "number_line"',
+      'nl_start and nl_end must be integers',
+      'nl_jumps: array of the missing/blank positions on the number line',
+      'If jumps are not clearly blank, infer from the pattern (e.g. every 2nd number)'
+    ]
+  },
+
+  primary_visual_math: {
+    instruction: 'Extract a visual/picture math problem (objects counted for addition/subtraction). Output type MUST be "visual_grid". Identify what objects are shown and the operation.',
+    format: {
+      type: 'visual_grid',
+      instruction: 'header instruction if visible',
+      left_asset: 'name of object on left side (e.g. "apple", "ball", "book")',
+      left_count: 'count of left objects (integer)',
+      right_asset: 'name of object on right side (same or different)',
+      right_count: 'count of right objects (integer)',
+      operator: '"+" for addition, "-" for subtraction',
+      math_question: 'the question text, e.g. "মোট আপেল কতটি?"',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "visual_grid",
+    "instruction": "ছবি দেখে যোগ করো:",
+    "left_asset": "apple",
+    "left_count": 3,
+    "right_asset": "apple",
+    "right_count": 2,
+    "operator": "+",
+    "math_question": "মোট আপেল কতটি?",
+    "marks": "২"
+  }
+]`,
+    specialRules: [
+      'Output type MUST be "visual_grid"',
+      'left_asset / right_asset: use simple English noun (apple, ball, book, star, flower)',
+      'left_count / right_count must be integers',
+      'operator: "+" for addition problems, "-" for subtraction problems',
+      'If objects differ on each side, use the same asset name for both if they look similar'
+    ]
   }
 }
 
