@@ -674,6 +674,546 @@ const QUESTION_TYPE_PROMPTS = {
       'Extract any character names if specified',
       'Copy any setting/context provided'
     ]
+  },
+
+  // ─── PRIMARY EDUCATION TYPES (Nursery – Class 5) ───────────────────────────
+
+  primary_passage: {
+    instruction: `Extract the passage/poem (seen or unseen) and all comprehension sub-questions. Output type MUST be "parent_passage".`,
+    format: {
+      type: 'parent_passage',
+      instruction: 'header instruction line if visible, else null',
+      passage_body: 'full passage or poem text — copy every word exactly',
+      sub_questions: [{ type: 'short', text: 'sub-question text', marks: 2 }],
+      marks: 'total marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "parent_passage",
+    "instruction": "নিচের অনুচ্ছেদটি পড়ো এবং প্রশ্নের উত্তর দাও:",
+    "passage_body": "বাংলাদেশ একটি সুন্দর দেশ। এখানে অনেক নদী আছে।",
+    "sub_questions": [
+      { "type": "short", "text": "বাংলাদেশে কী বেশি আছে?", "marks": 2 },
+      { "type": "short", "text": "অনুচ্ছেদটির একটি শিরোনাম দাও।", "marks": 2 }
+    ],
+    "marks": "৪"
+  }
+]`,
+    specialRules: [
+      'Extract the FULL passage or poem — every line, every word',
+      'Preserve line breaks in poems',
+      'Each sub-question gets type: "short" unless it is true/false → use "true_false"',
+      'Copy sub-question numbering exactly (১, ২, ৩ or 1, 2, 3)',
+      'If marks are split per sub-question, copy them into each sub-question marks field'
+    ]
+  },
+
+  primary_cq: {
+    instruction: `Extract the creative question (সৃজনশীল প্রশ্ন) — stimulus/উদ্দীপক followed by ক, খ, গ, ঘ sub-questions. Output type MUST be "parent_passage".`,
+    format: {
+      type: 'parent_passage',
+      instruction: 'header line if visible, else null',
+      passage_body: 'full উদ্দীপক / stimulus text — copy exactly',
+      sub_questions: [{ type: 'short', text: 'ক. sub-question text', marks: 1 }],
+      marks: 'total marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "parent_passage",
+    "instruction": "নিচের উদ্দীপকটি পড়ো এবং প্রশ্নের উত্তর দাও:",
+    "passage_body": "রাহেলা প্রতিদিন স্কুলে যায়। সে পরিষ্কার পোশাক পরে।",
+    "sub_questions": [
+      { "type": "short", "text": "ক. রাহেলা কোথায় যায়?", "marks": 1 },
+      { "type": "short", "text": "খ. সে কেমন পোশাক পরে?", "marks": 2 },
+      { "type": "short", "text": "গ. তুমি কি প্রতিদিন স্কুলে যাও? কেন?", "marks": 3 },
+      { "type": "short", "text": "ঘ. পরিষ্কার থাকা কেন জরুরি ব্যাখ্যা কর।", "marks": 4 }
+    ],
+    "marks": "১০"
+  }
+]`,
+    specialRules: [
+      'Extract full stimulus/উদ্দীপক into passage_body',
+      'Each ক/খ/গ/ঘ sub-question becomes a separate entry in sub_questions with type: "short"',
+      'Preserve the label (ক, খ, গ, ঘ) as prefix in the text field',
+      'Extract marks for each sub-question if visible (typically ১+২+৩+৪)',
+      'If stimulus has image reference, note it as [চিত্র দেখ] in passage_body'
+    ]
+  },
+
+  primary_science_cq: {
+    instruction: `Extract the science/BGS structured question — short scenario followed by 3 sequential sub-questions. Output type MUST be "parent_passage".`,
+    format: {
+      type: 'parent_passage',
+      instruction: 'header line if visible, else null',
+      passage_body: 'short scenario or দৃশ্যপট — copy exactly',
+      sub_questions: [{ type: 'short', text: 'sub-question text', marks: 2 }],
+      marks: 'total marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "parent_passage",
+    "instruction": "নিচের দৃশ্যপটটি পড়ো এবং প্রশ্নের উত্তর দাও:",
+    "passage_body": "করিম সাহেব তার বাগানে সার দিচ্ছেন। তিনি জানেন গাছের জন্য সার দরকার।",
+    "sub_questions": [
+      { "type": "short", "text": "করিম সাহেব কী করছেন?", "marks": 2 },
+      { "type": "short", "text": "গাছের জন্য সার কেন দরকার?", "marks": 3 },
+      { "type": "short", "text": "তুমি বাগানে কী কী করতে পারো?", "marks": 5 }
+    ],
+    "marks": "১০"
+  }
+]`,
+    specialRules: [
+      'Extract the scenario/দৃশ্যপট into passage_body',
+      'Extract exactly 3 sub-questions (or however many are visible)',
+      'Each sub-question gets type: "short"',
+      'Copy marks in brackets [N] if visible',
+      'Preserve question numbering'
+    ]
+  },
+
+  primary_sentence_matching: {
+    instruction: `Extract the 2-column sentence matching question. Output type MUST be "column_matching".`,
+    format: {
+      type: 'column_matching',
+      instruction: 'header instruction if visible',
+      pairs: [{ column_a: 'left item exactly', column_b: 'matching right item exactly' }],
+      marks: 'total marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "column_matching",
+    "instruction": "বামপাশের সাথে ডানপাশ মেলাও:",
+    "pairs": [
+      { "column_a": "ঢাকা", "column_b": "বাংলাদেশের রাজধানী" },
+      { "column_a": "পদ্মা", "column_b": "একটি বড় নদী" },
+      { "column_a": "সূর্য", "column_b": "আলো দেয়" }
+    ],
+    "marks": "৫"
+  }
+]`,
+    specialRules: [
+      'Pair each column_a item with its correct column_b item based on position',
+      'Copy each item exactly — no modifications',
+      'If right column is shuffled (numbers/letters), pair by order as they appear',
+      'Extract the header instruction exactly',
+      'Copy all pairs — do not skip any'
+    ]
+  },
+
+  primary_3col_matching: {
+    instruction: `Extract the 3-column board matching question (SSC English 1st paper style — combine columns A, B, C to make a sentence). Output type MUST be "column_matching" with column_c in each pair.`,
+    format: {
+      type: 'column_matching',
+      instruction: 'header instruction if visible',
+      pairs: [{ column_a: 'part A text', column_b: 'part B text', column_c: 'part C text' }],
+      marks: 'total marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "column_matching",
+    "instruction": "তিনটি কলাম মিলিয়ে সঠিক বাক্য তৈরি কর:",
+    "pairs": [
+      { "column_a": "He", "column_b": "goes to", "column_c": "school." },
+      { "column_a": "She", "column_b": "likes to", "column_c": "sing." },
+      { "column_a": "They", "column_b": "play", "column_c": "cricket." }
+    ],
+    "marks": "৫"
+  }
+]`,
+    specialRules: [
+      'Extract ALL three columns A, B, C',
+      'Each row becomes one pair with column_a, column_b, column_c',
+      'Copy each cell exactly — preserve case and punctuation',
+      'Do not try to match — extract in the order they appear'
+    ]
+  },
+
+  primary_image_matching: {
+    instruction: `Extract the image-text matching question (Nursery/KG style — match pictures to names). Describe each image briefly in column_a. Output type MUST be "column_matching".`,
+    format: {
+      type: 'column_matching',
+      instruction: 'header instruction if visible',
+      pairs: [{ column_a: '[image: brief description or alt text visible]', column_b: 'text label to match' }],
+      marks: 'total marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "column_matching",
+    "instruction": "ছবির সাথে নামটি মেলাও:",
+    "pairs": [
+      { "column_a": "[ছবি: আপেল]", "column_b": "আপেল" },
+      { "column_a": "[ছবি: বই]", "column_b": "বই" },
+      { "column_a": "[ছবি: বলপেন]", "column_b": "কলম" }
+    ],
+    "marks": "৫"
+  }
+]`,
+    specialRules: [
+      'For image cells, use [ছবি: description] format',
+      'Copy text labels exactly',
+      'Preserve the order as they appear in the image',
+      'If image labels are visible (numbers or letters), include them'
+    ]
+  },
+
+  primary_comparison: {
+    instruction: `Extract the comparison box question where students write >, < or = between numbers/quantities. Output type MUST be "visual_grid".`,
+    format: {
+      type: 'visual_grid',
+      instruction: 'header instruction if visible',
+      left_count: 'left number as integer',
+      right_count: 'right number as integer',
+      operator: 'compare',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "visual_grid",
+    "instruction": "তুলনা করো এবং >, <, = বসাও:",
+    "left_count": 5,
+    "right_count": 3,
+    "operator": "compare",
+    "marks": "১"
+  },
+  {
+    "type": "visual_grid",
+    "instruction": null,
+    "left_count": 7,
+    "right_count": 7,
+    "operator": "compare",
+    "marks": "১"
+  }
+]`,
+    specialRules: [
+      'Extract each comparison pair as a separate object',
+      'left_count = the left number, right_count = the right number',
+      'If comparing groups of objects, count them and use the numbers',
+      'operator is always "compare" (the student fills in the symbol)',
+      'Extract ALL comparison pairs in the image'
+    ]
+  },
+
+  primary_picture_grid: {
+    instruction: `Extract the picture/image card grid question (number or letter writing based on images). Output type MUST be "standard_text".`,
+    format: {
+      type: 'standard_text',
+      instruction: 'header instruction — copy exactly',
+      question: 'describe each image item as comma-separated list: e.g. "[ছবি: আপেল], [ছবি: বল]"',
+      space_level: 'short',
+      line_style: 'none',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "ছবি দেখে সংখ্যা লেখো:",
+    "question": "[ছবি: ৩টি আপেল], [ছবি: ৫টি বল], [ছবি: ২টি বই]",
+    "space_level": "short",
+    "line_style": "none",
+    "marks": "৩"
+  }
+]`,
+    specialRules: [
+      'Describe each picture/image briefly in [ছবি: ...] format',
+      'If numbers are printed below pictures, include them',
+      'Copy the instruction exactly',
+      'Each grid row can be one question object if they are separate'
+    ]
+  },
+
+  primary_geometry: {
+    instruction: `Extract the geometry question with a shape diagram or definition. Output type MUST be "standard_text".`,
+    format: {
+      type: 'standard_text',
+      instruction: 'header or shape name / instruction — copy exactly',
+      question: 'question text or shape definition — copy exactly',
+      space_level: 'medium',
+      line_style: 'none',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "নিচের জ্যামিতিক আকৃতির নাম ও সংজ্ঞা লেখো:",
+    "question": "[জ্যামিতিক চিত্র] ত্রিভুজ — তিনটি বাহু ও তিনটি কোণ বিশিষ্ট বদ্ধ আকৃতি।",
+    "space_level": "medium",
+    "line_style": "none",
+    "marks": "৩"
+  }
+]`,
+    specialRules: [
+      'If a shape diagram is present, note it as [জ্যামিতিক চিত্র] and name the shape',
+      'Copy the definition or question exactly',
+      'Copy any labels (বাহু, কোণ etc.) visible on the diagram',
+      'If multiple shapes, create one object per shape'
+    ]
+  },
+
+  primary_graph: {
+    instruction: `Extract the graph/coordinate grid question. Output type MUST be "standard_text".`,
+    format: {
+      type: 'standard_text',
+      instruction: 'header or graph title — copy exactly',
+      question: 'question text asking about the graph — copy exactly',
+      space_level: 'none',
+      line_style: 'none',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "নিচের গ্রাফটি দেখো এবং প্রশ্নের উত্তর দাও:",
+    "question": "[গ্রাফ/ছক] কোন মাসে বৃষ্টিপাত সবচেয়ে বেশি?",
+    "space_level": "none",
+    "line_style": "none",
+    "marks": "৫"
+  }
+]`,
+    specialRules: [
+      'Note the graph/chart presence as [গ্রাফ/ছক]',
+      'Copy any axis labels, data points or values visible',
+      'Copy questions about the graph exactly',
+      'If graph has a title, include it in instruction'
+    ]
+  },
+
+  primary_inline_box: {
+    instruction: `Extract the inline box fill-in question (missing letters or numbers in boxes). Output type MUST be "standard_text". Use ___ for each blank box.`,
+    format: {
+      type: 'standard_text',
+      instruction: 'header instruction — copy exactly',
+      question: 'text with ___ for each empty box — copy exactly',
+      space_level: 'none',
+      line_style: 'none',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "শূন্যস্থান পূরণ করো:",
+    "question": "অ ___ ই ___ উ",
+    "space_level": "none",
+    "line_style": "none",
+    "marks": "৫"
+  },
+  {
+    "type": "standard_text",
+    "instruction": "খালি ঘরে সঠিক সংখ্যা বসাও:",
+    "question": "___ + ___ = ১০",
+    "space_level": "none",
+    "line_style": "none",
+    "marks": "৫"
+  }
+]`,
+    specialRules: [
+      'Replace each empty box with ___',
+      'Keep the surrounding text exactly as it appears',
+      'If letters are visible around boxes, copy them exactly',
+      'Each row of boxes can be a separate question object',
+      'Preserve spacing and sequence'
+    ]
+  },
+
+  primary_math_vertical: {
+    instruction: `Extract the vertical math question (সংখ্যার স্থানীয় মান — units, tens, hundreds). Output type MUST be "standard_text". Write numbers top-to-bottom with operator.`,
+    format: {
+      type: 'standard_text',
+      instruction: 'header instruction — copy exactly',
+      question: 'numbers and operator as text, e.g. "  ৫৩\\n+ ২৮\\n────"',
+      space_level: 'medium',
+      line_style: 'none',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "যোগ করো:",
+    "question": "  ৫৩\\n+ ২৮\\n────",
+    "space_level": "medium",
+    "line_style": "none",
+    "marks": "২"
+  }
+]`,
+    specialRules: [
+      'Write each number on a new line using \\n',
+      'Include the operator (+, -, ×) on the second number\'s line',
+      'Copy Bengali or English digits exactly',
+      'Add ──── line to show the answer line',
+      'Each separate calculation is a separate question object'
+    ]
+  },
+
+  primary_wh_question: {
+    instruction: `Extract the WH-question where a word in the sentence is underlined (students replace it with question word). Output type MUST be "standard_text". Wrap the underlined word in [underline]...[/underline].`,
+    format: {
+      type: 'standard_text',
+      instruction: 'header instruction — copy exactly',
+      question: 'full sentence with [underline]word[/underline] for underlined part',
+      space_level: 'short',
+      line_style: 'none',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "নিচের বাক্যে আন্ডারলাইন করা শব্দটির জায়গায় প্রশ্নবোধক বাক্য তৈরি করো:",
+    "question": "[underline]রাহেলা[/underline] প্রতিদিন স্কুলে যায়।",
+    "space_level": "short",
+    "line_style": "none",
+    "marks": "২"
+  }
+]`,
+    specialRules: [
+      'Wrap the underlined word with [underline]...[/underline]',
+      'Copy the full sentence exactly',
+      'Each sentence is a separate question object',
+      'Copy header instruction exactly'
+    ]
+  },
+
+  primary_dotted_lines: {
+    instruction: `Extract the question with dotted answer lines below it (.........). Output type MUST be "standard_text" with line_style: "dotted".`,
+    format: {
+      type: 'standard_text',
+      instruction: 'header instruction if visible',
+      question: 'question text — copy exactly',
+      space_level: 'medium',
+      line_style: 'dotted',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "নিচের প্রশ্নের উত্তর দাও:",
+    "question": "তোমার প্রিয় রং কী?",
+    "space_level": "medium",
+    "line_style": "dotted",
+    "marks": "২"
+  }
+]`,
+    specialRules: [
+      'ALWAYS set line_style to "dotted"',
+      'ALWAYS set space_level to "medium" unless the dotted lines are very long (use "long")',
+      'Copy the question text exactly',
+      'Each question becomes a separate object',
+      'Do NOT include the dotted lines themselves in the question text'
+    ]
+  },
+
+  primary_notebook_ruled: {
+    instruction: `Extract the question with notebook ruled lines for handwriting practice. Output type MUST be "standard_text" with line_style: "ruled".`,
+    format: {
+      type: 'standard_text',
+      instruction: 'header instruction if visible',
+      question: 'question text or handwriting prompt — copy exactly',
+      space_level: 'long',
+      line_style: 'ruled',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "সুন্দর করে লেখো:",
+    "question": "আমার দেশের নাম বাংলাদেশ।",
+    "space_level": "long",
+    "line_style": "ruled",
+    "marks": "৫"
+  }
+]`,
+    specialRules: [
+      'ALWAYS set line_style to "ruled"',
+      'ALWAYS set space_level to "long"',
+      'Copy the writing prompt or sentence exactly',
+      'If multiple lines to copy, separate with \\n',
+      'Do NOT include the ruled lines in the question text'
+    ]
+  },
+
+  primary_mcq_grid: {
+    instruction: `Extract every MCQ (Multiple Choice Question) including multi-option grid format (i, ii, iii type). Output type MUST be "MCQ".`,
+    format: {
+      type: 'MCQ',
+      question: 'question text — copy exactly',
+      option_a: 'first option',
+      option_b: 'second option',
+      option_c: 'third option',
+      option_d: 'fourth option',
+      correct_answer: 'correct option label if marked, else null',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "MCQ",
+    "question": "কোনটি ফল?",
+    "option_a": "আম",
+    "option_b": "গাছ",
+    "option_c": "নদী",
+    "option_d": "পাহাড়",
+    "correct_answer": "ক",
+    "marks": "১"
+  }
+]`,
+    specialRules: [
+      'Extract ALL 4 options even if arranged in 2-column or 3-column grid',
+      'Copy option text exactly',
+      'If correct answer is marked (√, ✓, underline), extract it as correct_answer',
+      'For multi-option MCQ (i+ii, ii+iii type), copy the combination options exactly as option text',
+      'Preserve Bengali numbering (ক, খ, গ, ঘ) for options'
+    ]
+  },
+
+  primary_plain_text: {
+    instruction: `Extract plain short questions (সংক্ষিপ্ত প্রশ্ন) or rearrangement / punctuation questions. Output type MUST be "standard_text".`,
+    format: {
+      type: 'standard_text',
+      instruction: 'header instruction if visible',
+      question: 'question text — copy exactly',
+      space_level: 'short',
+      line_style: 'none',
+      marks: 'marks if visible'
+    },
+    examples: `Example output:
+[
+  {
+    "type": "standard_text",
+    "instruction": "নিচের প্রশ্নের উত্তর লেখো:",
+    "question": "তোমার নাম কী?",
+    "space_level": "short",
+    "line_style": "none",
+    "marks": "২"
+  },
+  {
+    "type": "standard_text",
+    "instruction": "বাক্যটি সাজাও:",
+    "question": "যায় সে স্কুলে প্রতিদিন।",
+    "space_level": "short",
+    "line_style": "none",
+    "marks": "২"
+  }
+]`,
+    specialRules: [
+      'Copy each question exactly',
+      'For rearrangement, copy scrambled words as-is',
+      'For punctuation questions, copy the sentence without punctuation as-is',
+      'Each question becomes a separate object',
+      'space_level is "short" by default — use "none" for higher-class questions'
+    ]
   }
 }
 

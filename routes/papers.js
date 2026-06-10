@@ -20,6 +20,7 @@ router.post('/', async (req, res, next) => {
       time_minutes,
       total_marks,
       header_alignment,
+      header_preset,
       layout,
       watermark,
       set_variant,
@@ -27,6 +28,7 @@ router.post('/', async (req, res, next) => {
       section_mode,
       questions,
       print_settings,
+      metadata,
     } = req.body
 
     if (!exam_title || !String(exam_title).trim()) {
@@ -43,6 +45,7 @@ router.post('/', async (req, res, next) => {
       time_minutes,
       total_marks,
       header_alignment,
+      header_preset,
       layout,
       // Tier removed — credit system lets every user customise watermark and logo.
       watermark: watermark ?? null,
@@ -51,6 +54,7 @@ router.post('/', async (req, res, next) => {
       section_mode: !!section_mode,
       questions: questions || [],
       print_settings: print_settings ?? null,
+      metadata: metadata || null,
     })
 
     res.status(201).json({ success: true, paper })
@@ -90,6 +94,7 @@ router.put('/:id', async (req, res, next) => {
       'time_minutes',
       'total_marks',
       'header_alignment',
+      'header_preset',
       'layout',
       'watermark',
       'set_variant',
@@ -97,6 +102,7 @@ router.put('/:id', async (req, res, next) => {
       'section_mode',
       'questions',
       'print_settings',
+      'metadata',
     ]
     const updates = {}
     for (const field of allowedFields) {

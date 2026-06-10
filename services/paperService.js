@@ -15,6 +15,7 @@ function rowToPaper(row) {
     time_minutes: row.time_minutes,
     total_marks: row.total_marks,
     header_alignment: row.header_alignment,
+    header_preset: row.header_preset || null,
     layout: row.layout,
     watermark: row.watermark,
     set_variant: row.set_variant,
@@ -22,6 +23,7 @@ function rowToPaper(row) {
     section_mode: row.section_mode ?? false,
     questions: row.questions || [],
     print_settings: row.print_settings || null,
+    metadata: row.metadata || null,
     deleted: row.deleted,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -41,6 +43,7 @@ const paperService = {
       time_minutes: paperData.time_minutes ?? 60,
       total_marks: paperData.total_marks ?? 0,
       header_alignment: paperData.header_alignment || 'center',
+      header_preset: paperData.header_preset || null,
       layout: paperData.layout || '1-column',
       watermark: paperData.watermark ?? null,
       set_variant: paperData.set_variant ?? null,
@@ -48,6 +51,7 @@ const paperService = {
       section_mode: paperData.section_mode ?? false,
       questions: paperData.questions || [],
       print_settings: paperData.print_settings ?? null,
+      metadata: paperData.metadata || null,
       deleted: false,
     }
     const { data, error } = await supabaseAdmin.from('papers').insert(insert).select().single()
@@ -89,6 +93,7 @@ const paperService = {
       time_minutes: 'time_minutes',
       total_marks: 'total_marks',
       header_alignment: 'header_alignment',
+      header_preset: 'header_preset',
       layout: 'layout',
       watermark: 'watermark',
       set_variant: 'set_variant',
@@ -96,6 +101,7 @@ const paperService = {
       section_mode: 'section_mode',
       questions: 'questions',
       print_settings: 'print_settings',
+      metadata: 'metadata',
     }
     for (const [k, col] of Object.entries(map)) {
       if (updates[k] !== undefined) patch[col] = updates[k]
