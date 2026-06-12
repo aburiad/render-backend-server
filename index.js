@@ -1,3 +1,8 @@
-// Render entry point — delegates to server/index.js
-// Root package.json is ESM, server/ is CJS (has own package.json)
-import('./server/index.js')
+require('dotenv').config()
+const app = require('./app')
+
+const PORT = process.env.PORT || 5000
+
+app.listen(PORT, () => {
+  console.log(`[server] listening on http://localhost:${PORT}`)
+})
