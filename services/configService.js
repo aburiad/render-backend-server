@@ -6,9 +6,10 @@ const DEFAULT_AI_PROVIDER_CONFIG = {
 }
 
 const DEFAULT_BACKEND_CONFIG = {
-  active: 'vercel',   // 'vercel' | 'render'
-  vercel_url: '',     // e.g. https://www.rongtonu.com
-  render_url: '',     // e.g. https://proshno-api.onrender.com
+  active: 'vercel',        // 'vercel' | 'render' | 'huggingface'
+  vercel_url: '',          // e.g. https://www.rongtonu.com
+  render_url: '',          // e.g. https://proshno-api.onrender.com
+  huggingface_url: '',     // e.g. https://riadahsan-proshno-shala.hf.space
 }
 
 const DEFAULT_RATE_LIMITS = {
@@ -149,9 +150,10 @@ function normalizeAiProviderConfig(input) {
 function normalizeBackendConfig(input) {
   const out = { ...DEFAULT_BACKEND_CONFIG }
   if (!input || typeof input !== 'object') return out
-  if (input.active === 'render' || input.active === 'vercel') out.active = input.active
+  if (['render', 'vercel', 'huggingface'].includes(input.active)) out.active = input.active
   if (typeof input.vercel_url === 'string') out.vercel_url = input.vercel_url.trim().replace(/\/$/, '')
   if (typeof input.render_url === 'string') out.render_url = input.render_url.trim().replace(/\/$/, '')
+  if (typeof input.huggingface_url === 'string') out.huggingface_url = input.huggingface_url.trim().replace(/\/$/, '')
   return out
 }
 
