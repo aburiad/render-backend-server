@@ -1,0 +1,305 @@
+/**
+ * Primary Education Templates (Nursery - Class 5)
+ * 4 preset themes for different age groups and question types
+ */
+
+/* ────────────────────────────────────────────────────────────────────────
+   TEMPLATE 1: Kids Worksheet (Nursery - Class 2)
+   Question-cum-answer layout with large fonts and answer boxes
+   ──────────────────────────────────────────────────────────────────────── */
+
+.template-kids-worksheet {
+  --question-font-size: 16px;
+  --instruction-font-size: 14px;
+  --spacing-large: 150px;
+  --spacing-medium: 100px;
+  --spacing-short: 60px;
+  --answer-box-height: 80px;
+  --answer-box-large: 120px;
+}
+
+.template-kids-worksheet .question-block {
+  padding-bottom: var(--spacing-large);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.template-kids-worksheet .question-text {
+  font-size: var(--question-font-size);
+  line-height: 1.8;
+}
+
+.template-kids-worksheet .instruction-text {
+  font-size: var(--instruction-font-size);
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 8px;
+}
+
+/* Answer space boxes with dashed borders */
+.template-kids-worksheet .answer-space {
+  min-height: var(--answer-box-height);
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  margin-top: 12px;
+  background: #fafafa;
+}
+
+.template-kids-worksheet .answer-space.large {
+  min-height: var(--answer-box-large);
+}
+
+/* Cute icons for instructions */
+.template-kids-worksheet .icon-pencil::before {
+  content: '✏️ ';
+  font-size: 18px;
+}
+
+.template-kids-worksheet .icon-write::before {
+  content: '📝 ';
+  font-size: 18px;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   TEMPLATE 2: Ruled / Four-Line Lab (Class 1 - 3)
+   Handwriting practice with ruled lines
+   ──────────────────────────────────────────────────────────────────────── */
+
+.template-ruled-lab {
+  --line-height: 32px;
+  --four-line-height: 28px;
+}
+
+/* Bengali ruled lines (single line) */
+.template-ruled-lab .ruled-line {
+  background-image: linear-gradient(to bottom, transparent 23px, #000 23px, #000 24px, transparent 24px);
+  background-size: 100% var(--line-height);
+  min-height: var(--line-height);
+  margin-top: 8px;
+  background-repeat: repeat-y;
+}
+
+/* English four-line pattern */
+.template-ruled-lab .four-line {
+  background-image:
+    linear-gradient(to bottom, #000 1px, transparent 1px),
+    linear-gradient(to bottom, transparent 6px, transparent 7px, #000 7px, #000 8px, transparent 8px),
+    linear-gradient(to bottom, transparent 13px, transparent 14px, #000 14px, #000 15px, transparent 15px),
+    linear-gradient(to bottom, transparent 20px, transparent 21px, #ccc 21px, #ccc 21px, transparent 21px);
+  background-size: 100% var(--four-line-height);
+  min-height: calc(var(--four-line-height) * 2);
+  margin-top: 8px;
+  background-repeat: repeat-y;
+}
+
+/* Dotted line for tracing */
+.template-ruled-lab .dotted-line {
+  background-image: radial-gradient(circle, #000 1px, transparent 1.5px);
+  background-size: 10px 10px;
+  min-height: 40px;
+  margin-top: 8px;
+}
+
+.template-ruled-lab .answer-space {
+  min-height: calc(var(--line-height) * 3);
+  border-top: 1px solid #000;
+  margin-top: 4px;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   TEMPLATE 3: Matching & Math Matrix (Class 1 - 5)
+   Grid layouts for matching questions and comparisons
+   ──────────────────────────────────────────────────────────────────────── */
+
+.template-matching-matrix {
+  --grid-gap: 80px;
+  --column-width: 1fr;
+}
+
+.template-matching-matrix .matching-grid {
+  display: grid;
+  grid-template-columns: var(--column-width) 60px var(--column-width);
+  gap: 16px;
+  align-items: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.template-matching-matrix .matching-row {
+  display: grid;
+  grid-template-columns: var(--column-width) 60px var(--column-width);
+  gap: 16px;
+  align-items: center;
+  margin: 8px 0;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.template-matching-matrix .column-a,
+.template-matching-matrix .column-b {
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.template-matching-matrix .match-connector {
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+/* Comparison grid (visual comparison with < > =) */
+.template-matching-matrix .comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 60px 1fr;
+  gap: 20px;
+  align-items: center;
+  justify-items: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.template-matching-matrix .comparison-item {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  font-size: 18px;
+}
+
+.template-matching-matrix .comparison-operator {
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #000;
+  border-radius: 8px;
+  font-size: 24px;
+  font-weight: 700;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   TEMPLATE 4: Compact Exam Paper (Class 4 - 5)
+   Tightly packed layout, no answer spaces
+   ──────────────────────────────────────────────────────────────────────── */
+
+.template-compact {
+  --question-font-size: 13px;
+  --question-spacing: 20px;
+  --compact-spacing: 0;
+}
+
+.template-compact .question-block {
+  padding-bottom: var(--question-spacing);
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.template-compact .question-text {
+  font-size: var(--question-font-size);
+  line-height: 1.6;
+}
+
+.template-compact .question-number {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+}
+
+/* No answer space - students write in separate notebooks */
+.template-compact .answer-space {
+  display: none;
+}
+
+/* Compact header */
+.template-compact .paper-header {
+  padding: 12px 0;
+  border-bottom: 2px solid #000;
+  margin-bottom: 16px;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   SHARED UTILITIES
+   ──────────────────────────────────────────────────────────────────────── */
+
+/* Page break prevention for all question blocks */
+.template-kids-worksheet .question-block,
+.template-ruled-lab .question-block,
+.template-matching-matrix .question-block,
+.template-compact .question-block {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* Print-specific styles */
+@media print {
+  .template-kids-worksheet .answer-space,
+  .template-ruled-lab .answer-space {
+    background: transparent !important;
+  }
+
+  /* Ensure colors print correctly */
+  .template-kids-worksheet *,
+  .template-ruled-lab *,
+  .template-matching-matrix *,
+  .template-compact * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   SPACE LEVEL MAPPINGS
+   Maps to metadata.space_level in standard_text questions
+   ──────────────────────────────────────────────────────────────────────── */
+
+.space-none {
+  padding-bottom: 0 !important;
+}
+
+.space-short {
+  padding-bottom: 40px !important;
+}
+
+.space-medium {
+  padding-bottom: 80px !important;
+}
+
+.space-long {
+  padding-bottom: 150px !important;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   LINE STYLE VARIANTS
+   Maps to metadata.line_style in standard_text questions
+   ──────────────────────────────────────────────────────────────────────── */
+
+.line-plain {
+  border-bottom: 1px solid #000;
+  min-height: 24px;
+}
+
+.line-dotted {
+  background-image: radial-gradient(circle, #000 1px, transparent 1.5px);
+  background-size: 8px 8px;
+  min-height: 24px;
+}
+
+.line-ruled {
+  background-image: linear-gradient(to bottom, transparent 23px, #000 23px, #000 24px, transparent 24px);
+  background-size: 100% 24px;
+  min-height: 48px;
+}
+
+.line-fourline {
+  background-image:
+    linear-gradient(to bottom, #000 1px, transparent 1px),
+    linear-gradient(to bottom, transparent 6px, transparent 7px, #000 7px, #000 8px, transparent 8px),
+    linear-gradient(to bottom, transparent 13px, transparent 14px, #000 14px, #000 15px, transparent 15px),
+    linear-gradient(to bottom, transparent 20px, transparent 21px, #ccc 21px, #ccc 21px, transparent 21px);
+  background-size: 100% 28px;
+  min-height: 56px;
+}

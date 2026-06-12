@@ -1,0 +1,685 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Serif+Bengali:wght@400;500;600;700&family=Tiro+Bangla&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+@import './styles/primaryTemplates.css';
+
+/* ─── Design Tokens ──────────────────────────────────────── */
+:root {
+  /* Fonts */
+  --font-bengali: 'Hind Siliguri', 'Noto Sans Bengali', 'Noto Naskh Arabic', 'Amiri', sans-serif;
+  --font-english: 'Inter', system-ui, sans-serif;
+
+  /* MathLive virtual keyboard must sit above the modal backdrop (zIndex 9999) */
+  --keyboard-zindex: 10010;
+
+  /* Safe areas */
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+
+  /* Color System */
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-light: #dbeafe;
+  --primary-glow: rgba(37, 99, 235, 0.25);
+  --accent: #7c3aed;
+  --accent-light: #ede9fe;
+  --success: #16a34a;
+  --warning: #ea580c;
+  --danger: #dc2626;
+
+  /* Background */
+  --bg-base: #f0f4f8;
+  --bg-card: #ffffff;
+  --bg-input: #f1f5f9;
+  --bg-muted: #f8fafc;
+
+  /* Text */
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+
+  /* Border */
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+
+  /* Spacing Scale: 4px base */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Border Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card: 0 2px 10px rgba(0,0,0,0.05), 0 0 1px rgba(0,0,0,0.06);
+  --shadow-modal: 0 20px 60px rgba(0,0,0,0.18);
+  --shadow-fab: 0 8px 24px rgba(37, 99, 235, 0.4);
+  --shadow-nav: 0 -1px 0 rgba(0,0,0,0.04), 0 -4px 16px rgba(0,0,0,0.06);
+
+  /* Typography Scale */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+
+  /* Mobile-only standardised heading/body sizes (override below in @media). */
+  --text-mobile-heading: 18px;
+  --text-mobile-body: 14px;
+
+  /* Nav heights */
+  --header-height: 56px;
+  --nav-height: 80px;
+
+  /* App container */
+  --app-max-width: 480px;
+}
+
+/* ─── Reset & Base ───────────────────────────────────────── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  height: 100%;
+  font-family: var(--font-bengali);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+  background: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image: radial-gradient(ellipse at 20% 50%, rgba(37,99,235,0.04) 0%, transparent 60%),
+                    radial-gradient(ellipse at 80% 20%, rgba(124,58,237,0.04) 0%, transparent 60%);
+}
+
+#root {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Remove iOS input zoom */
+input, select, textarea {
+  font-size: 16px !important;
+  font-family: var(--font-bengali);
+}
+
+/* ─── App Container (Mobile App Frame) ───────────────────── */
+/* The .app-frame wraps the entire app on desktop */
+.app-frame {
+  max-width: var(--app-max-width);
+  margin: 0 auto;
+  min-height: 100dvh;
+  background: var(--bg-base);
+  position: relative;
+  /* On large screens, add a subtle shadow to show the app frame */
+}
+
+@media (min-width: 1024px) {
+  .app-frame {
+    /* Desktop: full width, frame drops away, sidebar takes over */
+    max-width: 100%;
+    background: transparent;
+  }
+}
+
+/* ─── Mobile typography normalisation ─────────────────────────
+   On phones, collapse the 6-step type scale to just two sizes
+   (heading / body). Anything using a `var(--text-*)` token gets
+   re-mapped automatically. Inputs keep 16px to prevent iOS zoom. */
+@media (max-width: 640px) {
+  :root {
+    --text-xs:  var(--text-mobile-body);     /* 14px */
+    --text-sm:  var(--text-mobile-body);     /* 14px */
+    --text-base: var(--text-mobile-body);    /* 14px */
+    --text-lg:  var(--text-mobile-heading);  /* 18px */
+    --text-xl:  var(--text-mobile-heading);  /* 18px */
+    --text-2xl: var(--text-mobile-heading);  /* 18px */
+  }
+}
+
+/* ─── Card System ────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+}
+
+.card-sm {
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-flat {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  border: 1px solid var(--border-light);
+}
+
+/* ─── Button System ──────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: 48px;
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
+  -webkit-user-select: none;
+  user-select: none;
+  font-family: var(--font-bengali);
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: var(--text-inverse);
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+.btn-primary:hover {
+  background: var(--primary-dark);
+  box-shadow: 0 6px 20px var(--primary-glow);
+}
+
+.btn-secondary {
+  background: var(--bg-input);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+  background: var(--border);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--primary);
+  padding: 0 var(--space-3);
+}
+
+.btn-ghost:hover {
+  background: var(--primary-light);
+}
+
+.btn-danger {
+  background: #fef2f2;
+  color: var(--danger);
+}
+
+.btn-sm {
+  height: 36px;
+  padding: 0 var(--space-4);
+  font-size: var(--text-xs);
+  border-radius: var(--radius-sm);
+}
+
+/* Legacy tap effect used throughout existing code */
+.btn-press {
+  transition: transform 0.1s ease;
+}
+.btn-press:active {
+  transform: scale(0.96);
+}
+
+/* ─── Input System ───────────────────────────────────────── */
+.input {
+  width: 100%;
+  height: 48px;
+  background: var(--bg-input);
+  border: 1.5px solid transparent;
+  border-radius: var(--radius-md);
+  padding: 0 var(--space-4);
+  font-size: var(--text-base);
+  font-family: var(--font-bengali);
+  color: var(--text-primary);
+  transition: border-color 0.15s ease, background 0.15s ease;
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--primary);
+  background: var(--bg-card);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+.input-label {
+  display: block;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-2);
+}
+
+/* ─── List UI ────────────────────────────────────────────── */
+.list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.list-item:hover {
+  background: var(--bg-muted);
+}
+
+.list-item:active {
+  background: var(--border-light);
+}
+
+/* ─── Bottom Sheet ───────────────────────────────────────── */
+.bottom-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  z-index: 60;
+  backdrop-filter: blur(2px);
+}
+
+.bottom-sheet {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: var(--space-3) var(--space-4);
+  padding-bottom: calc(var(--space-4) + var(--safe-bottom));
+  max-height: 70dvh;
+  overflow-y: auto;
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  .bottom-sheet {
+    width: 95% !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    border-radius: var(--radius-xl);
+    margin-bottom: 8px;
+  }
+}
+
+.bottom-sheet-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border);
+  border-radius: var(--radius-full);
+  margin: 0 auto var(--space-4);
+}
+
+/* ─── Skeleton Loader ────────────────────────────────────── */
+@keyframes shimmer {
+  0% { background-position: -300px 0; }
+  100% { background-position: 300px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e8edf2 25%, #f1f5f9 50%, #e8edf2 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+.skeleton-text {
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.skeleton-title {
+  height: 18px;
+  border-radius: var(--radius-full);
+}
+
+.skeleton-avatar {
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+.skeleton-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-card);
+}
+
+/* ─── FAB (Floating Action Button) ──────────────────────── */
+.fab {
+  position: fixed;
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + var(--space-4));
+  right: var(--space-4);
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--text-inverse);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-fab);
+  border: none;
+  cursor: pointer;
+  z-index: 40;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.fab:active {
+  transform: scale(0.9);
+  box-shadow: 0 4px 12px var(--primary-glow);
+}
+
+/* ─── Navigation ─────────────────────────────────────────── */
+.bottom-nav {
+  background: var(--bg-card);
+  border-top: 1px solid var(--border-light);
+  box-shadow: var(--shadow-nav);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+}
+
+.nav-item-label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+/* ─── App Header ─────────────────────────────────────────── */
+.app-header {
+  height: var(--header-height);
+  background: var(--bg-card);
+  box-shadow: 0 1px 0 var(--border-light), 0 2px 8px rgba(0,0,0,0.04);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--space-4);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding-top: var(--safe-top);
+}
+
+/* ─── Page Transition ────────────────────────────────────── */
+.page-enter {
+  animation: pageEnter 0.22s ease-out;
+}
+
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateX(16px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ─── Scroll utilities ───────────────────────────────────── */
+.scroll-area {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.scroll-x {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x mandatory;
+}
+
+/* ─── Utility ────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: var(--border-light);
+  margin: var(--space-2) 0;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.badge-primary {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.badge-pro {
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--text-inverse);
+}
+
+.badge-free {
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+/* ─── Section Header ─────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.section-title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.section-link {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--primary);
+}
+
+/* ─── Status Colors ──────────────────────────────────────── */
+.text-primary-color { color: var(--primary); }
+.text-accent { color: var(--accent); }
+.text-success { color: var(--success); }
+.text-warning { color: var(--warning); }
+.text-danger { color: var(--danger); }
+
+/* ─── Paper preview shadow (looks like a real sheet on a desk) ───── */
+.paper-sheet-shadow {
+  background: #fff;
+  box-shadow:
+    0 -2px 4px rgba(0, 0, 0, 0.04),
+    0 1px 1px rgba(0, 0, 0, 0.08),
+    0 4px 6px rgba(0, 0, 0, 0.06),
+    0 12px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* On mobile, the 14mm vertical padding inside .paper-sheet-shadow was
+   showing as a strip of white above/below the actual page content, which
+   read as "cut" extra whitespace. Drop the background so only the inner
+   paperRef (the real page) is visible white; the padding blends into the
+   grey desk backdrop. Desktop keeps the framed-sheet look. */
+@media (max-width: 1023px) {
+  .paper-sheet-shadow {
+    background: transparent;
+    box-shadow: none;
+  }
+}
+
+/* ─── Routine preview scroll — force-visible thin scrollbar so mobile
+       users see they can scroll horizontally past the wide grid. */
+.routine-preview-scroll::-webkit-scrollbar,
+.routine-grid-scroll::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+.routine-preview-scroll::-webkit-scrollbar-track,
+.routine-grid-scroll::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.04);
+  border-radius: 4px;
+}
+.routine-preview-scroll::-webkit-scrollbar-thumb,
+.routine-grid-scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.25);
+  border-radius: 4px;
+}
+.routine-preview-scroll::-webkit-scrollbar-thumb:hover,
+.routine-grid-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(15, 23, 42, 0.45);
+}
+.routine-preview-scroll,
+.routine-grid-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(15, 23, 42, 0.25) rgba(15, 23, 42, 0.04);
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Custom Scrollbar ───────────────────────────────────── */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.5);
+  border-radius: 10px;
+  transition: background 0.2s;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.7);
+}
+
+/* ─── Button Shimmer Animation ───────────────────────────── */
+@keyframes shimmer-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer-slide 2s infinite;
+}
+
+/* ─── Print overrides ────────────────────────────────────── */
+@media print {
+  @page {
+    size: A4;
+    /* Per-page margin — applies to every page. The paper element itself has
+       no padding; both horizontal and vertical white space come from here. */
+    margin: 14mm 12mm;
+  }
+
+  /* Routine landscape orientation is injected dynamically by
+     RoutinePreview.handlePrint() — see that function. CSS `@page` named
+     rules + `page:` property are unreliable across browsers (Safari
+     ignores them), so we inject the correct @page size at print time. */
+
+  /* During print, handlePrint() in each preview page moves the print
+     target into a `.print-host` wrapper at body root, then sets
+     `body.is-printing`. This CSS hides everything except .print-host,
+     so layout is dead simple — no positioning hacks, no framer-motion
+     positioning context interference, no narrowing surprises. */
+  body.is-printing > *:not(.print-host) {
+    display: none !important;
+  }
+  body.is-printing .print-host {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  /* The actual print template — sized to fit @page content area exactly. */
+  body.is-printing .paper-print,
+  body.is-printing .notice-print {
+    margin: 0 auto !important;
+    box-shadow: none !important;
+    width: 186mm !important;
+    min-height: 269mm !important;
+  }
+  /* Landscape paper override: A4 landscape printable area is 297−24=273mm
+     wide × 210−28=182mm tall (with @page margin 14mm 12mm). The @page
+     `size: A4 landscape` is injected at print time by PDFPreview.handlePrint. */
+  body.is-printing .paper-print.paper-print-landscape {
+    width: 273mm !important;
+    min-height: 182mm !important;
+  }
+  /* Routine inline width (landscape 287mm / portrait 186mm) wins; just
+     center and strip shadow. */
+  body.is-printing .routine-print {
+    margin: 0 auto !important;
+    box-shadow: none !important;
+  }
+
+  body, html {
+    background: #fff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Avoid bad page breaks inside atomic blocks */
+  .paper-print > div > div,
+  .paper-print li,
+  .paper-print table,
+  .notice-print > div,
+  .notice-print li,
+  .notice-print table,
+  .routine-print > header,
+  .routine-print table {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Force all colors to print as-is */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+/* ─── GeoGebra Modal — spin animation ──────────────────────────────────── */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}

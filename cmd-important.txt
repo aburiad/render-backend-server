@@ -1,0 +1,11 @@
+# 1. Delete the broken node_modules (irreversible but recoverable via reinstall)
+Remove-Item node_modules -Recurse -Force
+
+# 2. Delete the lock file so npm resolves cleanly
+Remove-Item package-lock.json -Force
+
+# 3. Fresh install — this will take 1-2 minutes
+npm install
+
+# 4. Restart dev server
+npm run dev
