@@ -12,12 +12,6 @@ const DEFAULT_BACKEND_CONFIG = {
   huggingface_url: '',     // e.g. https://riadahsan-proshno-shala.hf.space
 }
 
-const DEFAULT_PDF_SERVER_CONFIG = {
-  active: 'auto',          // 'auto' | 'render' | 'hfspace'
-  render_url: 'https://proshno-shala-pdf.onrender.com',
-  hfspace_url: '',         // e.g. https://farjanafariha-proshnoshalapdf.hf.space
-}
-
 const DEFAULT_RATE_LIMITS = {
   ai: {
     max: 30, // limit when user uses SYSTEM AI keys (our cost)
@@ -69,7 +63,6 @@ const DEFAULT_CONFIG = {
   credit_config: DEFAULT_CREDIT_CONFIG,
   ai_provider_config: DEFAULT_AI_PROVIDER_CONFIG,
   backend_config: DEFAULT_BACKEND_CONFIG,
-  pdf_server_config: DEFAULT_PDF_SERVER_CONFIG,
 }
 
 function normalizeRateLimits(input) {
@@ -164,15 +157,6 @@ function normalizeBackendConfig(input) {
   return out
 }
 
-function normalizePdfServerConfig(input) {
-  const out = { ...DEFAULT_PDF_SERVER_CONFIG }
-  if (!input || typeof input !== 'object') return out
-  if (['auto', 'render', 'hfspace'].includes(input.active)) out.active = input.active
-  if (typeof input.render_url === 'string') out.render_url = input.render_url.trim().replace(/\/$/, '')
-  if (typeof input.hfspace_url === 'string') out.hfspace_url = input.hfspace_url.trim().replace(/\/$/, '')
-  return out
-}
-
 function rowToConfig(row) {
   if (!row) return null
   return {
@@ -185,7 +169,6 @@ function rowToConfig(row) {
     creditConfig: normalizeCreditConfig(row.credit_config),
     aiProviderConfig: normalizeAiProviderConfig(row.ai_provider_config),
     backendConfig: normalizeBackendConfig(row.backend_config),
-    pdfServerConfig: normalizePdfServerConfig(row.pdf_server_config),
     updatedAt: row.updated_at,
   }
 }
@@ -253,12 +236,6 @@ const configService = {
           ? normalizeBackendConfig(newConfig.backend_config)
           : newConfig.backendConfig !== undefined
           ? normalizeBackendConfig(newConfig.backendConfig)
-          : undefined,
-      pdf_server_config:
-        newConfig.pdf_server_config !== undefined
-          ? normalizePdfServerConfig(newConfig.pdf_server_config)
-          : newConfig.pdfServerConfig !== undefined
-          ? normalizePdfServerConfig(newConfig.pdfServerConfig)
           : undefined,
       updated_at: new Date().toISOString(),
     }
