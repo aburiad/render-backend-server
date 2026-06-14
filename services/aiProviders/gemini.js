@@ -27,6 +27,110 @@ const TEXT_MODELS = [
   'gemini-2.5-flash',        // 5 RPM, 20 RPD — good quality (~9s)
 ]
 
+// ─── Gemini responseSchema per questionType ───────────────────────────────
+//
+// Why: free-tier Gemini Flash Lite hallucinates field names ("question" → "q"
+// → "questionText"), drops fields, or wraps the array in extra prose. With
+// `responseMimeType: 'application/json'` + `responseSchema`, Gemini's decoder
+// is constrained to match the schema exactly — same prompt, dramatically
+// fewer mismatched/missing fields. Costs nothing on the free tier.
+//
+// Schemas are intentionally PERMISSIVE: every field is optional except the
+// question text / stimulus so unusual layouts still parse. For question
+// types whose shape varies too much (accounting tables, parent_passage with
+// nested sub-types, primary_*), we skip the schema and just keep mimeType=json
+// — still better than free-form output.
+const S_STRING = { type: 'STRING' }
+const S_STRING_NULL = { type: 'STRING', nullable: true }
+const S_NUMBER_NULL = { type: 'NUMBER', nullable: true }
+
+const SCHEMA_MCQ = {
+  type: 'OBJECT',
+  properties: {
+    type: { type: 'STRING' },
+    question: S_STRING,
+    option_a: S_STRING_NULL,
+    option_b: S_STRING_NULL,
+    option_c: S_STRING_NULL,
+    option_d: S_STRING_NULL,
+    correct_answer: S_STRING_NULL,
+    marks: S_STRING_NULL,
+  },
+  required: ['question'],
+}
+
+const SCHEMA_CQ = {
+  type: 'OBJECT',
+  properties: {
+    type: { type: 'STRING' },
+    stimulus: S_STRING,
+    sub_questions: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          label: S_STRING_NULL,
+          text: S_STRING,
+          marks: S_STRING_NULL,
+        },
+        required: ['text'],
+      },
+    },
+    marks: S_STRING_NULL,
+  },
+  required: ['stimulus'],
+}
+
+const SCHEMA_SHORT_OR_BROAD = {
+  type: 'OBJECT',
+  properties: {
+    type: { type: 'STRING' },
+    question: S_STRING,
+    marks: S_STRING_NULL,
+  },
+  required: ['question'],
+}
+
+const SCHEMA_FILL_BLANK = {
+  type: 'OBJECT',
+  properties: {
+    type: { type: 'STRING' },
+    sentence: S_STRING,
+    clues: S_STRING_NULL,
+    marks: S_STRING_NULL,
+  },
+  required: ['sentence'],
+}
+
+const SCHEMA_MATCHING = {
+  type: 'OBJECT',
+  properties: {
+    type: { type: 'STRING' },
+    column_a: { type: 'ARRAY', items: { type: 'STRING' } },
+    column_b: { type: 'ARRAY', items: { type: 'STRING' } },
+    marks: S_STRING_NULL,
+  },
+}
+
+const RESPONSE_SCHEMAS_BY_TYPE = {
+  mcq: SCHEMA_MCQ,
+  acc_mcq: SCHEMA_MCQ,
+  primary_mcq_grid: SCHEMA_MCQ,
+  cq: SCHEMA_CQ,
+  short: SCHEMA_SHORT_OR_BROAD,
+  broad: SCHEMA_SHORT_OR_BROAD,
+  creative: SCHEMA_SHORT_OR_BROAD,
+  primary_plain_text: SCHEMA_SHORT_OR_BROAD,
+  fill_blank: SCHEMA_FILL_BLANK,
+  matching: SCHEMA_MATCHING,
+}
+
+function buildResponseSchema(questionType) {
+  const itemSchema = RESPONSE_SCHEMAS_BY_TYPE[questionType]
+  if (!itemSchema) return null
+  return { type: 'ARRAY', items: itemSchema }
+}
+
 // Translate OpenAI-style messages to Gemini-style contents
 function convertMessagesToGemini(messages) {
   return messages.map(msg => {
@@ -66,7 +170,7 @@ function convertMessagesToGemini(messages) {
   })
 }
 
-async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision }) {
+async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision, maxOutputTokens, topP, topK, questionType }) {
   const URL = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`
 
   const contents = convertMessagesToGemini(messages.filter(m => m.role !== 'system'))
@@ -77,6 +181,9 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
   const generationConfig = {
     temperature,
   }
+  if (typeof topP === 'number') generationConfig.topP = topP
+  if (typeof topK === 'number') generationConfig.topK = topK
+  if (typeof maxOutputTokens === 'number') generationConfig.maxOutputTokens = maxOutputTokens
 
   // thinkingConfig only supported on models that explicitly support it.
   // gemini-2.5-flash-lite does NOT support thinkingBudget — omit entirely.
@@ -88,8 +195,15 @@ async function tryModel({ apiKey, model, messages, jsonMode, temperature, vision
     { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' }
   ]
 
-  if (jsonMode) {
+  // For vision OCR we ALWAYS want JSON mode — even without a schema, this
+  // strips chatty preambles like "Here is the JSON:". Schema is layered on
+  // top when we have one for this questionType.
+  if (jsonMode || vision) {
     generationConfig.responseMimeType = 'application/json'
+    const schema = buildResponseSchema(questionType)
+    if (schema && vision) {
+      generationConfig.responseSchema = schema
+    }
   }
 
   const body = { contents, generationConfig, safetySettings }
@@ -157,7 +271,24 @@ function isModelQuotaExhausted(model) {
 let rrCounter = 0
 const cooldowns = {}
 
-async function chat({ messages, vision = false, jsonMode = false, temperature = 0.6, apiKey: providedKey, _forceFlash = false }) {
+async function chat({
+  messages,
+  vision = false,
+  jsonMode = false,
+  temperature = 0.6,
+  apiKey: providedKey,
+  _forceFlash = false,
+  // Vision-OCR knobs. Defaults below activate only when caller doesn't
+  // pass values — keeps existing text-mode call sites unchanged.
+  maxOutputTokens,
+  topP,
+  topK,
+  questionType,
+  // _skipModels: array of model IDs to skip on this call (used by aiService
+  // when retrying after an empty-result, so we don't ask the same model
+  // again).
+  _skipModels = [],
+}) {
   let apiKeys = []
   if (providedKey) {
     apiKeys.push(providedKey)
@@ -209,9 +340,11 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
   // _forceFlash: skip Gemma models (gemma-4-*) which ignore JSON instructions
   // and return bullet-point markdown instead of JSON. Used by geometry route.
   const baseModels = vision ? VISION_MODELS : TEXT_MODELS
-  const models = _forceFlash
+  const skipSet = new Set(_skipModels)
+  const models = (_forceFlash
     ? baseModels.filter(m => !m.startsWith('gemma'))
     : baseModels
+  ).filter(m => !skipSet.has(m))
 
   let lastErr
   // OUTER loop = models, INNER loop = keys
@@ -227,7 +360,10 @@ async function chat({ messages, vision = false, jsonMode = false, temperature = 
 
     for (const apiKey of apiKeys) {
       try {
-        const text = await tryModel({ apiKey, model, messages, jsonMode, temperature, vision })
+        const text = await tryModel({
+          apiKey, model, messages, jsonMode, temperature, vision,
+          maxOutputTokens, topP, topK, questionType,
+        })
         if (text) return text
       } catch (err) {
         lastErr = err

@@ -13,11 +13,15 @@ const sharp = require('sharp')
  */
 class ImageQualityAssessor {
   constructor() {
-    this.minWidth = 800
-    this.minFileSizeKB = 50
+    // Loosened for cropped-question workflow. Teachers routinely crop a single
+    // MCQ (~600×350 px, ~25 KB) which the old gate rejected with cascading
+    // penalties. The model handles small crops fine; we only flag genuine
+    // problems (microscopic / completely unreadable).
+    this.minWidth = 400
+    this.minFileSizeKB = 10
     this.maxFileSizeMB = 5
-    this.minAspectRatio = 0.5
-    this.maxAspectRatio = 2.0
+    this.minAspectRatio = 0.25
+    this.maxAspectRatio = 4.0
   }
 
   /**
@@ -78,10 +82,13 @@ class ImageQualityAssessor {
       // Determine quality rating
       const quality = this.getQualityRating(score)
 
+      // `isUsable` is now ADVISORY only — see aiService.scanImage. We send
+      // the image to the model regardless and let the model decide. Lowered
+      // cutoff to 40 so the rating still reflects "very poor" cases for logs.
       return {
         score,
         quality,
-        isUsable: score >= 60,
+        isUsable: score >= 40,
         needsPreprocessing: score < 80,
         issues,
         warnings,
@@ -116,19 +123,19 @@ class ImageQualityAssessor {
    * @returns {Object} - Check result
    */
   checkResolution(metadata) {
-    const { width, height } = metadata
-    
+    const { width } = metadata
+
     if (width < this.minWidth) {
       return {
-        penalty: 30,
-        issue: { type: 'RESOLUTION', severity: 'HIGH', msg: `Resolution too low (${width}px < ${this.minWidth}px)` }
+        penalty: 15,
+        issue: { type: 'RESOLUTION', severity: 'MEDIUM', msg: `Resolution low (${width}px < ${this.minWidth}px)` }
       }
     }
 
-    if (width < 1000) {
+    if (width < 600) {
       return {
-        penalty: 10,
-        warning: { type: 'RESOLUTION', severity: 'MEDIUM', msg: `Resolution could be higher (${width}px)` }
+        penalty: 5,
+        warning: { type: 'RESOLUTION', severity: 'LOW', msg: `Resolution could be higher (${width}px)` }
       }
     }
 
@@ -153,8 +160,8 @@ class ImageQualityAssessor {
 
     if (sizeKB < this.minFileSizeKB) {
       return {
-        penalty: 20,
-        issue: { type: 'SIZE', severity: 'HIGH', msg: `Image too small (${Math.round(sizeKB)}KB < ${this.minFileSizeKB}KB)` }
+        penalty: 10,
+        warning: { type: 'SIZE', severity: 'LOW', msg: `Image very small (${Math.round(sizeKB)}KB < ${this.minFileSizeKB}KB)` }
       }
     }
 
@@ -178,8 +185,8 @@ class ImageQualityAssessor {
 
     if (ratio < this.minAspectRatio || ratio > this.maxAspectRatio) {
       return {
-        penalty: 15,
-        issue: { type: 'ASPECT_RATIO', severity: 'MEDIUM', msg: `Unusual aspect ratio (${ratio.toFixed(2)})` }
+        penalty: 5,
+        warning: { type: 'ASPECT_RATIO', severity: 'LOW', msg: `Unusual aspect ratio (${ratio.toFixed(2)})` }
       }
     }
 
@@ -221,40 +228,63 @@ class ImageQualityAssessor {
   }
 
   /**
-   * Check blur level using Laplacian variance (simplified)
+   * Check blur level using true Laplacian variance.
+   *
+   * The previous implementation (`sharpen → stdev`) was wrong: for clean
+   * printed text on white background (the IDEAL OCR input) the resulting
+   * variance is naturally low because there's little texture, leading to
+   * a false "blurry" verdict on the clearest scans.
+   *
+   * Laplacian variance is the standard reference (Pech-Pacheco et al. 2000):
+   *   1. Convert to grayscale.
+   *   2. Convolve with the 3×3 Laplacian kernel [[0,1,0],[1,-4,1],[0,1,0]].
+   *   3. Compute variance of the convolved pixels — high variance = sharp
+   *      edges = focused; low variance = washed-out = blurry.
+   *
    * @param {Buffer} buffer - Image buffer
-   * @returns {Promise<Object>} - Check result
+   * @returns {Promise<Object>} - Check result (soft warnings only — never
+   *   rejects an image on blur alone)
    */
   async checkBlur(buffer) {
     try {
-      // Apply edge detection and measure variance
+      const targetSize = 256
       const { data, info } = await sharp(buffer)
         .grayscale()
-        .resize(100, 100)
-        .sharpen({ sigma: 1, flat: 1, jagged: 1 })
+        .resize(targetSize, targetSize, { fit: 'inside' })
+        .convolve({
+          width: 3,
+          height: 3,
+          kernel: [0, 1, 0, 1, -4, 1, 0, 1, 0],
+        })
         .raw()
         .toBuffer({ resolveWithObject: true })
 
-      // Calculate edge strength
-      const mean = data.reduce((a, b) => a + b, 0) / data.length
-      const variance = data.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / data.length
-      const edgeStrength = Math.sqrt(variance)
-
-      // Low edge strength = blurry image
-      if (edgeStrength < 30) {
-        return {
-          penalty: 25,
-          issue: { type: 'BLUR', severity: 'HIGH', msg: 'Image appears blurry' }
-        }
+      const n = data.length
+      let sum = 0
+      for (let i = 0; i < n; i++) sum += data[i]
+      const mean = sum / n
+      let varSum = 0
+      for (let i = 0; i < n; i++) {
+        const d = data[i] - mean
+        varSum += d * d
       }
+      const variance = varSum / n
 
-      if (edgeStrength < 50) {
+      // Variance scale: clean text scans typically score >100; phone-camera
+      // shots in good light 50-100; mildly blurry 20-50; very blurry <20.
+      // Penalties are soft — blur alone never disqualifies an image.
+      if (variance < 15) {
         return {
           penalty: 10,
-          warning: { type: 'BLUR', severity: 'MEDIUM', msg: 'Image may be slightly blurry' }
+          warning: { type: 'BLUR', severity: 'MEDIUM', msg: `Image may be blurry (Laplacian var ${variance.toFixed(1)})` }
         }
       }
-
+      if (variance < 30) {
+        return {
+          penalty: 5,
+          warning: { type: 'BLUR', severity: 'LOW', msg: `Image slightly soft (Laplacian var ${variance.toFixed(1)})` }
+        }
+      }
       return { penalty: 0 }
     } catch (error) {
       console.error('[ImageQualityAssessor] Blur check error:', error.message)
@@ -280,21 +310,20 @@ class ImageQualityAssessor {
       const max = Math.max(...data)
       const range = max - min
 
-      // Low range = low contrast
-      if (range < 150) {
-        return {
-          penalty: 20,
-          issue: { type: 'CONTRAST', severity: 'HIGH', msg: 'Low contrast detected' }
-        }
-      }
-
-      if (range < 200) {
+      // Low range = low contrast. Soft penalty only — `normalize()` in the
+      // preprocessor stretches range to near-full before the model sees it.
+      if (range < 100) {
         return {
           penalty: 10,
-          warning: { type: 'CONTRAST', severity: 'MEDIUM', msg: 'Moderate contrast, could be improved' }
+          warning: { type: 'CONTRAST', severity: 'MEDIUM', msg: 'Low contrast detected — will be normalized' }
         }
       }
-
+      if (range < 150) {
+        return {
+          penalty: 5,
+          warning: { type: 'CONTRAST', severity: 'LOW', msg: 'Moderate contrast' }
+        }
+      }
       return { penalty: 0 }
     } catch (error) {
       console.error('[ImageQualityAssessor] Contrast check error:', error.message)

@@ -1620,31 +1620,93 @@ const QUESTION_TYPE_PROMPTS = {
   }
 }
 
+// Map internal questionType keys to the display name we mention to the model.
+// (The model performs notably better when told the human-facing label.)
+const TYPE_LABELS = {
+  mcq: 'MCQ (Multiple Choice Question)',
+  cq: 'Creative Question (সৃজনশীল প্রশ্ন)',
+  short: 'Short Question',
+  broad: 'Broad/Descriptive Question',
+  creative: 'Broad/Descriptive Question',
+  fill_blank: 'Fill-in-the-blank',
+  matching: 'Matching question',
+  true_false: 'True/False statement',
+  math: 'Math problem',
+  passage: 'Reading-comprehension passage with questions',
+  accounting: 'Accounting table',
+  primary_passage: 'Passage with comprehension sub-questions',
+  primary_cq: 'Creative question (ক/খ/গ/ঘ)',
+  primary_science_cq: 'Science scenario with 3 sub-questions',
+  primary_mcq_grid: 'MCQ',
+  acc_mcq: 'Accounting MCQ',
+}
+
 /**
- * Build complete prompt for a question type
+ * Build complete prompt for a question type.
+ *
+ * @param {string} questionType — internal key (mcq, cq, fill_blank, ...)
+ * @param {Object} [opts]
+ * @param {boolean} [opts.single=true] — single-question contract mode.
+ *   The Magic Scan workflow asks teachers to crop ONE question at a time
+ *   AND tell us its type up front. We exploit that contract here: instead
+ *   of "Extract every MCQ" (which lets the model split or hallucinate
+ *   extras), we say "This image contains EXACTLY ONE MCQ — extract it."
+ *   Single-question mode also enables a hard type-match check downstream
+ *   in the validator: if user said MCQ but model returns CQ shape, we
+ *   know to retry with explicit feedback.
+ * @param {string} [opts.feedback] — when set, prepended as "FEEDBACK FROM
+ *   LAST ATTEMPT" so a retry can correct a specific structural error
+ *   (e.g. "Last extraction missed option (ঘ).").
  */
-function buildPrompt(questionType) {
+function buildPrompt(questionType, opts = {}) {
+  const { single = true, feedback = '' } = opts
   const typeConfig = QUESTION_TYPE_PROMPTS[questionType] || QUESTION_TYPE_PROMPTS.mcq
-  
-  const prompt = [
-    typeConfig.instruction,
-    '\n### OUTPUT FORMAT:',
-    JSON.stringify(typeConfig.format, null, 2),
-    '\n### EXAMPLE:',
-    typeConfig.examples,
-    '\n### SPECIAL RULES:',
-    typeConfig.specialRules.map((rule, i) => `${i + 1}. ${rule}`).join('\n'),
-    '\n### REMEMBER:',
-    '- Copy text EXACTLY as it appears in the image',
-    '- Use [unclear] for unreadable text',
-    '- Never guess or substitute words',
-    '- Extract ALL questions, don\'t skip any',
-    '- Return ONLY the JSON array, no markdown, no explanation'
-  ].join('\n')
-  
+  const label = TYPE_LABELS[questionType] || questionType
+
+  // In single mode we override the type's generic instruction with a
+  // one-shot contract. We keep typeConfig.instruction otherwise so callers
+  // that legitimately need multi-extraction (none right now) still work.
+  const headline = single
+    ? `The user has cropped ONE question and told us it is a ${label}.
+This image contains EXACTLY ONE ${label}. Extract it precisely.
+- If the image accidentally shows more than one question, extract only the FIRST complete one.
+- If you cannot find a complete ${label} in this image, return an empty array [].
+- The output type field MUST match the user-selected type: "${typeConfig.format.type || questionType}". Do NOT return a different question type.`
+    : typeConfig.instruction
+
+  const rememberBullets = single
+    ? [
+        '- Copy text EXACTLY as it appears in the image',
+        '- Use [unclear] for any character you are not 100% sure of',
+        '- Never guess or substitute words',
+        '- Return EXACTLY ONE question object in the JSON array',
+        '- Return ONLY the JSON array, no markdown, no explanation',
+      ]
+    : [
+        '- Copy text EXACTLY as it appears in the image',
+        '- Use [unclear] for unreadable text',
+        '- Never guess or substitute words',
+        '- Extract ALL questions, don\'t skip any',
+        '- Return ONLY the JSON array, no markdown, no explanation',
+      ]
+
+  const parts = []
+  if (feedback) {
+    parts.push(`### IMPORTANT FEEDBACK FROM LAST ATTEMPT:\n${feedback}\nPlease look at the image again and fix the error.\n`)
+  }
+  parts.push(headline)
+  parts.push('\n### OUTPUT FORMAT:')
+  parts.push(JSON.stringify(typeConfig.format, null, 2))
+  parts.push('\n### EXAMPLE:')
+  parts.push(typeConfig.examples)
+  parts.push('\n### SPECIAL RULES:')
+  parts.push(typeConfig.specialRules.map((rule, i) => `${i + 1}. ${rule}`).join('\n'))
+  parts.push('\n### REMEMBER:')
+  parts.push(rememberBullets.join('\n'))
+
   return {
     system: SYSTEM_PROMPT,
-    user: prompt
+    user: parts.join('\n'),
   }
 }
 

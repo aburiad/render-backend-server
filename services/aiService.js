@@ -6,6 +6,7 @@ const userApiKeyService = require('./userApiKeyService')
 const imagePreprocessor = require('../utils/imagePreprocessor')
 const imageQualityAssessor = require('../utils/imageQualityAssessor')
 const { buildPrompt } = require('../utils/strictOcrPrompts')
+const { validateQuestion, buildFeedbackPrompt, bnMessageForHardErrors } = require('../utils/questionValidator')
 
 /**
  * Robust JSON-array extraction from any LLM output.
@@ -46,6 +47,13 @@ const PROVIDER_TIMEOUT_MS = Number(process.env.AI_PROVIDER_TIMEOUT_MS) || DEFAUL
 // give it enough headroom to finish before launching fallbacks.
 // Default 8s: Gemini typically responds in 3-7s; fallbacks fire only if slow.
 const HEDGE_DELAY_MS_BASE = Number(process.env.AI_HEDGE_DELAY_MS) || 8000
+
+// Quality window: after a fallback resolves first, we wait this long for
+// the preferred provider (gemini) to ALSO resolve and prefer its answer.
+// Gemini's OCR is typically more accurate than weaker fallbacks like
+// Llama-Scout; a faster-but-wrong answer is worse than a slightly slower
+// correct one when teachers are building real question papers.
+const HEDGE_QUALITY_MS = Number(process.env.AI_HEDGE_QUALITY_MS) || 2000
 
 /**
  * Calculate hedge delay based on image size in the params.
@@ -251,9 +259,33 @@ async function callWithFallback(chain, params, label, userId = null) {
     try {
       // Race: preferred vs hedge-triggered fallbacks.
       // If preferred wins (fast response), hedgeTimer is cleared below.
-      const result = await Promise.race([preferredPromise, hedgePromise])
+      // Quality-aware: when a fallback resolves FIRST, we give the preferred
+      // provider an extra HEDGE_QUALITY_MS to also resolve and prefer its
+      // answer. Speed-only races let weaker-but-faster models overwrite the
+      // higher-quality Gemini transcription on the user's screen.
+      const tag = (p, src) => p.then(r => ({ r, src }), e => { throw Object.assign(e, { _src: src }) })
+
+      const winner = await Promise.race([
+        tag(preferredPromise, 'preferred'),
+        tag(hedgePromise, 'hedge'),
+      ])
       if (hedgeTimer) clearTimeout(hedgeTimer)
-      return result
+
+      if (winner.src === 'preferred') {
+        return winner.r
+      }
+
+      // Fallback won speed race — wait briefly for preferred to catch up.
+      const preferredCatchup = await Promise.race([
+        preferredPromise.then(r => r, () => null),
+        new Promise(resolve => setTimeout(() => resolve(null), HEDGE_QUALITY_MS)),
+      ])
+      if (preferredCatchup) {
+        console.log(`[ai:${label}] preferred (${preferred.provider.name}) caught up in <${HEDGE_QUALITY_MS}ms — using its result over ${winner.r.provider}`)
+        return preferredCatchup
+      }
+      console.log(`[ai:${label}] preferred missed quality window — using ${winner.r.provider} fallback result`)
+      return winner.r
     } catch {
       // Both preferred AND hedge-triggered fallbacks failed.
       // If preferred failed fast (before hedge fired), try remaining fallbacks
@@ -290,39 +322,123 @@ async function callWithFallback(chain, params, label, userId = null) {
  * @param {string|null} userId — when supplied, user's stored API keys are
  *   tried before .env fallback for each provider.
  */
+// ─── Vision token budget per question type ─────────────────────────────────
+//
+// Gemini bills vision input in 768×768 tiles, 258 tokens each. A 3000×4000
+// phone photo = 9 tiles = 2322 tokens. We cap the longest side via
+// preprocessor.opts.maxDim so the model only ever sees as many tiles as the
+// question type actually needs:
+//
+//   768  → 1 tile  ≈ 258 tokens   (simple single-glyph visuals)
+//   1024 → 1-2 tiles ≈ 258-516    (default — standard text questions)
+//   1280 → 2-4 tiles ≈ 516-1032   (dense / multi-element / tables)
+//
+// Going below 768 hurts Bangla matra (ি, ী, ু, ৃ) recognition; going above
+// 1280 burns tokens without measurable accuracy gain on this dataset.
+
+const LOW_RES_TYPES = new Set([
+  // Nursery/KG style — large simple glyphs or counting visuals
+  'primary_tracing',
+  'primary_comparison',
+  'primary_image_matching',
+  'primary_visual_math',
+  'primary_picture_grid',
+  'primary_inline_box',
+])
+
+const HIGH_RES_TYPES = new Set([
+  // Dense multi-element questions
+  'cq',
+  'primary_cq',
+  'primary_science_cq',
+  'primary_passage',
+  'primary_3col_matching',
+  'passage',
+  'summary',
+  'hadith',
+  'arabic',
+  'fiqh',
+  'math',
+  'graph_chart',
+  'primary_graph',
+  // Accounting tables — many columns; 1024 squashes columns past legibility
+  'accounting',
+  'acc_equation',
+  'acc_t_ledger',
+  'acc_moving_ledger',
+  'acc_general_journal',
+  'acc_special_journal',
+  'acc_trial_balance',
+  'acc_financial_stmt',
+])
+
+function maxDimForType(qt) {
+  if (LOW_RES_TYPES.has(qt)) return 768
+  if (HIGH_RES_TYPES.has(qt)) return 1280
+  return 1024
+}
+
+// Question types where color carries signal — red-ink corrections, table-row
+// shading, colored stamps, Arabic text with diacritical marks rendered in
+// color, etc. For these we skip the grayscale step in preprocessing.
+const COLOR_PRESERVING_TYPES = new Set([
+  'accounting',
+  'acc_equation',
+  'acc_t_ledger',
+  'acc_moving_ledger',
+  'acc_general_journal',
+  'acc_special_journal',
+  'acc_trial_balance',
+  'acc_financial_stmt',
+  'acc_mcq',
+  'math',
+  'arabic',
+  'hadith',
+  'fiqh',
+  'graph_chart',
+  'primary_geometry',
+  'primary_graph',
+])
+
 async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, questionType = 'mcq') {
   if (!base64Image) throw new AppError('Image data is missing', 400)
 
-  console.log('[ai:scan] Starting image quality assessment...')
-  
-  // Step 1: Assess image quality
-  const quality = await imageQualityAssessor.assess(base64Image)
-  console.log(`[ai:scan] Image quality: ${quality.score}/100 (${quality.quality})`)
-  
-  if (!quality.isUsable) {
-    throw new AppError(
-      `ইমেজ কোয়ালিটি খুব খারাপ। ${quality.recommendations.join(' ')}`,
-      400
-    )
+  // Step 1: Quality assessment is ADVISORY ONLY. We used to throw a 400
+  // here when score < 60 with the dreaded "ইমেজ কোয়ালিটি খুব খারাপ" popup.
+  // That gate false-rejected normal cropped MCQ snips. Now we just log the
+  // score and let the model decide — modern vision LLMs handle small/soft
+  // crops fine, and treating empty model responses as failure (below) gives
+  // us a much better signal than a heuristic checklist.
+  let quality
+  try {
+    quality = await imageQualityAssessor.assess(base64Image)
+    console.log(`[ai:scan] Image quality: ${quality.score}/100 (${quality.quality}) — ${quality.isUsable ? 'OK' : 'low, proceeding anyway'}`)
+  } catch (err) {
+    console.warn('[ai:scan] Quality assessment failed:', err.message, '— proceeding without preprocessing tier hint')
+    quality = { score: 70, isUsable: true, needsPreprocessing: true, metadata: { sizeKB: 0 } }
   }
-  
-  // Step 2: Apply appropriate preprocessing based on quality
-  console.log(`[ai:scan] Applying ${quality.needsPreprocessing ? 'aggressive' : 'light'} preprocessing...`)
-  
+
+  // Step 2: Preprocess. We never apply destructive transforms (threshold,
+  // median) — see imagePreprocessor.applyProcessingPipeline for why. The
+  // tier just controls how strong the sharpen/contrast bumps are.
+  //
+  // `maxDim` caps the longest side so Gemini bills only as many 768×768
+  // tiles as the question type actually needs (see maxDimForType comment).
+  const preserveColor = COLOR_PRESERVING_TYPES.has(questionType)
+  const maxDim = maxDimForType(questionType)
+  const ppOpts = { preserveColor, maxDim }
+
   let processedImage
   if (quality.score < 70) {
-    // Low quality: aggressive processing
-    processedImage = await imagePreprocessor.aggressiveProcess(base64Image)
+    processedImage = await imagePreprocessor.aggressiveProcess(base64Image, ppOpts)
   } else if (quality.score < 85) {
-    // Medium quality: standard processing
-    processedImage = await imagePreprocessor.process(base64Image)
+    processedImage = await imagePreprocessor.process(base64Image, ppOpts)
   } else {
-    // High quality: light processing only
-    processedImage = await imagePreprocessor.lightProcess(base64Image)
+    processedImage = await imagePreprocessor.lightProcess(base64Image, ppOpts)
   }
-  
-  console.log(`[ai:scan] Preprocessing complete. Original size: ${quality.metadata.sizeKB}KB`)
-  
+
+  console.log(`[ai:scan] Preprocessing complete (preserveColor=${preserveColor}, maxDim=${maxDim}px → ~${Math.ceil(maxDim / 768) ** 2} tiles). Original size: ${quality.metadata?.sizeKB ?? '?'}KB`)
+
   const cleanBase64 = processedImage.replace(/^data:image\/\w+;base64,/, '')
   const dataUrl = `data:${mimeType};base64,${cleanBase64}`
 
@@ -330,32 +446,127 @@ async function scanImage(base64Image, mimeType = 'image/jpeg', userId = null, qu
   const providerNames = config?.aiProviderConfig?.vision_chain || DEFAULT_VISION.map(p => p.name)
   const visionChain = providerNames.map(name => ALL_MAP[name]).filter(Boolean)
 
-  // Use strict OCR prompts for zero-hallucination accuracy
-  const { system: SYSTEM_MSG, user: userPrompt } = buildPrompt(questionType)
+  // Build the messages array. We use the single-question contract (the
+  // Magic Scan workflow has the teacher tell us the type up front, then
+  // crop ONE question). Single mode forbids the model from returning
+  // multiple items or a different type than user picked.
+  const buildMessages = (feedback = '') => {
+    const { system: SYSTEM_MSG, user: userPrompt } = buildPrompt(questionType, {
+      single: true,
+      feedback,
+    })
+    return [
+      { role: 'system', content: SYSTEM_MSG },
+      {
+        role: 'user',
+        content: [
+          { type: 'text', text: userPrompt },
+          { type: 'image_url', image_url: { url: dataUrl } },
+        ],
+      },
+    ]
+  }
 
-  const messages = [
-    {
-      role: 'system',
-      content: SYSTEM_MSG,
-    },
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: userPrompt },
-        { type: 'image_url', image_url: { url: dataUrl } },
-      ],
-    },
-  ]
+  // Vision params shared between first attempt + retries:
+  //   - temperature 0  → deterministic transcription (no creative letter/digit swaps)
+  //   - jsonMode true  → triggers responseMimeType=application/json in gemini.js
+  //   - questionType   → lets gemini.js attach a responseSchema for known types,
+  //     which eliminates field-name hallucination on free-tier Flash Lite
+  //   - topP/topK      → tighter sampling, complements temperature=0
+  //   - maxOutputTokens → guard against truncated arrays on long papers
+  const baseParams = {
+    vision: true,
+    jsonMode: true,
+    temperature: 0,
+    topP: 0.95,
+    topK: 40,
+    maxOutputTokens: 4096,
+    questionType,
+  }
 
-  const { questions, provider, source } = await callWithFallback(
+  let result = await callWithFallback(
     visionChain,
-    // Temperature 0 → deterministic transcription. Higher temp lets the
-    // model "creatively" swap letters/digits, which is the exact failure
-    // mode (x ↔ y, m ↔ n, fraction flip) we are trying to eliminate.
-    { messages, vision: true, jsonMode: false, temperature: 0 },
+    { ...baseParams, messages: buildMessages() },
     'scan',
     userId,
   )
+
+  // ─── Step 3a: Empty-result handling ────────────────────────────────────
+  // Free-tier models occasionally return `[]`. Retry once with the top
+  // Gemini model skipped, then throw 422 if still empty (refunds credit).
+  if (Array.isArray(result.questions) && result.questions.length === 0) {
+    console.warn(`[ai:scan] Empty result from ${result.provider} — retrying once with next model`)
+    const retryParams = { ...baseParams, messages: buildMessages() }
+    if (result.provider === 'gemini') {
+      retryParams._skipModels = ['gemini-3.1-flash-lite']
+    }
+    try {
+      result = await callWithFallback(visionChain, retryParams, 'scan', userId)
+    } catch (err) {
+      console.warn('[ai:scan] Empty-result retry also failed:', err.message)
+    }
+
+    if (!Array.isArray(result.questions) || result.questions.length === 0) {
+      throw new AppError(
+        'ছবি থেকে কোনো প্রশ্ন বের করা গেল না — দয়া করে আরও স্পষ্ট ছবি দিন অথবা ভিন্নভাবে crop করে চেষ্টা করুন।',
+        422,
+      )
+    }
+  }
+
+  // ─── Step 3b: Structural validation against user-selected type ─────────
+  // Because the teacher told us the type before the AI saw the image, we
+  // can hard-check the model's output. If the AI returned the wrong shape
+  // (3 options on an MCQ, no stimulus on a CQ, type mismatch), retry ONCE
+  // with explicit feedback. If still wrong, throw 422 with a specific
+  // Bangla message so the teacher knows exactly what to re-crop.
+  const validations = result.questions.map(q => validateQuestion(q, questionType))
+  let allHard = validations.flatMap(v => v.hard)
+
+  if (allHard.length > 0) {
+    const feedback = buildFeedbackPrompt(allHard, questionType)
+    console.warn(`[ai:scan] Validation hard errors after pass 1: ${allHard.join(', ')} — retrying with feedback`)
+
+    const retryParams = {
+      ...baseParams,
+      messages: buildMessages(feedback),
+      // On a structural retry we want the BEST model to take a fresh look —
+      // skip the top of the cascade since it just failed structure check.
+      _skipModels: result.provider === 'gemini' ? ['gemini-3.1-flash-lite'] : [],
+    }
+
+    try {
+      const retryResult = await callWithFallback(visionChain, retryParams, 'scan', userId)
+      // Only accept the retry if it has at least one question AND its
+      // validation is no worse than pass 1.
+      if (Array.isArray(retryResult.questions) && retryResult.questions.length > 0) {
+        const retryValidations = retryResult.questions.map(q => validateQuestion(q, questionType))
+        const retryHard = retryValidations.flatMap(v => v.hard)
+        if (retryHard.length < allHard.length) {
+          result = retryResult
+          allHard = retryHard
+          // Re-attach soft warnings from the retry's validations below.
+          validations.length = 0
+          validations.push(...retryValidations)
+          console.log(`[ai:scan] Retry improved validation (${retryHard.length} hard errors remaining)`)
+        }
+      }
+    } catch (err) {
+      console.warn('[ai:scan] Validation-feedback retry failed:', err.message)
+    }
+
+    if (allHard.length > 0) {
+      throw new AppError(bnMessageForHardErrors(allHard, questionType), 422)
+    }
+  }
+
+  // ─── Step 3c: Attach soft warnings so the review UI can flag fields ────
+  const { questions, provider, source } = result
+  questions.forEach((q, i) => {
+    const soft = validations[i]?.soft || []
+    if (soft.length > 0) q._warnings = soft
+  })
+
   return { questions, count: questions.length, provider, source }
 }
 
